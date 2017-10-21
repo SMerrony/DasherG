@@ -248,7 +248,8 @@ func drawCrt() {
 // }
 func updateCrt(crt *gtk.DrawingArea, t *Terminal) {
 	var cIx int
-	drawable := crt.GetWindow().GetDrawable()
+	gWin := crt.GetWindow()
+	drawable := gWin.GetDrawable()
 	gc := gdk.NewGC(drawable)
 	_ = gc
 	for {
