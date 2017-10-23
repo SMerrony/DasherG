@@ -49,9 +49,12 @@ var (
 	hostChan, keyboardChan chan []byte
 	updateChan             chan bool
 
-	gc     *gdk.GC
-	crt    *gtk.DrawingArea
-	gdkWin *gdk.Window
+	gc              *gdk.GC
+	crt             *gtk.DrawingArea
+	colormap        *gdk.Colormap
+	offScreenPixmap *gdk.Pixmap
+	win             *gtk.Window
+	gdkWin          *gdk.Window
 )
 
 func main() {
@@ -67,12 +70,11 @@ func main() {
 	status.setup()
 	terminal = &Terminal{}
 	terminal.setup(status, updateChan)
-	win := gtk.NewWindow(gtk.WINDOW_TOPLEVEL)
+	win = gtk.NewWindow(gtk.WINDOW_TOPLEVEL)
 	setupWindow(win)
 	win.SetTitle(appTitle)
 	win.Connect("destroy", gtk.MainQuit)
 	win.ShowAll()
-
 	gdkWin = crt.GetWindow()
 
 	gtk.Main()
@@ -201,25 +203,27 @@ func aboutDialog() {
 func buildCrt() *gtk.DrawingArea {
 	crt := gtk.NewDrawingArea()
 	crt.SetSizeRequest(80*charWidth, 24*charHeight)
-	// crt.Connect("configure-event", func() {
-	// 	// if pixmap != nil {
-	// 	// 	pixmap.Unref()
-	// 	// }
-	// 	allocation := crt.GetAllocation()
-	// 	pixmap := gdk.NewPixmap(crt.GetWindow().GetDrawable(), allocation.Width, allocation.Height, 24)
-	// 	gc = gdk.NewGC(pixmap.GetDrawable())
-	// 	gc.SetRgbFgColor(gdk.NewColor("black"))
-	// 	pixmap.GetDrawable().DrawRectangle(gc, true, 0, 0, -1, -1)
-	// 	gc.SetRgbFgColor(gdk.NewColor("red"))
-	// 	gc.SetRgbBgColor(gdk.NewColor("black"))
-	// 	fmt.Println("configure-event handled")
-	// })
+
+	crt.Connect("configure-event", func() {
+		if offScreenPixmap != nil {
+			offScreenPixmap.Unref()
+		}
+		//allocation := crt.GetAllocation()
+		offScreenPixmap = gdk.NewPixmap(crt.GetWindow().GetDrawable(), 80*charWidth, 24*charHeight, 24)
+
+		gc = gdk.NewGC(offScreenPixmap.GetDrawable())
+		//gc.SetRgbFgColor(gdk.NewColor("black"))
+		offScreenPixmap.GetDrawable().DrawRectangle(gc, true, 0, 0, -1, -1)
+		//gc.SetRgbFgColor(gdk.NewColor("red"))
+		//gc.SetRgbBgColor(gdk.NewColor("black"))
+		fmt.Println("configure-event handled")
+	})
 
 	crt.Connect("expose-event", func() {
 		// if pixmap == nil {
 		// 	return
 		// }
-		//gdkWin.GetDrawable().DrawDrawable(gc, pixmap.GetDrawable(), 0, 0, 0, 0, -1, -1)
+		gdkWin.GetDrawable().DrawDrawable(gc, offScreenPixmap.GetDrawable(), 0, 0, 0, 0, -1, -1)
 		fmt.Println("expose-event handled")
 	})
 	return crt
