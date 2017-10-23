@@ -153,7 +153,7 @@ func (t *Terminal) selfTest(hostChan chan []byte) {
 	hostChan <- []byte{dasherCmd}
 	hostChan <- []byte("E")
 	hostChan <- []byte("\n")
-	for i := 8; i < t.visibleLines; i++ {
+	for i := 8; i <= t.visibleLines; i++ {
 		hostChan <- []byte(fmt.Sprintf("%d", i))
 		hostChan <- []byte("\n")
 	}
@@ -252,7 +252,26 @@ func (t *Terminal) processHostData(hostData []byte) {
 
 		// FIXME lots of code omitted
 
+		// Short commands
+		if t.inCommand {
+			switch ch {
+			//case 'C': // requires response
+			case 'D':
+				t.reversedVideo = true
+				skipChar = true
+			case 'E':
+				t.reversedVideo = false
+				skipChar = true
+			default:
+				fmt.Println("Warning: unrecognise Break-CMD code")
+			}
+			t.inCommand = false
+			continue
+		}
+
 		switch ch {
+		case dasherNul:
+			skipChar = true
 		case dasherBlinkOn:
 			t.blinking = true
 			skipChar = true
@@ -276,6 +295,9 @@ func (t *Terminal) processHostData(hostData []byte) {
 		case dasherNormal:
 			t.underscored = false
 			skipChar = true
+		case dasherCmd:
+			t.inCommand = true
+			skipChar = true
 		}
 
 		if skipChar {
@@ -284,7 +306,7 @@ func (t *Terminal) processHostData(hostData []byte) {
 
 		// wrap due to hitting margin or new line?
 		if t.cursorX == t.visibleCols || ch == dasherNewLine {
-			if t.cursorY == t.visibleLines-1 { // hit bottom of screen
+			if t.cursorY == t.visibleLines { // hit bottom of screen
 				if t.rollEnabled {
 					t.scrollUp(1)
 				} else {
