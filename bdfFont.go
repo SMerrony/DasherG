@@ -19,20 +19,13 @@ const (
 )
 
 type bdfChar struct {
-	loaded bool
-	//pixmap, dimPixmap, reversePixmap gdk.Pixmap
-	pixbuf *gdkpixbuf.Pixbuf
+	loaded                           bool
+	pixbuf, dimPixbuf, reversePixbuf *gdkpixbuf.Pixbuf
 }
 
 var bdfFont [maxChars]bdfChar
 
 func bdfLoad(filename string) {
-	// for c := range bdfFont {
-	// 	bdfFont[c].loaded = false
-	// 	//bdfFont[c].pixmap = gdkpixbuf.NewPixbuf(gdkpixbuf.GDK_COLORSPACE_RGB, false, bpp, charWidth, charHeight)
-	// 	//bdfFont[c].dimPixmap = gdkpixbuf.NewPixbuf(gdkpixbuf.GDK_COLORSPACE_RGB, false, bpp, charWidth, charHeight)
-	// 	//bdfFont[c].reversePixmap = gdkpixbuf.NewPixbuf(gdkpixbuf.GDK_COLORSPACE_RGB, false, bpp, charWidth, charHeight)
-	// }
 
 	fontFile, err := os.Open(filename)
 	if err != nil {
@@ -54,7 +47,8 @@ func bdfLoad(filename string) {
 
 	for cc := 0; cc < charCount; cc++ {
 		tmpPixbuf := gdkpixbuf.NewPixbuf(gdkpixbuf.GDK_COLORSPACE_RGB, false, bpp, charWidth, charHeight)
-		//var tmpPixmap gdk.Pixmap
+		tmpDimPixbuf := gdkpixbuf.NewPixbuf(gdkpixbuf.GDK_COLORSPACE_RGB, false, bpp, charWidth, charHeight)
+		tmpRevPixbuf := gdkpixbuf.NewPixbuf(gdkpixbuf.GDK_COLORSPACE_RGB, false, bpp, charWidth, charHeight)
 
 		for !strings.HasPrefix(scanner.Text(), "STARTCHAR") {
 			scanner.Scan()
@@ -82,6 +76,9 @@ func bdfLoad(filename string) {
 		// skip the BITMAP line
 		scanner.Scan()
 		// load the actual bitmap for this char a row at a time from the top down
+		tmpPixbuf.Fill(0)
+		tmpDimPixbuf.Fill(0)
+		tmpRevPixbuf.Fill(255 << 16)
 		for bitMapLine := pixHeight - 1; bitMapLine >= 0; bitMapLine-- {
 			scanner.Scan()
 			lineStr := scanner.Text()
@@ -91,13 +88,16 @@ func bdfLoad(filename string) {
 				if pix {
 					nChannels := tmpPixbuf.GetNChannels()
 					rowStride := tmpPixbuf.GetRowstride()
-					pixels := tmpPixbuf.GetPixels()
-					pixels[(yOffset*rowStride)+(xOffset*nChannels)] = 255
+					tmpPixbuf.GetPixels()[((yOffset+bitMapLine)*rowStride)+((xOffset+i)*nChannels)+1] = 255
+					tmpDimPixbuf.GetPixels()[((yOffset+bitMapLine)*rowStride)+((xOffset+i)*nChannels)+1] = 128
+					tmpRevPixbuf.GetPixels()[((yOffset+bitMapLine)*rowStride)+((xOffset+i)*nChannels)+1] = 0
 				}
 				lineByte <<= 1
 			}
 		}
-		bdfFont[asciiCode].pixbuf = tmpPixbuf
+		bdfFont[asciiCode].pixbuf = tmpPixbuf.Flip(true).RotateSimple(180)
+		bdfFont[asciiCode].dimPixbuf = tmpDimPixbuf.Flip(true).RotateSimple(180)
+		bdfFont[asciiCode].reversePixbuf = tmpRevPixbuf.Flip(true).RotateSimple(180)
 		bdfFont[asciiCode].loaded = true
 	}
 	fmt.Printf("bdfFont loaded %d characters\n", charCount)

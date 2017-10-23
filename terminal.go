@@ -49,6 +49,7 @@ func (t *Terminal) setup(pStatus *Status, update chan bool) {
 	t.protectd = false
 
 	t.clearScreen()
+	t.display[0][0].charValue = '0'
 	t.display[1][1].charValue = '1'
 	t.display[2][2].charValue = '2'
 	t.display[12][39].charValue = 'O'
@@ -152,6 +153,10 @@ func (t *Terminal) selfTest(hostChan chan []byte) {
 	hostChan <- []byte{dasherCmd}
 	hostChan <- []byte("E")
 	hostChan <- []byte("\n")
+	for i := 8; i < t.visibleLines; i++ {
+		hostChan <- []byte(fmt.Sprintf("%d", i))
+		hostChan <- []byte("\n")
+	}
 }
 
 func (t *Terminal) processHostData(hostData []byte) {

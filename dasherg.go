@@ -33,7 +33,7 @@ import (
 const (
 	appID        = "uk.co.merrony.dasherg"
 	appTitle     = "DasherG"
-	appCopyright = "2017 S.Merrony"
+	appCopyright = "Copyright 2017 S.Merrony"
 	appVersion   = "0.1 alpha"
 
 	fontFile     = "D410-b-12.bdf"
@@ -179,26 +179,13 @@ func buildMenu() *gtk.MenuBar {
 
 func aboutDialog() {
 	ad := gtk.NewAboutDialog()
-	ad.SetName(appTitle)
+	ad.SetTitle(appTitle)
 	ad.SetAuthors(appAuthors)
 	ad.SetVersion(appVersion)
 	ad.SetCopyright(appCopyright)
 	ad.Run()
 	ad.Destroy()
 }
-
-// func buildCrt() (*gtk.TextView, *gtk.TextBuffer) {
-// 	crt := gtk.NewTextView()
-// 	crt.SetEditable(false)
-// 	crt.ModifyFontEasy("Monospace 12px")
-// 	crt.ModifyBG(gtk.STATE_NORMAL, gdk.NewColor("black"))
-// 	crt.ModifyFG(gtk.STATE_NORMAL, gdk.NewColorRGB(0, 255, 0))
-// 	crt.SetSizeRequest(80*10, 24*12)
-// 	crtBuff := crt.GetBuffer()
-
-// 	crtBuff.SetText("Hello")
-// 	return crt, crtBuff
-// }
 
 func buildCrt() *gtk.DrawingArea {
 	crt := gtk.NewDrawingArea()
@@ -212,10 +199,7 @@ func buildCrt() *gtk.DrawingArea {
 		offScreenPixmap = gdk.NewPixmap(crt.GetWindow().GetDrawable(), 80*charWidth, 24*charHeight, 24)
 
 		gc = gdk.NewGC(offScreenPixmap.GetDrawable())
-		//gc.SetRgbFgColor(gdk.NewColor("black"))
 		offScreenPixmap.GetDrawable().DrawRectangle(gc, true, 0, 0, -1, -1)
-		//gc.SetRgbFgColor(gdk.NewColor("red"))
-		//gc.SetRgbBgColor(gdk.NewColor("black"))
 		fmt.Println("configure-event handled")
 	})
 
@@ -233,41 +217,31 @@ func drawCrt() {
 	fmt.Println("drawCrt called")
 }
 
-// func updateCrt(buff *gtk.TextBuffer, t *Terminal) {
-// 	var s string
-// 	for {
-// 		_ = <-updateChan
-// 		text := bytes.NewBufferString(s)
-// 		for line := 0; line < t.visibleLines; line++ {
-// 			for col := 0; col < t.visibleCols; col++ {
-// 				text.WriteByte(t.display[line][col].charValue)
-// 			}
-// 			text.WriteByte('\n')
-// 		}
-// 		gdk.ThreadsEnter()
-// 		buff.SetText(text.String())
-// 		gdk.ThreadsLeave()
-// 		//fmt.Printf("CRT text replaced with...\n%s\n", text.String())
-// 	}
-// }
 func updateCrt(crt *gtk.DrawingArea, t *Terminal) {
 	var cIx int
-	gWin := crt.GetWindow()
-	drawable := gWin.GetDrawable()
-	gc := gdk.NewGC(drawable)
-	_ = gc
+
 	for {
 		_ = <-updateChan
 		gdk.ThreadsEnter()
+		drawable := offScreenPixmap.GetDrawable()
 		for line := 0; line < t.visibleLines; line++ {
 			for col := 0; col < t.visibleCols; col++ {
 				cIx = int(t.display[line][col].charValue)
-				_ = cIx
-				//drawable.DrawPixbuf(gc, bdfFont[cIx].pixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
+				if cIx > 31 && cIx < 128 {
+					switch {
+					case t.display[line][col].reverse:
+						drawable.DrawPixbuf(gc, bdfFont[cIx].reversePixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
+					case t.display[line][col].dim:
+						drawable.DrawPixbuf(gc, bdfFont[cIx].dimPixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
+					default:
+						drawable.DrawPixbuf(gc, bdfFont[cIx].pixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
+					}
+				}
 			}
 		}
 		gdk.ThreadsLeave()
-		fmt.Println("updateCrt called")
+		gdkWin.Invalidate(nil, false)
+		//fmt.Println("updateCrt called")
 	}
 }
 func buildStatusBar() *gtk.Statusbar {
