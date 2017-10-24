@@ -9,10 +9,10 @@ const (
 )
 
 type Terminal struct {
-	visibleLines, visibleCols                    int
-	cursorX, cursorY                             int
-	rollEnabled, blinkEnabled, protectionEnabled bool
-	display                                      [totalLines][totalCols]Cell
+	visibleLines, visibleCols                                int
+	cursorX, cursorY                                         int
+	rollEnabled, blinkEnabled, blinkState, protectionEnabled bool
+	display                                                  [totalLines][totalCols]Cell
 
 	status     *Status
 	updateChan chan bool
@@ -116,8 +116,8 @@ func (t *Terminal) selfTest(hostChan chan []byte) {
 		testLineN      = "3 Normal : "
 		testLineD      = "4 Dim    : "
 		testLineB      = "5 Blink  : "
-		testLineU      = "6 Under  : "
-		testLineR      = "7 Reverse: "
+		testLineR      = "6 Reverse: "
+		testLineU      = "7 Under  : "
 		ba             []byte
 	)
 	ba = []byte{dasherErasePage}
@@ -140,12 +140,6 @@ func (t *Terminal) selfTest(hostChan chan []byte) {
 	hostChan <- []byte{dasherBlinkOff}
 	hostChan <- []byte("\n")
 
-	hostChan <- []byte(testLineU)
-	hostChan <- []byte{dasherUnderline}
-	hostChan <- []byte(testLine1)
-	hostChan <- []byte{dasherNormal}
-	hostChan <- []byte("\n")
-
 	hostChan <- []byte(testLineR)
 	hostChan <- []byte{dasherCmd}
 	hostChan <- []byte("D")
@@ -153,9 +147,14 @@ func (t *Terminal) selfTest(hostChan chan []byte) {
 	hostChan <- []byte{dasherCmd}
 	hostChan <- []byte("E")
 	hostChan <- []byte("\n")
+
+	hostChan <- []byte(testLineU)
+	hostChan <- []byte{dasherUnderline}
+	hostChan <- []byte(testLine1)
+	hostChan <- []byte{dasherNormal}
+
 	for i := 8; i <= t.visibleLines; i++ {
-		hostChan <- []byte(fmt.Sprintf("%d", i))
-		hostChan <- []byte("\n")
+		hostChan <- []byte(fmt.Sprintf("\n%d", i))
 	}
 }
 
@@ -306,7 +305,7 @@ func (t *Terminal) processHostData(hostData []byte) {
 
 		// wrap due to hitting margin or new line?
 		if t.cursorX == t.visibleCols || ch == dasherNewLine {
-			if t.cursorY == t.visibleLines { // hit bottom of screen
+			if t.cursorY == t.visibleLines-1 { // hit bottom of screen
 				if t.rollEnabled {
 					t.scrollUp(1)
 				} else {

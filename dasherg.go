@@ -24,6 +24,9 @@ package main
 import (
 	"fmt"
 	"os"
+	"runtime"
+	"sync"
+	"time"
 
 	"github.com/mattn/go-gtk/gdk"
 	"github.com/mattn/go-gtk/glib"
@@ -46,6 +49,7 @@ var appAuthors = []string{"Stephen Merrony"}
 var (
 	status                 *Status
 	terminal               *Terminal
+	mainFuncChan           = make(chan func())
 	hostChan, keyboardChan chan []byte
 	updateChan             chan bool
 
@@ -55,13 +59,17 @@ var (
 	offScreenPixmap *gdk.Pixmap
 	win             *gtk.Window
 	gdkWin          *gdk.Window
+	gtkMutex        sync.Mutex
+	alive           bool
+
+	green       *gdk.Color
+	blinkTicker = time.NewTicker(time.Millisecond * 500)
 )
 
 func main() {
-	glib.ThreadInit(nil)
-	gdk.ThreadsInit()
-	gdk.ThreadsEnter()
+	runtime.LockOSThread() // we need main to run on the main thread for Gtk to work properly
 	gtk.Init(&os.Args)
+	green = gdk.NewColorRGB(0, 255, 0)
 	bdfLoad(fontFile)
 	hostChan = make(chan []byte, hostBuffSize)
 	keyboardChan = make(chan []byte, keyBuffSize)
@@ -77,7 +85,29 @@ func main() {
 	win.ShowAll()
 	gdkWin = crt.GetWindow()
 
-	gtk.Main()
+	for {
+		select {
+		case f := <-mainFuncChan:
+			gtkMutex.Lock()
+			f()
+			gtkMutex.Unlock()
+		default:
+			gtkMutex.Lock()
+			alive = gtk.MainIterationDo(false)
+			gtkMutex.Unlock()
+			if !alive {
+				return
+			}
+		}
+	}
+}
+func doOnMainThread(f func()) {
+	done := make(chan bool, 1)
+	mainFuncChan <- func() {
+		f()
+		done <- true
+	}
+	<-done
 }
 
 func setupWindow(win *gtk.Window) {
@@ -86,10 +116,15 @@ func setupWindow(win *gtk.Window) {
 	win.SetDefaultSize(800, 600)
 	vbox := gtk.NewVBox(false, 1)
 	vbox.PackStart(buildMenu(), false, false, 0)
-	//crt, crtBuff := buildCrt()
 	crt = buildCrt()
 	go updateCrt(crt, terminal)
 	go hostListener()
+	go func() {
+		for _ = range blinkTicker.C {
+			terminal.blinkState = !terminal.blinkState
+			terminal.updateChan <- true
+		}
+	}()
 	vbox.PackStart(crt, false, false, 1)
 	statusBar := buildStatusBar()
 	vbox.PackEnd(statusBar, false, false, 0)
@@ -222,25 +257,32 @@ func updateCrt(crt *gtk.DrawingArea, t *Terminal) {
 
 	for {
 		_ = <-updateChan
-		gdk.ThreadsEnter()
-		drawable := offScreenPixmap.GetDrawable()
-		for line := 0; line < t.visibleLines; line++ {
-			for col := 0; col < t.visibleCols; col++ {
-				cIx = int(t.display[line][col].charValue)
-				if cIx > 31 && cIx < 128 {
-					switch {
-					case t.display[line][col].reverse:
-						drawable.DrawPixbuf(gc, bdfFont[cIx].reversePixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
-					case t.display[line][col].dim:
-						drawable.DrawPixbuf(gc, bdfFont[cIx].dimPixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
-					default:
-						drawable.DrawPixbuf(gc, bdfFont[cIx].pixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
+		doOnMainThread(func() {
+			drawable := offScreenPixmap.GetDrawable()
+			for line := 0; line < t.visibleLines; line++ {
+				for col := 0; col < t.visibleCols; col++ {
+					cIx = int(t.display[line][col].charValue)
+					if cIx > 31 && cIx < 128 {
+						switch {
+						case t.blinkEnabled && t.blinkState && t.display[line][col].blink:
+							drawable.DrawPixbuf(gc, bdfFont[32].pixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
+						case t.display[line][col].reverse:
+							drawable.DrawPixbuf(gc, bdfFont[cIx].reversePixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
+						case t.display[line][col].dim:
+							drawable.DrawPixbuf(gc, bdfFont[cIx].dimPixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
+						default:
+							drawable.DrawPixbuf(gc, bdfFont[cIx].pixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
+						}
+					}
+					// underscore?
+					if t.display[line][col].underscore {
+						gc.SetRgbFgColor(green)
+						drawable.DrawLine(gc, col*charWidth, ((line+1)*charHeight)-1, (col+1)*charWidth, ((line+1)*charHeight)-1)
 					}
 				}
 			}
-		}
-		gdk.ThreadsLeave()
-		gdkWin.Invalidate(nil, false)
+			gdkWin.Invalidate(nil, false)
+		})
 		//fmt.Println("updateCrt called")
 	}
 }
