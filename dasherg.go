@@ -27,17 +27,21 @@ import (
 	"runtime"
 	"sync"
 	"time"
+	"unsafe"
+
+	"github.com/mattn/go-gtk/glib"
 
 	"github.com/mattn/go-gtk/gdk"
-	"github.com/mattn/go-gtk/glib"
 	"github.com/mattn/go-gtk/gtk"
 )
 
 const (
 	appID        = "uk.co.merrony.dasherg"
 	appTitle     = "DasherG"
+	appComment   = "A Data General DASHER terminal emulator"
 	appCopyright = "Copyright 2017 S.Merrony"
 	appVersion   = "0.1 alpha"
+	appWebsite   = "https://github.com/SMerrony/aosvs-tools"
 
 	fontFile     = "D410-b-12.bdf"
 	hostBuffSize = 2048
@@ -51,6 +55,7 @@ var (
 	terminal               *Terminal
 	mainFuncChan           = make(chan func())
 	hostChan, keyboardChan chan []byte
+	localListenerStopChan  = make(chan bool)
 	updateChan             chan bool
 
 	gc              *gdk.GC
@@ -73,6 +78,7 @@ func main() {
 	bdfLoad(fontFile)
 	hostChan = make(chan []byte, hostBuffSize)
 	keyboardChan = make(chan []byte, keyBuffSize)
+	go localListener()
 	updateChan = make(chan bool, hostBuffSize)
 	status = &Status{}
 	status.setup()
@@ -80,8 +86,6 @@ func main() {
 	terminal.setup(status, updateChan)
 	win = gtk.NewWindow(gtk.WINDOW_TOPLEVEL)
 	setupWindow(win)
-	win.SetTitle(appTitle)
-	win.Connect("destroy", gtk.MainQuit)
 	win.ShowAll()
 	gdkWin = crt.GetWindow()
 
@@ -112,8 +116,17 @@ func doOnMainThread(f func()) {
 
 func setupWindow(win *gtk.Window) {
 	win.SetTitle(appTitle)
-	win.Connect("destroy", func(ctx *glib.CallbackContext) { gtk.MainQuit() }, "foo")
+	win.Connect("destroy", func() { os.Exit(0) })
 	win.SetDefaultSize(800, 600)
+	go keyEventHandler()
+	win.Connect("key-press-event", func(ctx *glib.CallbackContext) {
+		arg := ctx.Args(0)
+		keyEventChan <- *(**gdk.EventKey)(unsafe.Pointer(&arg))
+	})
+	win.Connect("key-release-event", func(ctx *glib.CallbackContext) {
+		arg := ctx.Args(0)
+		keyEventChan <- *(**gdk.EventKey)(unsafe.Pointer(&arg))
+	})
 	vbox := gtk.NewVBox(false, 1)
 	vbox.PackStart(buildMenu(), false, false, 0)
 	crt = buildCrt()
@@ -137,6 +150,17 @@ func hostListener() {
 	}
 }
 
+func localListener() {
+	for {
+		select {
+		case kev := <-keyboardChan:
+			hostChan <- kev
+		case <-localListenerStopChan:
+			return
+		}
+	}
+}
+
 func buildMenu() *gtk.MenuBar {
 	menuBar := gtk.NewMenuBar()
 
@@ -152,7 +176,7 @@ func buildMenu() *gtk.MenuBar {
 
 	quitMenuItem := gtk.NewMenuItemWithLabel("Quit")
 	subMenu.Append(quitMenuItem)
-	quitMenuItem.Connect("activate", func() { gtk.MainQuit() })
+	quitMenuItem.Connect("activate", func() { os.Exit(0) })
 
 	viewMenuItem := gtk.NewMenuItemWithLabel("View")
 	menuBar.Append(viewMenuItem)
@@ -214,10 +238,11 @@ func buildMenu() *gtk.MenuBar {
 
 func aboutDialog() {
 	ad := gtk.NewAboutDialog()
-	ad.SetTitle(appTitle)
+	ad.SetProgramName(appTitle)
 	ad.SetAuthors(appAuthors)
 	ad.SetVersion(appVersion)
 	ad.SetCopyright(appCopyright)
+	ad.SetWebsite(appWebsite)
 	ad.Run()
 	ad.Destroy()
 }
@@ -276,8 +301,11 @@ func updateCrt(crt *gtk.DrawingArea, t *Terminal) {
 					}
 					// underscore?
 					if t.display[line][col].underscore {
-						gc.SetRgbFgColor(green)
+						//gc.SetRgbFgColor(green)
+						gc.SetForeground(gdk.NewColor("red"))
+						gc.SetBackground(gdk.NewColor("blue"))
 						drawable.DrawLine(gc, col*charWidth, ((line+1)*charHeight)-1, (col+1)*charWidth, ((line+1)*charHeight)-1)
+						//drawable.DrawRectangle(gc, true, col*charWidth, ((line+1)*charHeight)-5, charWidth, 17)
 					}
 				}
 			}
@@ -286,6 +314,7 @@ func updateCrt(crt *gtk.DrawingArea, t *Terminal) {
 		//fmt.Println("updateCrt called")
 	}
 }
+
 func buildStatusBar() *gtk.Statusbar {
 	statusBar := gtk.NewStatusbar()
 
