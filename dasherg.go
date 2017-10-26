@@ -22,9 +22,12 @@
 package main
 
 import (
+	"flag"
 	"fmt"
+	"log"
 	"os"
 	"runtime"
+	"runtime/pprof"
 	"strconv"
 	"sync"
 	"time"
@@ -77,7 +80,19 @@ var (
 	blinkTicker = time.NewTicker(time.Millisecond * 500)
 )
 
+var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
+
 func main() {
+	flag.Parse()
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
+
 	runtime.LockOSThread() // we need main to run on the main thread for Gtk to work properly
 	gtk.Init(&os.Args)
 	green = gdk.NewColorRGB(0, 255, 0)
@@ -100,7 +115,10 @@ func main() {
 			gtkMutex.Unlock()
 		default:
 			gtkMutex.Lock()
-			alive = gtk.MainIterationDo(false)
+			if gtk.EventsPending() {
+				alive = gtk.MainIterationDo(false)
+			}
+			time.Sleep(10 * time.Millisecond)
 			gtkMutex.Unlock()
 			if !alive {
 				return
@@ -174,7 +192,10 @@ func buildMenu() *gtk.MenuBar {
 
 	quitMenuItem := gtk.NewMenuItemWithLabel("Quit")
 	subMenu.Append(quitMenuItem)
-	quitMenuItem.Connect("activate", func() { os.Exit(0) })
+	quitMenuItem.Connect("activate", func() {
+		pprof.StopCPUProfile()
+		os.Exit(0)
+	})
 
 	viewMenuItem := gtk.NewMenuItemWithLabel("View")
 	menuBar.Append(viewMenuItem)

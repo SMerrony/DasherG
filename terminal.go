@@ -329,10 +329,25 @@ func (t *Terminal) run() {
 			case dasherDimOff:
 				t.dimmed = false
 				skipChar = true
+			case dasherEraseEol:
+				for col := t.cursorX; col < t.visibleCols; col++ {
+					t.display[t.cursorY][col].clearToSpace()
+				}
+				skipChar = true
 			case dasherErasePage:
 				t.clearScreen()
 				t.cursorX = 0
 				t.cursorY = 0
+				skipChar = true
+			case dasherHome:
+				t.cursorX = 0
+				t.cursorY = 0
+				skipChar = true
+			case dasherRollDisable:
+				t.rollEnabled = false
+				skipChar = true
+			case dasherRollEnable:
+				t.rollEnabled = true
 				skipChar = true
 			case dasherUnderline:
 				t.underscored = true
@@ -340,6 +355,7 @@ func (t *Terminal) run() {
 			case dasherNormal:
 				t.underscored = false
 				skipChar = true
+			// case dasherRevVideoOff:
 			case dasherWriteWindowAddr:
 				t.readingWindowAddressX = true
 				skipChar = true
@@ -382,8 +398,9 @@ func (t *Terminal) run() {
 			t.display[t.cursorY][t.cursorX].set(ch, t.blinking, t.dimmed, t.reversedVideo, t.underscored, t.protectd)
 			t.cursorX++
 			t.rwMutex.Unlock()
-			t.updateCrtChan <- updateCrtNormal
+			//t.updateCrtChan <- updateCrtNormal
 		}
+		t.updateCrtChan <- updateCrtNormal
 	}
 
 	// if !skipChar {
