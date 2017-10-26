@@ -6,25 +6,29 @@ import (
 	"github.com/mattn/go-gtk/gdk"
 )
 
-var keyEventChan = make(chan *gdk.EventKey)
+var (
+	keyPressEventChan   = make(chan *gdk.EventKey, keyBuffSize)
+	keyReleaseEventChan = make(chan *gdk.EventKey, keyBuffSize)
+)
 
 func keyEventHandler() {
-	//ctrlModifier := false
 	for {
-		keyEvent := <-keyEventChan
-		fmt.Println("key-event: ", keyEvent.Keyval)
-		fmt.Println("key-ismodifier: ", keyEvent.IsModifier)
-		fmt.Println("key-state: ", keyEvent.State)
-		// if keyEvent. == gdk.CONTROL_MASK {
-		// 	fmt.Println("Caught key press")
-		// }
-		switch keyEvent.Keyval {
+		select {
+		case _ = <-keyPressEventChan:
+			fmt.Println("keyEventHandler got press event")
 
-		case gdk.KEY_F1:
+		case keyReleaseEvent := <-keyReleaseEventChan:
+			fmt.Println("keyEventHandler got release event")
+			switch keyReleaseEvent.Keyval {
 
-		default:
-			keyStr := fmt.Sprintf("%c", keyEvent.Keyval)
-			keyboardChan <- []byte(keyStr)
+			case gdk.KEY_Escape:
+				keyboardChan <- byte('\036')
+
+			case gdk.KEY_F1:
+
+			default:
+				keyboardChan <- byte(keyReleaseEvent.Keyval)
+			}
 		}
 	}
 }

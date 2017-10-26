@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"strconv"
 	"sync"
 	"time"
 	"unsafe"
@@ -46,17 +47,21 @@ const (
 	fontFile     = "D410-b-12.bdf"
 	hostBuffSize = 2048
 	keyBuffSize  = 200
+
+	updateCrtNormal = 1
+	updateCrtBlink  = 2
 )
 
 var appAuthors = []string{"Stephen Merrony"}
 
 var (
-	status                 *Status
-	terminal               *Terminal
-	mainFuncChan           = make(chan func())
-	hostChan, keyboardChan chan []byte
-	localListenerStopChan  = make(chan bool)
-	updateChan             chan bool
+	status                *Status
+	terminal              *Terminal
+	mainFuncChan          = make(chan func(), 8)
+	hostChan              = make(chan []byte, hostBuffSize)
+	keyboardChan          = make(chan byte, keyBuffSize)
+	localListenerStopChan = make(chan bool)
+	updateCrtChan         = make(chan int, hostBuffSize)
 
 	gc              *gdk.GC
 	crt             *gtk.DrawingArea
@@ -66,6 +71,7 @@ var (
 	gdkWin          *gdk.Window
 	gtkMutex        sync.Mutex
 	alive           bool
+	blinkState      bool
 
 	green       *gdk.Color
 	blinkTicker = time.NewTicker(time.Millisecond * 500)
@@ -76,14 +82,11 @@ func main() {
 	gtk.Init(&os.Args)
 	green = gdk.NewColorRGB(0, 255, 0)
 	bdfLoad(fontFile)
-	hostChan = make(chan []byte, hostBuffSize)
-	keyboardChan = make(chan []byte, keyBuffSize)
 	go localListener()
-	updateChan = make(chan bool, hostBuffSize)
 	status = &Status{}
 	status.setup()
 	terminal = &Terminal{}
-	terminal.setup(status, updateChan)
+	terminal.setup(status, updateCrtChan)
 	win = gtk.NewWindow(gtk.WINDOW_TOPLEVEL)
 	setupWindow(win)
 	win.ShowAll()
@@ -121,21 +124,20 @@ func setupWindow(win *gtk.Window) {
 	go keyEventHandler()
 	win.Connect("key-press-event", func(ctx *glib.CallbackContext) {
 		arg := ctx.Args(0)
-		keyEventChan <- *(**gdk.EventKey)(unsafe.Pointer(&arg))
+		keyPressEventChan <- *(**gdk.EventKey)(unsafe.Pointer(&arg))
 	})
 	win.Connect("key-release-event", func(ctx *glib.CallbackContext) {
 		arg := ctx.Args(0)
-		keyEventChan <- *(**gdk.EventKey)(unsafe.Pointer(&arg))
+		keyReleaseEventChan <- *(**gdk.EventKey)(unsafe.Pointer(&arg))
 	})
 	vbox := gtk.NewVBox(false, 1)
 	vbox.PackStart(buildMenu(), false, false, 0)
 	crt = buildCrt()
 	go updateCrt(crt, terminal)
-	go hostListener()
+	go terminal.run()
 	go func() {
 		for _ = range blinkTicker.C {
-			terminal.blinkState = !terminal.blinkState
-			terminal.updateChan <- true
+			updateCrtChan <- updateCrtBlink
 		}
 	}()
 	vbox.PackStart(crt, false, false, 1)
@@ -144,17 +146,13 @@ func setupWindow(win *gtk.Window) {
 	win.Add(vbox)
 }
 
-func hostListener() {
-	for b := range hostChan {
-		terminal.processHostData(b)
-	}
-}
-
 func localListener() {
+	key := make([]byte, 2)
 	for {
 		select {
 		case kev := <-keyboardChan:
-			hostChan <- kev
+			key[0] = kev
+			hostChan <- key
 		case <-localListenerStopChan:
 			return
 		}
@@ -219,6 +217,7 @@ func buildMenu() *gtk.MenuBar {
 	networkMenuItem.SetSubmenu(subMenu)
 	networkConnectMenuItem := gtk.NewMenuItemWithLabel("Connect")
 	subMenu.Append(networkConnectMenuItem)
+	networkConnectMenuItem.Connect("activate", openNetDialog)
 	networkDisconnectMenuItem := gtk.NewMenuItemWithLabel("Disconnect")
 	subMenu.Append(networkDisconnectMenuItem)
 	networkDisconnectMenuItem.SetSensitive(false)
@@ -247,6 +246,48 @@ func aboutDialog() {
 	ad.Destroy()
 }
 
+func openNetDialog() {
+	nd := gtk.NewDialog()
+	nd.SetTitle("Telnet Host")
+
+	ca := nd.GetVBox()
+
+	hostLab := gtk.NewLabel("Host:")
+	ca.PackStart(hostLab, true, true, 0)
+	hostEntry := gtk.NewEntry()
+	ca.PackStart(hostEntry, true, true, 0)
+	portLab := gtk.NewLabel("Host:")
+	ca.PackStart(portLab, true, true, 0)
+	portEntry := gtk.NewEntry()
+	ca.PackStart(portEntry, true, true, 0)
+
+	nd.AddButton("Cancel", gtk.RESPONSE_CANCEL)
+	nd.AddButton("OK", gtk.RESPONSE_OK)
+	nd.ShowAll()
+	response := nd.Run()
+
+	if response == gtk.RESPONSE_OK {
+		host := hostEntry.GetText()
+		port, err := strconv.Atoi(portEntry.GetText())
+		if err != nil || port < 0 || len(host) == 0 {
+			ed := gtk.NewMessageDialog(win, gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_ERROR,
+				gtk.BUTTONS_CLOSE, "Must enter valid host and numeric port")
+			ed.Run()
+			ed.Destroy()
+		} else {
+			openRemote(host, port)
+		}
+	}
+
+	nd.Destroy()
+}
+
+func openRemote(host string, port int) {
+	if openTelnetConn(host, port) {
+		localListenerStopChan <- true
+	}
+}
+
 func buildCrt() *gtk.DrawingArea {
 	crt := gtk.NewDrawingArea()
 	crt.SetSizeRequest(80*charWidth, 24*charHeight)
@@ -268,7 +309,7 @@ func buildCrt() *gtk.DrawingArea {
 		// 	return
 		// }
 		gdkWin.GetDrawable().DrawDrawable(gc, offScreenPixmap.GetDrawable(), 0, 0, 0, 0, -1, -1)
-		fmt.Println("expose-event handled")
+		//fmt.Println("expose-event handled")
 	})
 	return crt
 }
@@ -281,36 +322,44 @@ func updateCrt(crt *gtk.DrawingArea, t *Terminal) {
 	var cIx int
 
 	for {
-		_ = <-updateChan
-		doOnMainThread(func() {
-			drawable := offScreenPixmap.GetDrawable()
-			for line := 0; line < t.visibleLines; line++ {
-				for col := 0; col < t.visibleCols; col++ {
-					cIx = int(t.display[line][col].charValue)
-					if cIx > 31 && cIx < 128 {
-						switch {
-						case t.blinkEnabled && t.blinkState && t.display[line][col].blink:
-							drawable.DrawPixbuf(gc, bdfFont[32].pixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
-						case t.display[line][col].reverse:
-							drawable.DrawPixbuf(gc, bdfFont[cIx].reversePixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
-						case t.display[line][col].dim:
-							drawable.DrawPixbuf(gc, bdfFont[cIx].dimPixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
-						default:
-							drawable.DrawPixbuf(gc, bdfFont[cIx].pixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
+		updateType := <-updateCrtChan
+		switch updateType {
+		case updateCrtBlink:
+			blinkState = !blinkState
+			fallthrough
+		case updateCrtNormal:
+			doOnMainThread(func() {
+				drawable := offScreenPixmap.GetDrawable()
+				t.rwMutex.RLock()
+				for line := 0; line < t.visibleLines; line++ {
+					for col := 0; col < t.visibleCols; col++ {
+						cIx = int(t.display[line][col].charValue)
+						if cIx > 31 && cIx < 128 {
+							switch {
+							case t.blinkEnabled && blinkState && t.display[line][col].blink:
+								drawable.DrawPixbuf(gc, bdfFont[32].pixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
+							case t.display[line][col].reverse:
+								drawable.DrawPixbuf(gc, bdfFont[cIx].reversePixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
+							case t.display[line][col].dim:
+								drawable.DrawPixbuf(gc, bdfFont[cIx].dimPixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
+							default:
+								drawable.DrawPixbuf(gc, bdfFont[cIx].pixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
+							}
+						}
+						// underscore?
+						if t.display[line][col].underscore {
+							//gc.SetRgbFgColor(green)
+							gc.SetForeground(gdk.NewColor("red"))
+							gc.SetBackground(gdk.NewColor("blue"))
+							drawable.DrawLine(gc, col*charWidth, ((line+1)*charHeight)-1, (col+1)*charWidth, ((line+1)*charHeight)-1)
+							//drawable.DrawRectangle(gc, true, col*charWidth, ((line+1)*charHeight)-5, charWidth, 17)
 						}
 					}
-					// underscore?
-					if t.display[line][col].underscore {
-						//gc.SetRgbFgColor(green)
-						gc.SetForeground(gdk.NewColor("red"))
-						gc.SetBackground(gdk.NewColor("blue"))
-						drawable.DrawLine(gc, col*charWidth, ((line+1)*charHeight)-1, (col+1)*charWidth, ((line+1)*charHeight)-1)
-						//drawable.DrawRectangle(gc, true, col*charWidth, ((line+1)*charHeight)-5, charWidth, 17)
-					}
 				}
-			}
-			gdkWin.Invalidate(nil, false)
-		})
+				t.rwMutex.RUnlock()
+				gdkWin.Invalidate(nil, false)
+			})
+		}
 		//fmt.Println("updateCrt called")
 	}
 }

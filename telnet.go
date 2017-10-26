@@ -1,5 +1,13 @@
 package main
 
+import (
+	"bufio"
+	"fmt"
+	"net"
+	"strconv"
+	"time"
+)
+
 const (
 	telnetCmdSE   = 240
 	telnetCmdNOP  = 241
@@ -32,4 +40,35 @@ const (
 	telnetOptTSPEED = 32
 	telnetOptXDISP  = 35
 	telnetOptNEWENV = 39
+
+	dialTimeout = time.Second * 10
 )
+
+func openTelnetConn(hostName string, portNum int) bool {
+	hostString := hostName + ":" + strconv.Itoa(portNum)
+	conn, err := net.DialTimeout("tcp", hostString, dialTimeout)
+	if err != nil {
+		return false
+	}
+	go telnetReader(bufio.NewReader(conn), hostChan)
+	go telnetWriter(bufio.NewWriter(conn), keyboardChan)
+	return true
+}
+
+func telnetReader(reader *bufio.Reader, hostChan chan []byte) {
+	hostBytes := make([]byte, hostBuffSize)
+	for {
+		n, _ := reader.Read(hostBytes)
+		hostChan <- hostBytes[:n]
+	}
+}
+
+func telnetWriter(writer *bufio.Writer, kbdChan chan byte) {
+	bytes := make([]byte, 10)
+	for k := range kbdChan {
+		bytes[0] = k
+		writer.Write(bytes)
+		fmt.Printf("Wrote <%d> to host\n", k)
+	}
+
+}
