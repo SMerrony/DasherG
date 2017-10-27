@@ -39,7 +39,7 @@ func keyEventHandler() {
 			switch keyPressEvent.Keyval {
 			case gdk.KEY_Control_L, gdk.KEY_Control_R:
 				ctrlPressed = true
-			case gdk.KEY_Shift_L, gdk.KEY_Shift_R, gdk.KEY_Shift_Lock:
+			case gdk.KEY_Shift_L, gdk.KEY_Shift_R, gdk.KEY_Shift_Lock - 1:
 				shiftPressed = true
 			}
 
@@ -48,7 +48,7 @@ func keyEventHandler() {
 			switch keyReleaseEvent.Keyval {
 			case gdk.KEY_Control_L, gdk.KEY_Control_R:
 				ctrlPressed = false
-			case gdk.KEY_Shift_L, gdk.KEY_Shift_R, gdk.KEY_Shift_Lock:
+			case gdk.KEY_Shift_L, gdk.KEY_Shift_R, gdk.KEY_Shift_Lock - 1:
 				shiftPressed = false
 
 			case gdk.KEY_Escape:

@@ -29,6 +29,7 @@ import (
 	"runtime"
 	"runtime/pprof"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 	"unsafe"
@@ -80,7 +81,10 @@ var (
 	blinkTicker = time.NewTicker(time.Millisecond * 500)
 )
 
-var cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
+var (
+	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
+	hostFlag   = flag.String("host", "", "Host to connect with")
+)
 
 func main() {
 	flag.Parse()
@@ -106,6 +110,20 @@ func main() {
 	setupWindow(win)
 	win.ShowAll()
 	gdkWin = crt.GetWindow()
+
+	if *hostFlag != "" {
+		hostParts := strings.Split(*hostFlag, ":")
+		if len(hostParts) != 2 {
+			log.Fatalf("-host flag must contain host and port separated by a colon, you passed %s", *hostFlag)
+		}
+		hostPort, err := strconv.Atoi(hostParts[1])
+		if err != nil || hostPort < 0 {
+			log.Fatalf("port must be a positive integer on -host flag, you passed %s", hostParts[1])
+		}
+		if openTelnetConn(hostParts[0], hostPort) {
+			localListenerStopChan <- true
+		}
+	}
 
 	for {
 		select {

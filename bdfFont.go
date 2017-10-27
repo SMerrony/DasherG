@@ -34,7 +34,9 @@ const (
 	maxChars   = 128
 	bpp        = 8
 	charWidth  = 10
-	charHeight = 12
+	charHeight = 18 //12
+	fontWidth  = 10
+	fontHeight = 12
 )
 
 type bdfChar struct {
@@ -65,9 +67,9 @@ func bdfLoad(filename string) {
 	charCount, _ := strconv.Atoi(charCountLine[6:])
 
 	for cc := 0; cc < charCount; cc++ {
-		tmpPixbuf := gdkpixbuf.NewPixbuf(gdkpixbuf.GDK_COLORSPACE_RGB, false, bpp, charWidth, charHeight)
-		tmpDimPixbuf := gdkpixbuf.NewPixbuf(gdkpixbuf.GDK_COLORSPACE_RGB, false, bpp, charWidth, charHeight)
-		tmpRevPixbuf := gdkpixbuf.NewPixbuf(gdkpixbuf.GDK_COLORSPACE_RGB, false, bpp, charWidth, charHeight)
+		tmpPixbuf := gdkpixbuf.NewPixbuf(gdkpixbuf.GDK_COLORSPACE_RGB, false, bpp, fontWidth, fontHeight)
+		tmpDimPixbuf := gdkpixbuf.NewPixbuf(gdkpixbuf.GDK_COLORSPACE_RGB, false, bpp, fontWidth, fontHeight)
+		tmpRevPixbuf := gdkpixbuf.NewPixbuf(gdkpixbuf.GDK_COLORSPACE_RGB, false, bpp, fontWidth, fontHeight)
 
 		for !strings.HasPrefix(scanner.Text(), "STARTCHAR") {
 			scanner.Scan()
@@ -114,9 +116,9 @@ func bdfLoad(filename string) {
 				lineByte <<= 1
 			}
 		}
-		bdfFont[asciiCode].pixbuf = tmpPixbuf.Flip(true).RotateSimple(180)
-		bdfFont[asciiCode].dimPixbuf = tmpDimPixbuf.Flip(true).RotateSimple(180)
-		bdfFont[asciiCode].reversePixbuf = tmpRevPixbuf.Flip(true).RotateSimple(180)
+		bdfFont[asciiCode].pixbuf = tmpPixbuf.Flip(true).RotateSimple(180).ScaleSimple(charWidth, charHeight, 1)
+		bdfFont[asciiCode].dimPixbuf = tmpDimPixbuf.Flip(true).RotateSimple(180).ScaleSimple(charWidth, charHeight, 1)
+		bdfFont[asciiCode].reversePixbuf = tmpRevPixbuf.Flip(true).RotateSimple(180).ScaleSimple(charWidth, charHeight, 1)
 		bdfFont[asciiCode].loaded = true
 	}
 	fmt.Printf("bdfFont loaded %d characters\n", charCount)
