@@ -172,6 +172,7 @@ func localListener() {
 			key[0] = kev
 			hostChan <- key
 		case <-localListenerStopChan:
+			fmt.Println("localListener stopped")
 			return
 		}
 	}

@@ -33,12 +33,12 @@ func keyEventHandler() {
 				shiftPressed = false
 
 			case gdk.KEY_Escape:
-				keyboardChan <- '\036'
+				keyboardChan <- '\033'
 
 			case gdk.KEY_Home:
 				keyboardChan <- dasherHome
-			case gdk.KEY_Return:
-				keyboardChan <- dasherNewLine
+			// case gdk.KEY_Return:
+			// 	keyboardChan <- dasherNewLine
 
 			case gdk.KEY_F1:
 

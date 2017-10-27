@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"net"
 	"strconv"
 	"time"
@@ -56,16 +57,24 @@ func openTelnetConn(hostName string, portNum int) bool {
 }
 
 func telnetReader(reader *bufio.Reader, hostChan chan []byte) {
-	hostBytes := make([]byte, hostBuffSize)
 	for {
-		n, _ := reader.Read(hostBytes)
-		hostChan <- hostBytes[:n]
+		hostBytes := make([]byte, hostBuffSize)
+		n, err := reader.Read(hostBytes)
+		if n == 0 {
+			log.Fatalf("telnet got zero-byte message from host")
+		}
+		if err != nil {
+			log.Fatalf("telnetReader got errror reading from host ", err.Error())
+		}
+		//fmt.Printf("telentReader got <%s> from host\n", hostBytes)
+		hostChan <- hostBytes
 	}
 }
 
 func telnetWriter(writer *bufio.Writer, kbdChan chan byte) {
 	for k := range kbdChan {
 		writer.Write([]byte{k})
+		writer.Flush()
 		fmt.Printf("Wrote <%d> to host\n", k)
 	}
 }
