@@ -335,10 +335,6 @@ func buildCrt() *gtk.DrawingArea {
 	return crt
 }
 
-func drawCrt() {
-	fmt.Println("drawCrt called")
-}
-
 func updateCrt(crt *gtk.DrawingArea, t *Terminal) {
 	var cIx int
 
@@ -375,8 +371,18 @@ func updateCrt(crt *gtk.DrawingArea, t *Terminal) {
 							drawable.DrawLine(gc, col*charWidth, ((line+1)*charHeight)-1, (col+1)*charWidth, ((line+1)*charHeight)-1)
 							//drawable.DrawRectangle(gc, true, col*charWidth, ((line+1)*charHeight)-5, charWidth, 17)
 						}
+					} // end for col
+				} // end for line
+				// draw the cursor - if on-screen
+				if t.cursorX < t.visibleCols && t.cursorY < t.visibleLines {
+					cIx := int(t.display[t.cursorY][t.cursorX].charValue)
+					if t.display[t.cursorY][t.cursorX].reverse {
+						drawable.DrawPixbuf(gc, bdfFont[cIx].pixbuf, 0, 0, t.cursorX*charWidth, t.cursorY*charHeight, charWidth, charHeight, 0, 0, 0)
+					} else {
+						drawable.DrawPixbuf(gc, bdfFont[cIx].reversePixbuf, 0, 0, t.cursorX*charWidth, t.cursorY*charHeight, charWidth, charHeight, 0, 0, 0)
 					}
 				}
+
 				t.rwMutex.RUnlock()
 				gdkWin.Invalidate(nil, false)
 			})

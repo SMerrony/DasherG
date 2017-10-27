@@ -50,7 +50,7 @@ func (t *Terminal) setup(pStatus *Status, update chan int) {
 	t.reversedVideo = false
 	t.underscored = false
 	t.protectd = false
-
+	t.clearScreen()
 	t.display[0][0].charValue = '0'
 	t.display[1][1].charValue = '1'
 	t.display[2][2].charValue = '2'
@@ -285,6 +285,12 @@ func (t *Terminal) run() {
 			case dasherBlinkOff:
 				t.blinking = false
 				skipChar = true
+			case dasherBlinkDisable:
+				t.blinkEnabled = false
+				skipChar = true
+			case dasherBlinkEnable:
+				t.blinkEnabled = true
+				skipChar = true
 			case dasherCursorDown:
 				if t.cursorY < t.visibleLines-1 {
 					t.cursorY++
@@ -395,7 +401,11 @@ func (t *Terminal) run() {
 			}
 
 			// finally, put the char in the displayable char matrix
-			t.display[t.cursorY][t.cursorX].set(ch, t.blinking, t.dimmed, t.reversedVideo, t.underscored, t.protectd)
+			if ch > 0 && int(ch) < len(bdfFont) && bdfFont[ch].loaded {
+				t.display[t.cursorY][t.cursorX].set(ch, t.blinking, t.dimmed, t.reversedVideo, t.underscored, t.protectd)
+			} else {
+				t.display[t.cursorY][t.cursorX].set(127, t.blinking, t.dimmed, t.reversedVideo, t.underscored, t.protectd)
+			}
 			t.cursorX++
 			t.rwMutex.Unlock()
 			//t.updateCrtChan <- updateCrtNormal

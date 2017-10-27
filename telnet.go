@@ -64,11 +64,8 @@ func telnetReader(reader *bufio.Reader, hostChan chan []byte) {
 }
 
 func telnetWriter(writer *bufio.Writer, kbdChan chan byte) {
-	bytes := make([]byte, 10)
 	for k := range kbdChan {
-		bytes[0] = k
-		writer.Write(bytes)
+		writer.Write([]byte{k})
 		fmt.Printf("Wrote <%d> to host\n", k)
 	}
-
 }
