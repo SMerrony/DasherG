@@ -9,12 +9,12 @@ const (
 	totalLines, totalCols           = 96, 208
 )
 
-type Terminal struct {
+type terminalT struct {
 	rwMutex                                      sync.RWMutex
 	visibleLines, visibleCols                    int
 	cursorX, cursorY                             int
 	rollEnabled, blinkEnabled, protectionEnabled bool
-	display                                      [totalLines][totalCols]Cell
+	display                                      [totalLines][totalCols]cell
 
 	status        *Status
 	updateCrtChan chan int
@@ -27,7 +27,7 @@ type Terminal struct {
 	telnetCmd, doAction, willAction             byte
 }
 
-func (t *Terminal) setup(pStatus *Status, update chan int) {
+func (t *terminalT) setup(pStatus *Status, update chan int) {
 	t.rwMutex.Lock()
 	t.status = pStatus
 	t.updateCrtChan = update
@@ -51,17 +51,17 @@ func (t *Terminal) setup(pStatus *Status, update chan int) {
 	t.underscored = false
 	t.protectd = false
 	t.clearScreen()
-	t.display[0][0].charValue = '0'
-	t.display[1][1].charValue = '1'
-	t.display[2][2].charValue = '2'
+	// t.display[0][0].charValue = '0'
+	// t.display[1][1].charValue = '1'
+	// t.display[2][2].charValue = '2'
 	t.display[12][39].charValue = 'O'
 	t.display[12][40].charValue = 'K'
 	t.rwMutex.Unlock()
 	t.updateCrtChan <- updateCrtNormal
-	fmt.Printf("Terminal setup done\n")
+	fmt.Printf("terminalT setup done\n")
 }
 
-func (t *Terminal) clearLine(line int) {
+func (t *terminalT) clearLine(line int) {
 	// TODO handle history here
 	for cc := 0; cc < t.visibleCols; cc++ {
 		t.display[line][cc].clearToSpace()
@@ -75,13 +75,13 @@ func (t *Terminal) clearLine(line int) {
 	t.underscored = false
 }
 
-func (t *Terminal) clearScreen() {
+func (t *terminalT) clearScreen() {
 	for row := 0; row < t.visibleLines; row++ {
 		t.clearLine(row)
 	}
 }
 
-func (t *Terminal) eraseUnprotectedToEndOfScreen() {
+func (t *terminalT) eraseUnprotectedToEndOfScreen() {
 	// clear remainder of line
 	for x := t.cursorX; x < t.visibleCols; x++ {
 		t.display[t.cursorY][x].clearToSpaceIfUnprotected()
@@ -94,7 +94,7 @@ func (t *Terminal) eraseUnprotectedToEndOfScreen() {
 	}
 }
 
-func (t *Terminal) scrollUp(rows int) {
+func (t *terminalT) scrollUp(rows int) {
 	for times := 0; times < rows; times++ {
 		// store top line in history
 		//QString line;
@@ -110,7 +110,7 @@ func (t *Terminal) scrollUp(rows int) {
 	}
 }
 
-func (t *Terminal) selfTest(hostChan chan []byte) {
+func (t *terminalT) selfTest(hostChan chan []byte) {
 	var (
 		testLineHRule1 = "123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012"
 		testLineHRule2 = "         1         2         3         4         5         6         7         8         9         10        11        12        13"
@@ -160,7 +160,7 @@ func (t *Terminal) selfTest(hostChan chan []byte) {
 	}
 }
 
-func (t *Terminal) run() {
+func (t *terminalT) run() {
 	var (
 		skipChar bool
 		ch       byte

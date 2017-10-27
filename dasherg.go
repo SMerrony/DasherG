@@ -43,7 +43,7 @@ import (
 const (
 	appID        = "uk.co.merrony.dasherg"
 	appTitle     = "DasherG"
-	appComment   = "A Data General DASHER terminal emulator"
+	appComment   = "A Data General DASHER terminalT emulator"
 	appCopyright = "Copyright 2017 S.Merrony"
 	appVersion   = "0.1 alpha"
 	appWebsite   = "https://github.com/SMerrony/aosvs-tools"
@@ -60,7 +60,7 @@ var appAuthors = []string{"Stephen Merrony"}
 
 var (
 	status                *Status
-	terminal              *Terminal
+	terminal              *terminalT
 	mainFuncChan          = make(chan func(), 8)
 	hostChan              = make(chan []byte, hostBuffSize)
 	keyboardChan          = make(chan byte, keyBuffSize)
@@ -104,7 +104,7 @@ func main() {
 	go localListener()
 	status = &Status{}
 	status.setup()
-	terminal = &Terminal{}
+	terminal = &terminalT{}
 	terminal.setup(status, updateCrtChan)
 	win = gtk.NewWindow(gtk.WINDOW_TOPLEVEL)
 	setupWindow(win)
@@ -354,7 +354,7 @@ func buildCrt() *gtk.DrawingArea {
 	return crt
 }
 
-func updateCrt(crt *gtk.DrawingArea, t *Terminal) {
+func updateCrt(crt *gtk.DrawingArea, t *terminalT) {
 	var cIx int
 
 	for {

@@ -31,11 +31,15 @@ import (
 )
 
 const (
-	maxChars   = 128
-	bpp        = 8
-	charWidth  = 10
+	maxChars = 128
+	bpp      = 8
+	// charWidth is the currently displayed width of a character
+	charWidth = 10
+	// charHeight is the currently displayed height of a character
 	charHeight = 18 //12
-	fontWidth  = 10
+	// width of a char in the raw font
+	fontWidth = 10
+	// height of a char in the raw font
 	fontHeight = 12
 )
 

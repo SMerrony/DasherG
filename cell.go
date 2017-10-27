@@ -19,12 +19,12 @@
 
 package main
 
-type Cell struct {
+type cell struct {
 	charValue                                byte
 	blink, dim, reverse, underscore, protect bool
 }
 
-func (cell *Cell) set(cv byte, bl, dm, rev, under, prot bool) {
+func (cell *cell) set(cv byte, bl, dm, rev, under, prot bool) {
 	cell.charValue = cv
 	cell.blink = bl
 	cell.dim = dm
@@ -33,7 +33,7 @@ func (cell *Cell) set(cv byte, bl, dm, rev, under, prot bool) {
 	cell.protect = prot
 }
 
-func (cell *Cell) clearToSpace() {
+func (cell *cell) clearToSpace() {
 	cell.charValue = ' '
 	cell.blink = false
 	cell.dim = false
@@ -42,17 +42,17 @@ func (cell *Cell) clearToSpace() {
 	cell.protect = false
 }
 
-func (cell *Cell) clearToSpaceIfUnprotected() {
+func (cell *cell) clearToSpaceIfUnprotected() {
 	if !cell.protect {
 		cell.clearToSpace()
 	}
 }
 
-func (cell *Cell) copy(fromCell *Cell) {
-	cell.charValue = fromCell.charValue
-	cell.blink = fromCell.blink
-	cell.dim = fromCell.dim
-	cell.reverse = fromCell.reverse
-	cell.underscore = fromCell.underscore
-	cell.protect = fromCell.protect
+func (cell *cell) copy(fromcell *cell) {
+	cell.charValue = fromcell.charValue
+	cell.blink = fromcell.blink
+	cell.dim = fromcell.dim
+	cell.reverse = fromcell.reverse
+	cell.underscore = fromcell.underscore
+	cell.protect = fromcell.protect
 }
