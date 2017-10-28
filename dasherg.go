@@ -168,6 +168,8 @@ func setupWindow(win *gtk.Window) {
 	})
 	vbox := gtk.NewVBox(false, 1)
 	vbox.PackStart(buildMenu(), false, false, 0)
+	//fkeys := buildFkeyMatrix()
+	vbox.PackStart(buildFkeyMatrix(), false, false, 0)
 	crt = buildCrt()
 	go updateCrt(crt, terminal)
 	go terminal.run()
@@ -273,6 +275,82 @@ func buildMenu() *gtk.MenuBar {
 	aboutMenuItem.Connect("activate", aboutDialog)
 
 	return menuBar
+}
+
+func buildFkeyMatrix() *gtk.Table {
+	fkeyMatrix := gtk.NewTable(5, 19, false)
+
+	locPrBut := gtk.NewButtonWithLabel("LocPr")
+	locPrBut.SetTooltipText("Local Print")
+	//locPrBut.Connect("clicked", func() { keyboardChan <- dasherPrintScreen })
+	fkeyMatrix.AttachDefaults(locPrBut, 0, 1, 0, 1)
+	breakBut := gtk.NewButtonWithLabel("Break")
+	fkeyMatrix.AttachDefaults(breakBut, 0, 1, 4, 5)
+	holdBut := gtk.NewButtonWithLabel("Hold")
+	fkeyMatrix.AttachDefaults(holdBut, 18, 19, 0, 1)
+	erPgBut := gtk.NewButtonWithLabel("Er Pg")
+	erPgBut.SetTooltipText("Erase Page")
+	erPgBut.Connect("clicked", func() { keyboardChan <- dasherErasePage })
+	fkeyMatrix.AttachDefaults(erPgBut, 18, 19, 1, 2)
+	crBut := gtk.NewButtonWithLabel("CR")
+	crBut.SetTooltipText("Carriage Return")
+	crBut.Connect("clicked", func() { keyboardChan <- dasherCR })
+	fkeyMatrix.AttachDefaults(crBut, 18, 19, 2, 3)
+	erEOLBut := gtk.NewButtonWithLabel("ErEOL")
+	erEOLBut.SetTooltipText("Erase to End Of Line")
+	erEOLBut.Connect("clicked", func() { keyboardChan <- dasherEraseEol })
+	fkeyMatrix.AttachDefaults(erEOLBut, 18, 19, 3, 4)
+
+	var fKeyButs [20]*gtk.Button
+	var fKeyLabs [20][4]*gtk.Label
+
+	for f := 1; f <= 5; f++ {
+		fKeyButs[f] = gtk.NewButtonWithLabel(fmt.Sprintf("F%d", f))
+		fkeyMatrix.AttachDefaults(fKeyButs[f], uint(f), uint(f)+1, 4, 5)
+		for l := 0; l < 4; l++ {
+			fKeyLabs[f][l] = gtk.NewLabel("")
+			frm := gtk.NewFrame("")
+			frm.Add(fKeyLabs[f][l])
+			fkeyMatrix.AttachDefaults(frm, uint(f), uint(f)+1, uint(l), uint(l)+1)
+		}
+	}
+	csfLab := gtk.NewLabel("Ctrl-Shft")
+	fkeyMatrix.AttachDefaults(csfLab, 6, 7, 0, 1)
+	cfLab := gtk.NewLabel("Ctrl")
+	fkeyMatrix.AttachDefaults(cfLab, 6, 7, 1, 2)
+	sLab := gtk.NewLabel("Shift")
+	fkeyMatrix.AttachDefaults(sLab, 6, 7, 2, 3)
+
+	for f := 6; f <= 10; f++ {
+		fKeyButs[f] = gtk.NewButtonWithLabel(fmt.Sprintf("F%d", f))
+		fkeyMatrix.AttachDefaults(fKeyButs[f], uint(f)+1, uint(f)+2, 4, 5)
+		for l := 0; l < 4; l++ {
+			fKeyLabs[f][l] = gtk.NewLabel("")
+			frm := gtk.NewFrame("")
+			frm.Add(fKeyLabs[f][l])
+			fkeyMatrix.AttachDefaults(frm, uint(f)+1, uint(f)+2, uint(l), uint(l)+1)
+		}
+	}
+	csfLab2 := gtk.NewLabel("")
+	csfLab2.SetMarkup("<span size=\"x-small\">Ctrl-Shift</span>")
+	fkeyMatrix.AttachDefaults(csfLab2, 12, 13, 0, 1)
+
+	cfLab2 := gtk.NewLabel("Ctrl")
+	fkeyMatrix.AttachDefaults(cfLab2, 12, 13, 1, 2)
+	sLab2 := gtk.NewLabel("Shift")
+	fkeyMatrix.AttachDefaults(sLab2, 12, 13, 2, 3)
+
+	for f := 11; f <= 15; f++ {
+		fKeyButs[f] = gtk.NewButtonWithLabel(fmt.Sprintf("F%d", f))
+		fkeyMatrix.AttachDefaults(fKeyButs[f], uint(f)+2, uint(f)+3, 4, 5)
+		for l := 0; l < 4; l++ {
+			fKeyLabs[f][l] = gtk.NewLabel("")
+			frm := gtk.NewFrame("")
+			frm.Add(fKeyLabs[f][l])
+			fkeyMatrix.AttachDefaults(frm, uint(f)+2, uint(f)+3, uint(l), uint(l)+1)
+		}
+	}
+	return fkeyMatrix
 }
 
 func aboutDialog() {

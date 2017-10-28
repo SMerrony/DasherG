@@ -63,13 +63,13 @@ func keyEventHandler() {
 
 				// Cursor keys
 			case gdk.KEY_Down:
-				keyboardChan <- '\032'
+				keyboardChan <- dasherCursorDown
 			case gdk.KEY_Left:
-				keyboardChan <- '\031'
+				keyboardChan <- dasherCursorLeft
 			case gdk.KEY_Right:
-				keyboardChan <- '\030'
+				keyboardChan <- dasherCursorRight
 			case gdk.KEY_Up:
-				keyboardChan <- '\027'
+				keyboardChan <- dasherCursorUp
 
 			default:
 				keyByte := byte(keyReleaseEvent.Keyval)
