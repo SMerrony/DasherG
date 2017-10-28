@@ -79,6 +79,11 @@ var (
 
 	green       *gdk.Color
 	blinkTicker = time.NewTicker(time.Millisecond * 500)
+
+	// widgets needing global access
+	fKeyLabs                                          [20][4]*gtk.Label
+	serialConnectMenuItem, serialDisconnectMenuItem   *gtk.MenuItem
+	networkConnectMenuItem, networkDisconnectMenuItem *gtk.MenuItem
 )
 
 var (
@@ -247,9 +252,9 @@ func buildMenu() *gtk.MenuBar {
 	menuBar.Append(serialMenuItem)
 	subMenu = gtk.NewMenu()
 	serialMenuItem.SetSubmenu(subMenu)
-	serialConnectMenuItem := gtk.NewMenuItemWithLabel("Connect")
+	serialConnectMenuItem = gtk.NewMenuItemWithLabel("Connect")
 	subMenu.Append(serialConnectMenuItem)
-	serialDisconnectMenuItem := gtk.NewMenuItemWithLabel("Disconnect")
+	serialDisconnectMenuItem = gtk.NewMenuItemWithLabel("Disconnect")
 	subMenu.Append(serialDisconnectMenuItem)
 	serialDisconnectMenuItem.SetSensitive(false)
 
@@ -257,11 +262,12 @@ func buildMenu() *gtk.MenuBar {
 	menuBar.Append(networkMenuItem)
 	subMenu = gtk.NewMenu()
 	networkMenuItem.SetSubmenu(subMenu)
-	networkConnectMenuItem := gtk.NewMenuItemWithLabel("Connect")
+	networkConnectMenuItem = gtk.NewMenuItemWithLabel("Connect")
 	subMenu.Append(networkConnectMenuItem)
 	networkConnectMenuItem.Connect("activate", openNetDialog)
-	networkDisconnectMenuItem := gtk.NewMenuItemWithLabel("Disconnect")
+	networkDisconnectMenuItem = gtk.NewMenuItemWithLabel("Disconnect")
 	subMenu.Append(networkDisconnectMenuItem)
+	networkDisconnectMenuItem.Connect("activate", closeRemote)
 	networkDisconnectMenuItem.SetSensitive(false)
 
 	helpMenuItem := gtk.NewMenuItemWithLabel("Help")
@@ -282,30 +288,36 @@ func buildFkeyMatrix() *gtk.Table {
 
 	locPrBut := gtk.NewButtonWithLabel("LocPr")
 	locPrBut.SetTooltipText("Local Print")
+	locPrBut.SetCanFocus(false)
 	//locPrBut.Connect("clicked", func() { keyboardChan <- dasherPrintScreen })
 	fkeyMatrix.AttachDefaults(locPrBut, 0, 1, 0, 1)
 	breakBut := gtk.NewButtonWithLabel("Break")
+	breakBut.SetCanFocus(false)
 	fkeyMatrix.AttachDefaults(breakBut, 0, 1, 4, 5)
 	holdBut := gtk.NewButtonWithLabel("Hold")
+	holdBut.SetCanFocus(false)
 	fkeyMatrix.AttachDefaults(holdBut, 18, 19, 0, 1)
 	erPgBut := gtk.NewButtonWithLabel("Er Pg")
 	erPgBut.SetTooltipText("Erase Page")
+	erPgBut.SetCanFocus(false)
 	erPgBut.Connect("clicked", func() { keyboardChan <- dasherErasePage })
 	fkeyMatrix.AttachDefaults(erPgBut, 18, 19, 1, 2)
 	crBut := gtk.NewButtonWithLabel("CR")
 	crBut.SetTooltipText("Carriage Return")
+	crBut.SetCanFocus(false)
 	crBut.Connect("clicked", func() { keyboardChan <- dasherCR })
 	fkeyMatrix.AttachDefaults(crBut, 18, 19, 2, 3)
 	erEOLBut := gtk.NewButtonWithLabel("ErEOL")
 	erEOLBut.SetTooltipText("Erase to End Of Line")
+	erEOLBut.SetCanFocus(false)
 	erEOLBut.Connect("clicked", func() { keyboardChan <- dasherEraseEol })
 	fkeyMatrix.AttachDefaults(erEOLBut, 18, 19, 3, 4)
 
 	var fKeyButs [20]*gtk.Button
-	var fKeyLabs [20][4]*gtk.Label
 
 	for f := 1; f <= 5; f++ {
 		fKeyButs[f] = gtk.NewButtonWithLabel(fmt.Sprintf("F%d", f))
+		fKeyButs[f].SetCanFocus(false)
 		fkeyMatrix.AttachDefaults(fKeyButs[f], uint(f), uint(f)+1, 4, 5)
 		for l := 0; l < 4; l++ {
 			fKeyLabs[f][l] = gtk.NewLabel("")
@@ -323,6 +335,7 @@ func buildFkeyMatrix() *gtk.Table {
 
 	for f := 6; f <= 10; f++ {
 		fKeyButs[f] = gtk.NewButtonWithLabel(fmt.Sprintf("F%d", f))
+		fKeyButs[f].SetCanFocus(false)
 		fkeyMatrix.AttachDefaults(fKeyButs[f], uint(f)+1, uint(f)+2, 4, 5)
 		for l := 0; l < 4; l++ {
 			fKeyLabs[f][l] = gtk.NewLabel("")
@@ -342,6 +355,7 @@ func buildFkeyMatrix() *gtk.Table {
 
 	for f := 11; f <= 15; f++ {
 		fKeyButs[f] = gtk.NewButtonWithLabel(fmt.Sprintf("F%d", f))
+		fKeyButs[f].SetCanFocus(false)
 		fkeyMatrix.AttachDefaults(fKeyButs[f], uint(f)+2, uint(f)+3, 4, 5)
 		for l := 0; l < 4; l++ {
 			fKeyLabs[f][l] = gtk.NewLabel("")
@@ -403,7 +417,18 @@ func openNetDialog() {
 func openRemote(host string, port int) {
 	if openTelnetConn(host, port) {
 		localListenerStopChan <- true
+		//doOnMainThread(func() {
+		networkConnectMenuItem.SetSensitive(false)
+		networkDisconnectMenuItem.SetSensitive(true)
+		//})
 	}
+}
+
+func closeRemote() {
+	closeTelnetConn()
+	networkConnectMenuItem.SetSensitive(true)
+	networkDisconnectMenuItem.SetSensitive(false)
+	go localListener()
 }
 
 func buildCrt() *gtk.DrawingArea {

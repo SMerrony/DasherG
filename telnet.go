@@ -64,9 +64,15 @@ const (
 	dialTimeout = time.Second * 10
 )
 
+var (
+	conn                 net.Conn
+	err                  error
+	stopTelnetWriterChan = make(chan bool)
+)
+
 func openTelnetConn(hostName string, portNum int) bool {
 	hostString := hostName + ":" + strconv.Itoa(portNum)
-	conn, err := net.DialTimeout("tcp", hostString, dialTimeout)
+	conn, err = net.DialTimeout("tcp", hostString, dialTimeout)
 	if err != nil {
 		return false
 	}
@@ -75,12 +81,19 @@ func openTelnetConn(hostName string, portNum int) bool {
 	return true
 }
 
+func closeTelnetConn() {
+	conn.Close()
+	stopTelnetWriterChan <- true
+}
+
 func telnetReader(reader *bufio.Reader, hostChan chan []byte) {
 	for {
 		hostBytes := make([]byte, hostBuffSize)
 		n, err := reader.Read(hostBytes)
 		if n == 0 {
-			log.Fatalf("telnet got zero-byte message from host")
+			//log.Fatalf("telnet got zero-byte message from host")
+			fmt.Println("telnetReader got zero length message, stopping")
+			return
 		}
 		if err != nil {
 			log.Fatal("telnetReader got errror reading from host ", err.Error())
@@ -91,9 +104,15 @@ func telnetReader(reader *bufio.Reader, hostChan chan []byte) {
 }
 
 func telnetWriter(writer *bufio.Writer, kbdChan chan byte) {
-	for k := range kbdChan {
-		writer.Write([]byte{k})
-		writer.Flush()
-		fmt.Printf("Wrote <%d> to host\n", k)
+	for {
+		select {
+		case k := <-kbdChan:
+			writer.Write([]byte{k})
+			writer.Flush()
+			fmt.Printf("Wrote <%d> to host\n", k)
+		case _ = <-stopTelnetWriterChan:
+			fmt.Println("telnetWriter stopping")
+			return
+		}
 	}
 }

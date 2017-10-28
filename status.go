@@ -13,7 +13,7 @@ const (
 type Status struct {
 	visLines, visCols                  int
 	serialPort, remoteHost, remotePort string
-	holding, dirty                     bool
+	holding                            bool
 	connection                         int
 	emulation                          int
 }
@@ -21,5 +21,4 @@ type Status struct {
 func (s *Status) setup() {
 	s.visCols = defaultCols
 	s.visLines = defaultLines
-	s.dirty = true
 }
