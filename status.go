@@ -14,11 +14,12 @@ type Status struct {
 	visLines, visCols                  int
 	serialPort, remoteHost, remotePort string
 	holding                            bool
-	connection                         int
+	connected                          int
 	emulation                          int
 }
 
 func (s *Status) setup() {
 	s.visCols = defaultCols
 	s.visLines = defaultLines
+	s.emulation = d200
 }

@@ -52,8 +52,12 @@ const (
 	hostBuffSize = 2048
 	keyBuffSize  = 200
 
-	updateCrtNormal = 1
-	updateCrtBlink  = 2
+	updateCrtNormal      = 1
+	updateCrtBlink       = 2
+	blinkPeriodMs        = 500
+	statusUpdatePeriodMs = 500
+
+	gtkLoopMs = 5
 )
 
 var appAuthors = []string{"Stephen Merrony"}
@@ -77,13 +81,15 @@ var (
 	alive           bool
 	blinkState      bool
 
-	green       *gdk.Color
-	blinkTicker = time.NewTicker(time.Millisecond * 500)
+	green              *gdk.Color
+	blinkTicker        = time.NewTicker(time.Millisecond * blinkPeriodMs)
+	statusUpdateTicker = time.NewTicker(time.Millisecond * statusUpdatePeriodMs)
 
 	// widgets needing global access
 	fKeyLabs                                          [20][4]*gtk.Label
 	serialConnectMenuItem, serialDisconnectMenuItem   *gtk.MenuItem
 	networkConnectMenuItem, networkDisconnectMenuItem *gtk.MenuItem
+	onlineLabel, emuStatusLabel                       *gtk.Label
 )
 
 var (
@@ -130,6 +136,25 @@ func main() {
 		}
 	}
 
+	// for {
+	// 	select {
+	// 	case f := <-mainFuncChan:
+	// 		gtkMutex.Lock()
+	// 		f()
+	// 		gtkMutex.Unlock()
+	// 	default:
+	// 		gtkMutex.Lock()
+	// 		if gtk.EventsPending() {
+	// 			alive = gtk.MainIterationDo(false)
+	// 		}
+	// 		time.Sleep(gtkLoopMs * time.Millisecond)
+	// 		gtkMutex.Unlock()
+	// 		if !alive {
+	// 			return
+	// 		}
+	// 	}
+	// }
+
 	for {
 		select {
 		case f := <-mainFuncChan:
@@ -137,15 +162,15 @@ func main() {
 			f()
 			gtkMutex.Unlock()
 		default:
-			gtkMutex.Lock()
 			if gtk.EventsPending() {
+				gtkMutex.Lock()
 				alive = gtk.MainIterationDo(false)
+				gtkMutex.Unlock()
 			}
-			time.Sleep(10 * time.Millisecond)
-			gtkMutex.Unlock()
 			if !alive {
 				return
 			}
+			time.Sleep(gtkLoopMs * time.Millisecond)
 		}
 	}
 }
@@ -184,8 +209,8 @@ func setupWindow(win *gtk.Window) {
 		}
 	}()
 	vbox.PackStart(crt, false, false, 1)
-	statusBar := buildStatusBar()
-	vbox.PackEnd(statusBar, false, false, 0)
+	statusBox := buildStatusBox()
+	vbox.PackEnd(statusBox, false, false, 0)
 	win.Add(vbox)
 }
 
@@ -513,8 +538,37 @@ func updateCrt(crt *gtk.DrawingArea, t *terminalT) {
 	}
 }
 
-func buildStatusBar() *gtk.Statusbar {
-	statusBar := gtk.NewStatusbar()
+func buildStatusBox() *gtk.HBox {
+	statusBox := gtk.NewHBox(true, 2)
 
-	return statusBar
+	onlineLabel = gtk.NewLabel("")
+	olf := gtk.NewFrame("")
+	olf.Add(onlineLabel)
+	statusBox.Add(olf)
+
+	emuStatusLabel = gtk.NewLabel("")
+	esf := gtk.NewFrame("")
+	esf.Add(emuStatusLabel)
+	statusBox.Add(esf)
+	go func() {
+		for _ = range statusUpdateTicker.C {
+			updateStatusBox()
+		}
+	}()
+	return statusBox
+}
+
+func updateStatusBox() {
+	switch status.connected {
+	case disconnected:
+		onlineLabel.SetText("Local (Offline)")
+	case serialConnected:
+		fmt.Println("Serial not yet supported")
+	case telnetConnected:
+		onlineLabel.SetText("Online (Telnet) - Host: " + status.remoteHost + " - Port: " + status.remotePort)
+	}
+	emuStat := "D" + strconv.Itoa(status.emulation) + " (" +
+		strconv.Itoa(status.visLines) + "x" + strconv.Itoa(status.visCols) + ")"
+
+	emuStatusLabel.SetText(emuStat)
 }

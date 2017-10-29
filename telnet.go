@@ -78,12 +78,16 @@ func openTelnetConn(hostName string, portNum int) bool {
 	}
 	go telnetReader(bufio.NewReader(conn), hostChan)
 	go telnetWriter(bufio.NewWriter(conn), keyboardChan)
+	status.connected = telnetConnected
+	status.remoteHost = hostName
+	status.remotePort = strconv.Itoa(portNum)
 	return true
 }
 
 func closeTelnetConn() {
 	conn.Close()
 	stopTelnetWriterChan <- true
+	status.connected = disconnected
 }
 
 func telnetReader(reader *bufio.Reader, hostChan chan []byte) {

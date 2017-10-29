@@ -170,7 +170,7 @@ func (t *terminalT) run() {
 			t.rwMutex.Lock()
 			skipChar = false
 			// check for Telnet command
-			if t.status.connection == telnetConnected && ch == telnetCmdIAC {
+			if t.status.connected == telnetConnected && ch == telnetCmdIAC {
 				if t.inTelnetCommand {
 					// special case - the host really wants to send a 255 - let it through
 					t.inTelnetCommand = false
@@ -182,7 +182,7 @@ func (t *terminalT) run() {
 				}
 			}
 
-			if t.status.connection == telnetConnected && t.inTelnetCommand {
+			if t.status.connected == telnetConnected && t.inTelnetCommand {
 				switch ch {
 				case telnetCmdDO:
 					t.gotTelnetDo = true
@@ -199,7 +199,7 @@ func (t *terminalT) run() {
 				continue
 			}
 
-			if t.status.connection == telnetConnected && t.gotTelnetDo {
+			if t.status.connected == telnetConnected && t.gotTelnetDo {
 				// whatever the host asks us to do we will refuse
 				// FIXME send the message
 				t.gotTelnetDo = false
@@ -207,7 +207,7 @@ func (t *terminalT) run() {
 				skipChar = true
 			}
 
-			if t.status.connection == telnetConnected && t.gotTelnetWill {
+			if t.status.connected == telnetConnected && t.gotTelnetWill {
 				// whatever the host offers to do we will refuse
 				// FIXME send the message
 				t.gotTelnetWill = false
