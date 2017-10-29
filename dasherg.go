@@ -451,6 +451,7 @@ func buildCrt() *gtk.DrawingArea {
 		offScreenPixmap = gdk.NewPixmap(crt.GetWindow().GetDrawable(), 80*charWidth, 24*charHeight, 24)
 
 		gc = gdk.NewGC(offScreenPixmap.GetDrawable())
+		gc.SetForeground(gc.GetColormap().AllocColorRGB(0, 65535, 0))
 		offScreenPixmap.GetDrawable().DrawRectangle(gc, true, 0, 0, -1, -1)
 		fmt.Println("configure-event handled")
 	})
@@ -495,11 +496,7 @@ func updateCrt(crt *gtk.DrawingArea, t *terminalT) {
 						}
 						// underscore?
 						if t.display[line][col].underscore {
-							//gc.SetRgbFgColor(green)
-							gc.SetForeground(gdk.NewColor("red"))
-							gc.SetBackground(gdk.NewColor("blue"))
 							drawable.DrawLine(gc, col*charWidth, ((line+1)*charHeight)-1, (col+1)*charWidth, ((line+1)*charHeight)-1)
-							//drawable.DrawRectangle(gc, true, col*charWidth, ((line+1)*charHeight)-5, charWidth, 17)
 						}
 					} // end for col
 				} // end for line
