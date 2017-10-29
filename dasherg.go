@@ -32,17 +32,16 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/mattn/go-gtk/glib"
-
 	"github.com/mattn/go-gtk/gdk"
+	"github.com/mattn/go-gtk/glib"
 	"github.com/mattn/go-gtk/gtk"
 )
 
 const (
 	appID        = "uk.co.merrony.dasherg"
 	appTitle     = "DasherG"
-	appComment   = "A Data General DASHER terminalT emulator"
-	appCopyright = "Copyright 2017 S.Merrony"
+	appComment   = "A Data General DASHER terminal emulator"
+	appCopyright = "Copyright ©2017 S.Merrony"
 	appVersion   = "0.1 alpha"
 	appWebsite   = "https://github.com/SMerrony/aosvs-tools"
 
@@ -55,16 +54,16 @@ const (
 	blinkPeriodMs        = 500
 	statusUpdatePeriodMs = 500
 
-	gtkLoopMs = 5
+	// gtkLoopMs = 5
 )
 
 var appAuthors = []string{"Stephen Merrony"}
 
 var (
-	status                *Status
-	terminal              *terminalT
-	mainFuncChan          = make(chan func(), 8)
-	hostChan              = make(chan []byte, hostBuffSize)
+	status   *Status
+	terminal *terminalT
+	//mainFuncChan          = make(chan func(), 8)
+	fromHostChan          = make(chan []byte, hostBuffSize)
 	keyboardChan          = make(chan byte, keyBuffSize)
 	localListenerStopChan = make(chan bool)
 	updateCrtChan         = make(chan int, hostBuffSize)
@@ -202,7 +201,7 @@ func localListener() {
 		select {
 		case kev := <-keyboardChan:
 			key[0] = kev
-			hostChan <- key
+			fromHostChan <- key
 		case <-localListenerStopChan:
 			fmt.Println("localListener stopped")
 			return
@@ -240,18 +239,22 @@ func buildMenu() *gtk.MenuBar {
 	emulationMenuItem := gtk.NewMenuItemWithLabel("Emulation")
 	menuBar.Append(emulationMenuItem)
 	subMenu = gtk.NewMenu()
+	var emuGroup *glib.SList
 	emulationMenuItem.SetSubmenu(subMenu)
-	d200MenuItem := gtk.NewCheckMenuItemWithLabel("D200")
+	d200MenuItem := gtk.NewRadioMenuItemWithLabel(emuGroup, "D200") //gtk.NewCheckMenuItemWithLabel("D200")
+	emuGroup = d200MenuItem.GetGroup()
 	subMenu.Append(d200MenuItem)
-	d210MenuItem := gtk.NewCheckMenuItemWithLabel("D210")
+	d210MenuItem := gtk.NewRadioMenuItemWithLabel(emuGroup, "D210") //gtk.NewCheckMenuItemWithLabel("D210")
+	emuGroup = d210MenuItem.GetGroup()
 	subMenu.Append(d210MenuItem)
-	d211MenuItem := gtk.NewCheckMenuItemWithLabel("D211")
+	d211MenuItem := gtk.NewRadioMenuItemWithLabel(emuGroup, "D211") //gtk.NewCheckMenuItemWithLabel("D211")
+	emuGroup = d211MenuItem.GetGroup()
 	subMenu.Append(d211MenuItem)
 	resizeMenuItem := gtk.NewMenuItemWithLabel("Resize")
 	subMenu.Append(resizeMenuItem)
 	selfTestMenuItem := gtk.NewMenuItemWithLabel("Self-Test")
 	subMenu.Append(selfTestMenuItem)
-	selfTestMenuItem.Connect("activate", func() { terminal.selfTest(hostChan) })
+	selfTestMenuItem.Connect("activate", func() { terminal.selfTest(fromHostChan) })
 	loadTemplateMenuItem := gtk.NewMenuItemWithLabel("Load Template")
 	subMenu.Append(loadTemplateMenuItem)
 

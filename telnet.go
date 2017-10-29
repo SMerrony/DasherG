@@ -76,7 +76,7 @@ func openTelnetConn(hostName string, portNum int) bool {
 	if err != nil {
 		return false
 	}
-	go telnetReader(bufio.NewReader(conn), hostChan)
+	go telnetReader(bufio.NewReader(conn), fromHostChan)
 	go telnetWriter(bufio.NewWriter(conn), keyboardChan)
 	status.connected = telnetConnected
 	status.remoteHost = hostName

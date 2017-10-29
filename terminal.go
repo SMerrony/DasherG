@@ -165,7 +165,7 @@ func (t *terminalT) run() {
 		skipChar bool
 		ch       byte
 	)
-	for hostData := range hostChan {
+	for hostData := range fromHostChan {
 		for _, ch = range hostData {
 			t.rwMutex.Lock()
 			skipChar = false
