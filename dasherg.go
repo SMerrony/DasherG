@@ -26,11 +26,9 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"runtime"
 	"runtime/pprof"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 	"unsafe"
 
@@ -77,9 +75,8 @@ var (
 	offScreenPixmap *gdk.Pixmap
 	win             *gtk.Window
 	gdkWin          *gdk.Window
-	gtkMutex        sync.Mutex
-	alive           bool
-	blinkState      bool
+	//alive      bool
+	blinkState bool
 
 	green              *gdk.Color
 	blinkTicker        = time.NewTicker(time.Millisecond * blinkPeriodMs)
@@ -108,8 +105,10 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
-	runtime.LockOSThread() // we need main to run on the main thread for Gtk to work properly
-	gtk.Init(&os.Args)
+	glib.ThreadInit(nil)
+	gdk.ThreadsInit()
+	gdk.ThreadsEnter()
+	gtk.Init(nil)
 	green = gdk.NewColorRGB(0, 255, 0)
 	bdfLoad(fontFile)
 	go localListener()
@@ -143,45 +142,29 @@ func main() {
 	// 		f()
 	// 		gtkMutex.Unlock()
 	// 	default:
-	// 		gtkMutex.Lock()
 	// 		if gtk.EventsPending() {
+	// 			gtkMutex.Lock()
 	// 			alive = gtk.MainIterationDo(false)
+	// 			gtkMutex.Unlock()
 	// 		}
-	// 		time.Sleep(gtkLoopMs * time.Millisecond)
-	// 		gtkMutex.Unlock()
 	// 		if !alive {
 	// 			return
 	// 		}
+	// 		time.Sleep(gtkLoopMs * time.Millisecond)
 	// 	}
 	// }
 
-	for {
-		select {
-		case f := <-mainFuncChan:
-			gtkMutex.Lock()
-			f()
-			gtkMutex.Unlock()
-		default:
-			if gtk.EventsPending() {
-				gtkMutex.Lock()
-				alive = gtk.MainIterationDo(false)
-				gtkMutex.Unlock()
-			}
-			if !alive {
-				return
-			}
-			time.Sleep(gtkLoopMs * time.Millisecond)
-		}
-	}
+	gtk.Main()
 }
-func doOnMainThread(f func()) {
-	done := make(chan bool, 1)
-	mainFuncChan <- func() {
-		f()
-		done <- true
-	}
-	<-done
-}
+
+// func doOnMainThread(f func()) {
+// 	done := make(chan bool, 1)
+// 	mainFuncChan <- func() {
+// 		f()
+// 		done <- true
+// 	}
+// 	<-done
+// }
 
 func setupWindow(win *gtk.Window) {
 	win.SetTitle(appTitle)
@@ -198,7 +181,6 @@ func setupWindow(win *gtk.Window) {
 	})
 	vbox := gtk.NewVBox(false, 1)
 	vbox.PackStart(buildMenu(), false, false, 0)
-	//fkeys := buildFkeyMatrix()
 	vbox.PackStart(buildFkeyMatrix(), false, false, 0)
 	crt = buildCrt()
 	go updateCrt(crt, terminal)
@@ -442,10 +424,8 @@ func openNetDialog() {
 func openRemote(host string, port int) {
 	if openTelnetConn(host, port) {
 		localListenerStopChan <- true
-		//doOnMainThread(func() {
 		networkConnectMenuItem.SetSensitive(false)
 		networkDisconnectMenuItem.SetSensitive(true)
-		//})
 	}
 }
 
@@ -492,7 +472,7 @@ func updateCrt(crt *gtk.DrawingArea, t *terminalT) {
 			blinkState = !blinkState
 			fallthrough
 		case updateCrtNormal:
-			doOnMainThread(func() {
+			glib.IdleAdd(func() {
 				drawable := offScreenPixmap.GetDrawable()
 				t.rwMutex.RLock()
 				for line := 0; line < t.visibleLines; line++ {
@@ -552,12 +532,15 @@ func buildStatusBox() *gtk.HBox {
 	statusBox.Add(esf)
 	go func() {
 		for _ = range statusUpdateTicker.C {
-			updateStatusBox()
+			glib.IdleAdd(func() {
+				updateStatusBox()
+			})
 		}
 	}()
 	return statusBox
 }
 
+// updateStatusBox to be run regularly - N.B. on the main thread!
 func updateStatusBox() {
 	switch status.connected {
 	case disconnected:
