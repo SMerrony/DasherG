@@ -202,6 +202,9 @@ func (t *terminalT) run() {
 			if t.status.connected == telnetConnected && t.gotTelnetDo {
 				// whatever the host asks us to do we will refuse
 				// FIXME send the message
+				keyboardChan <- telnetCmdIAC
+				keyboardChan <- telnetCmdWONT
+				keyboardChan <- ch
 				t.gotTelnetDo = false
 				t.inTelnetCommand = false
 				skipChar = true
@@ -210,6 +213,9 @@ func (t *terminalT) run() {
 			if t.status.connected == telnetConnected && t.gotTelnetWill {
 				// whatever the host offers to do we will refuse
 				// FIXME send the message
+				keyboardChan <- telnetCmdIAC
+				keyboardChan <- telnetCmdDONT
+				keyboardChan <- ch
 				t.gotTelnetWill = false
 				t.inTelnetCommand = false
 				skipChar = true

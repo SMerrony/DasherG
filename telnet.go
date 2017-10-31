@@ -76,7 +76,7 @@ func openTelnetConn(hostName string, portNum int) bool {
 	if err != nil {
 		return false
 	}
-	go telnetReader(bufio.NewReader(conn), fromHostChan)
+	go telnetReader(conn, fromHostChan)
 	go telnetWriter(bufio.NewWriter(conn), keyboardChan)
 	status.connected = telnetConnected
 	status.remoteHost = hostName
@@ -90,10 +90,10 @@ func closeTelnetConn() {
 	status.connected = disconnected
 }
 
-func telnetReader(reader *bufio.Reader, hostChan chan []byte) {
+func telnetReader(con net.Conn, hostChan chan []byte) {
 	for {
 		hostBytes := make([]byte, hostBuffSize)
-		n, err := reader.Read(hostBytes)
+		n, err := con.Read(hostBytes)
 		if n == 0 {
 			//log.Fatalf("telnet got zero-byte message from host")
 			fmt.Println("telnetReader got zero length message, stopping")

@@ -62,7 +62,7 @@ var appAuthors = []string{"Stephen Merrony"}
 var (
 	status   *Status
 	terminal *terminalT
-	//mainFuncChan          = make(chan func(), 8)
+
 	fromHostChan          = make(chan []byte, hostBuffSize)
 	keyboardChan          = make(chan byte, keyBuffSize)
 	localListenerStopChan = make(chan bool)
@@ -74,6 +74,7 @@ var (
 	offScreenPixmap *gdk.Pixmap
 	win             *gtk.Window
 	gdkWin          *gdk.Window
+
 	//alive      bool
 	blinkState bool
 
@@ -104,9 +105,6 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
-	glib.ThreadInit(nil)
-	gdk.ThreadsInit()
-	gdk.ThreadsEnter()
 	gtk.Init(nil)
 	green = gdk.NewColorRGB(0, 255, 0)
 	bdfLoad(fontFile)
@@ -133,37 +131,10 @@ func main() {
 			localListenerStopChan <- true
 		}
 	}
-
-	// for {
-	// 	select {
-	// 	case f := <-mainFuncChan:
-	// 		gtkMutex.Lock()
-	// 		f()
-	// 		gtkMutex.Unlock()
-	// 	default:
-	// 		if gtk.EventsPending() {
-	// 			gtkMutex.Lock()
-	// 			alive = gtk.MainIterationDo(false)
-	// 			gtkMutex.Unlock()
-	// 		}
-	// 		if !alive {
-	// 			return
-	// 		}
-	// 		time.Sleep(gtkLoopMs * time.Millisecond)
-	// 	}
-	// }
+	go updateCrt(crt, terminal)
 
 	gtk.Main()
 }
-
-// func doOnMainThread(f func()) {
-// 	done := make(chan bool, 1)
-// 	mainFuncChan <- func() {
-// 		f()
-// 		done <- true
-// 	}
-// 	<-done
-// }
 
 func setupWindow(win *gtk.Window) {
 	win.SetTitle(appTitle)
@@ -182,7 +153,7 @@ func setupWindow(win *gtk.Window) {
 	vbox.PackStart(buildMenu(), false, false, 0)
 	vbox.PackStart(buildFkeyMatrix(), false, false, 0)
 	crt = buildCrt()
-	go updateCrt(crt, terminal)
+	//go updateCrt(crt, terminal)
 	go terminal.run()
 	go func() {
 		for _ = range blinkTicker.C {
@@ -449,7 +420,6 @@ func buildCrt() *gtk.DrawingArea {
 		}
 		//allocation := crt.GetAllocation()
 		offScreenPixmap = gdk.NewPixmap(crt.GetWindow().GetDrawable(), 80*charWidth, 24*charHeight, 24)
-
 		gc = gdk.NewGC(offScreenPixmap.GetDrawable())
 		gc.SetForeground(gc.GetColormap().AllocColorRGB(0, 65535, 0))
 		offScreenPixmap.GetDrawable().DrawRectangle(gc, true, 0, 0, -1, -1)
@@ -463,11 +433,14 @@ func buildCrt() *gtk.DrawingArea {
 		gdkWin.GetDrawable().DrawDrawable(gc, offScreenPixmap.GetDrawable(), 0, 0, 0, 0, -1, -1)
 		//fmt.Println("expose-event handled")
 	})
+
+	// abusing this event to signal update actually required
+	crt.Connect("client-event", drawCrt)
 	return crt
 }
 
 func updateCrt(crt *gtk.DrawingArea, t *terminalT) {
-	var cIx int
+	//var cIx int
 
 	for {
 		updateType := <-updateCrtChan
@@ -476,46 +449,49 @@ func updateCrt(crt *gtk.DrawingArea, t *terminalT) {
 			blinkState = !blinkState
 			fallthrough
 		case updateCrtNormal:
-			glib.IdleAdd(func() {
-				drawable := offScreenPixmap.GetDrawable()
-				t.rwMutex.RLock()
-				for line := 0; line < t.visibleLines; line++ {
-					for col := 0; col < t.visibleCols; col++ {
-						cIx = int(t.display[line][col].charValue)
-						if cIx > 31 && cIx < 128 {
-							switch {
-							case t.blinkEnabled && blinkState && t.display[line][col].blink:
-								drawable.DrawPixbuf(gc, bdfFont[32].pixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
-							case t.display[line][col].reverse:
-								drawable.DrawPixbuf(gc, bdfFont[cIx].reversePixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
-							case t.display[line][col].dim:
-								drawable.DrawPixbuf(gc, bdfFont[cIx].dimPixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
-							default:
-								drawable.DrawPixbuf(gc, bdfFont[cIx].pixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
-							}
-						}
-						// underscore?
-						if t.display[line][col].underscore {
-							drawable.DrawLine(gc, col*charWidth, ((line+1)*charHeight)-1, (col+1)*charWidth, ((line+1)*charHeight)-1)
-						}
-					} // end for col
-				} // end for line
-				// draw the cursor - if on-screen
-				if t.cursorX < t.visibleCols && t.cursorY < t.visibleLines {
-					cIx := int(t.display[t.cursorY][t.cursorX].charValue)
-					if t.display[t.cursorY][t.cursorX].reverse {
-						drawable.DrawPixbuf(gc, bdfFont[cIx].pixbuf, 0, 0, t.cursorX*charWidth, t.cursorY*charHeight, charWidth, charHeight, 0, 0, 0)
-					} else {
-						drawable.DrawPixbuf(gc, bdfFont[cIx].reversePixbuf, 0, 0, t.cursorX*charWidth, t.cursorY*charHeight, charWidth, charHeight, 0, 0, 0)
-					}
-				}
-
-				t.rwMutex.RUnlock()
-				gdkWin.Invalidate(nil, false)
-			})
+			glib.IdleAdd(func() { crt.Emit("client-event") })
 		}
 		//fmt.Println("updateCrt called")
 	}
+}
+
+func drawCrt() {
+	var cIx int
+	drawable := offScreenPixmap.GetDrawable()
+	terminal.rwMutex.RLock()
+	for line := 0; line < terminal.visibleLines; line++ {
+		for col := 0; col < terminal.visibleCols; col++ {
+			cIx = int(terminal.display[line][col].charValue)
+			if cIx > 31 && cIx < 128 {
+				switch {
+				case terminal.blinkEnabled && blinkState && terminal.display[line][col].blink:
+					drawable.DrawPixbuf(gc, bdfFont[32].pixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
+				case terminal.display[line][col].reverse:
+					drawable.DrawPixbuf(gc, bdfFont[cIx].reversePixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
+				case terminal.display[line][col].dim:
+					drawable.DrawPixbuf(gc, bdfFont[cIx].dimPixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
+				default:
+					drawable.DrawPixbuf(gc, bdfFont[cIx].pixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
+				}
+			}
+			// underscore?
+			if terminal.display[line][col].underscore {
+				drawable.DrawLine(gc, col*charWidth, ((line+1)*charHeight)-1, (col+1)*charWidth, ((line+1)*charHeight)-1)
+			}
+		} // end for col
+	} // end for line
+	// draw the cursor - if on-screen
+	if terminal.cursorX < terminal.visibleCols && terminal.cursorY < terminal.visibleLines {
+		cIx := int(terminal.display[terminal.cursorY][terminal.cursorX].charValue)
+		if terminal.display[terminal.cursorY][terminal.cursorX].reverse {
+			drawable.DrawPixbuf(gc, bdfFont[cIx].pixbuf, 0, 0, terminal.cursorX*charWidth, terminal.cursorY*charHeight, charWidth, charHeight, 0, 0, 0)
+		} else {
+			drawable.DrawPixbuf(gc, bdfFont[cIx].reversePixbuf, 0, 0, terminal.cursorX*charWidth, terminal.cursorY*charHeight, charWidth, charHeight, 0, 0, 0)
+		}
+	}
+
+	terminal.rwMutex.RUnlock()
+	gdkWin.Invalidate(nil, false)
 }
 
 func buildStatusBox() *gtk.HBox {
@@ -530,11 +506,12 @@ func buildStatusBox() *gtk.HBox {
 	esf := gtk.NewFrame("")
 	esf.Add(emuStatusLabel)
 	statusBox.Add(esf)
+	statusBox.Connect("client-event", updateStatusBox)
+
 	go func() {
 		for _ = range statusUpdateTicker.C {
-			glib.IdleAdd(func() {
-				updateStatusBox()
-			})
+			glib.IdleAdd(func() { statusBox.Emit("client-event") })
+			//statusBox.Emit("client-event")
 		}
 	}()
 	return statusBox
