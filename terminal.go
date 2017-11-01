@@ -1,3 +1,22 @@
+// Copyright (C) 2017  Steve Merrony
+
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+//
+
 package main
 
 import "fmt"
@@ -9,6 +28,9 @@ const (
 	totalLines, totalCols           = 96, 208
 )
 
+// terminalT encapsulates most of the emulation bevahiour itself.
+// The display[][] matrix represents the currently-displayed state of the
+// terminal (which is actually displayed elsewhere)
 type terminalT struct {
 	rwMutex                                      sync.RWMutex
 	visibleLines, visibleCols                    int
@@ -190,7 +212,8 @@ func (t *terminalT) run() {
 				case telnetCmdWILL:
 					t.gotTelnetWill = true
 					skipChar = true
-				case telnetCmdAO, telnetCmdAYT, telnetCmdBRK, telnetCmdDM, telnetCmdDONT, telnetCmdEC, telnetCmdEL, telnetCmdGA, telnetCmdIP, telnetCmdNOP, telnetCmdSB, telnetCmdSE:
+				case telnetCmdAO, telnetCmdAYT, telnetCmdBRK, telnetCmdDM, telnetCmdDONT, telnetCmdEC,
+					telnetCmdEL, telnetCmdGA, telnetCmdIP, telnetCmdNOP, telnetCmdSB, telnetCmdSE:
 					skipChar = true
 				}
 			}
@@ -201,7 +224,6 @@ func (t *terminalT) run() {
 
 			if t.status.connected == telnetConnected && t.gotTelnetDo {
 				// whatever the host asks us to do we will refuse
-				// FIXME send the message
 				keyboardChan <- telnetCmdIAC
 				keyboardChan <- telnetCmdWONT
 				keyboardChan <- ch
@@ -212,7 +234,6 @@ func (t *terminalT) run() {
 
 			if t.status.connected == telnetConnected && t.gotTelnetWill {
 				// whatever the host offers to do we will refuse
-				// FIXME send the message
 				keyboardChan <- telnetCmdIAC
 				keyboardChan <- telnetCmdDONT
 				keyboardChan <- ch
@@ -267,7 +288,9 @@ func (t *terminalT) run() {
 			// Short commands
 			if t.inCommand {
 				switch ch {
-				//case 'C': // requires response
+				case 'C': // requires response
+					t.sendModelID()
+					skipChar = true
 				case 'D':
 					t.reversedVideo = true
 					skipChar = true
@@ -277,6 +300,22 @@ func (t *terminalT) run() {
 				default:
 					fmt.Println("Warning: unrecognise Break-CMD code")
 				}
+
+				// D210 commands
+				if status.emulation >= d210 && ch == 'F' {
+					t.inExtendedCommand = true
+					skipChar = true
+				}
+
+				if status.emulation >= d210 && t.inExtendedCommand {
+					switch ch {
+					case 'F':
+						t.eraseUnprotectedToEndOfScreen()
+						skipChar = true
+						t.inExtendedCommand = false
+					}
+				}
+
 				t.inCommand = false
 				t.rwMutex.Unlock()
 				continue
@@ -284,6 +323,10 @@ func (t *terminalT) run() {
 
 			switch ch {
 			case dasherNul:
+				skipChar = true
+			case dasherBell:
+				// TODO - how to handle this?
+				fmt.Println("ignored BELL")
 				skipChar = true
 			case dasherBlinkOn:
 				t.blinking = true
@@ -355,6 +398,21 @@ func (t *terminalT) run() {
 				t.cursorX = 0
 				t.cursorY = 0
 				skipChar = true
+			case dasherReadWindowAdd: // REQUIRES RESPONSE - see D410 User Manual p.3-18
+				keyboardChan <- 31
+				keyboardChan <- byte(t.cursorX)
+				keyboardChan <- byte(t.cursorY)
+				skipChar = true
+			case dasherRevVideoOff:
+				if status.emulation >= d210 {
+					t.reversedVideo = false
+					skipChar = true
+				}
+			case dasherRevVideoOn:
+				if status.emulation >= d210 {
+					t.reversedVideo = true
+					skipChar = true
+				}
 			case dasherRollDisable:
 				t.rollEnabled = false
 				skipChar = true
@@ -367,7 +425,6 @@ func (t *terminalT) run() {
 			case dasherNormal:
 				t.underscored = false
 				skipChar = true
-			// case dasherRevVideoOff:
 			case dasherWriteWindowAddr:
 				t.readingWindowAddressX = true
 				skipChar = true
@@ -426,4 +483,39 @@ func (t *terminalT) run() {
 	// if t.status.dirty {
 	// 	t.updateChan <- true
 	// }
+}
+
+func (t *terminalT) sendModelID() {
+	switch status.emulation {
+	case d200:
+		keyboardChan <- 036  // Header 1
+		keyboardChan <- 0157 // Header 2             (="o")
+		keyboardChan <- 043  // model report follows (="#")
+		keyboardChan <- 041  // D100/D200            (="!")
+		keyboardChan <- 0132 // 0b01011010 see p.2-7 of D100/D200 User Manual (="Z")
+		keyboardChan <- 003  // firmware code
+	case d210:
+		keyboardChan <- 036  // Header 1
+		keyboardChan <- 0157 // Header 2             (="o")
+		keyboardChan <- 043  // model report follows (="#")
+		keyboardChan <- 050  // D210                 (="(")
+		keyboardChan <- 0121 // 0b01010001 See p.3-9 of D210/D211 User Manual
+		keyboardChan <- 0132 // firmware code
+	case d211:
+		keyboardChan <- 036  // Header 1
+		keyboardChan <- 0157 // Header 2             (="o")
+		keyboardChan <- 043  // model report follows (="#")
+		keyboardChan <- 050  // D210                 (="(")
+		keyboardChan <- 0131 // 0b01010001 See p.3-9 of D210/D211 User Manual
+		keyboardChan <- 0172 // firmware code
+
+		//    case 410:  // This is from p.3-17 of the D410 User Manual
+		//        keyboardChan <- 036  // Header 1
+		//        keyboardChan <- 0157 // Header 2             (="o")
+		//        keyboardChan <- 043  // model report follows (="#")
+		//        keyboardChan <- 052  // D410                 (="*")
+		//        keyboardChan <- 89   // Status - 0b01011001
+		//        keyboardChan <- 89   // Keyboard - 0b01011001 (="Y")
+
+	}
 }

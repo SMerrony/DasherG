@@ -213,12 +213,15 @@ func buildMenu() *gtk.MenuBar {
 	var emuGroup *glib.SList
 	emulationMenuItem.SetSubmenu(subMenu)
 	d200MenuItem := gtk.NewRadioMenuItemWithLabel(emuGroup, "D200") //gtk.NewCheckMenuItemWithLabel("D200")
+	d200MenuItem.Connect("activate", func() { status.emulation = d200 })
 	emuGroup = d200MenuItem.GetGroup()
 	subMenu.Append(d200MenuItem)
 	d210MenuItem := gtk.NewRadioMenuItemWithLabel(emuGroup, "D210") //gtk.NewCheckMenuItemWithLabel("D210")
+	d210MenuItem.Connect("activate", func() { status.emulation = d210 })
 	emuGroup = d210MenuItem.GetGroup()
 	subMenu.Append(d210MenuItem)
 	d211MenuItem := gtk.NewRadioMenuItemWithLabel(emuGroup, "D211") //gtk.NewCheckMenuItemWithLabel("D211")
+	d211MenuItem.Connect("activate", func() { status.emulation = d211 })
 	emuGroup = d211MenuItem.GetGroup()
 	subMenu.Append(d211MenuItem)
 	resizeMenuItem := gtk.NewMenuItemWithLabel("Resize")
@@ -456,42 +459,44 @@ func updateCrt(crt *gtk.DrawingArea, t *terminalT) {
 }
 
 func drawCrt() {
-	var cIx int
-	drawable := offScreenPixmap.GetDrawable()
-	terminal.rwMutex.RLock()
-	for line := 0; line < terminal.visibleLines; line++ {
-		for col := 0; col < terminal.visibleCols; col++ {
-			cIx = int(terminal.display[line][col].charValue)
-			if cIx > 31 && cIx < 128 {
-				switch {
-				case terminal.blinkEnabled && blinkState && terminal.display[line][col].blink:
-					drawable.DrawPixbuf(gc, bdfFont[32].pixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
-				case terminal.display[line][col].reverse:
-					drawable.DrawPixbuf(gc, bdfFont[cIx].reversePixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
-				case terminal.display[line][col].dim:
-					drawable.DrawPixbuf(gc, bdfFont[cIx].dimPixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
-				default:
-					drawable.DrawPixbuf(gc, bdfFont[cIx].pixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
+	glib.IdleAdd(func() {
+		var cIx int
+		drawable := offScreenPixmap.GetDrawable()
+		terminal.rwMutex.RLock()
+		for line := 0; line < terminal.visibleLines; line++ {
+			for col := 0; col < terminal.visibleCols; col++ {
+				cIx = int(terminal.display[line][col].charValue)
+				if cIx > 31 && cIx < 128 {
+					switch {
+					case terminal.blinkEnabled && blinkState && terminal.display[line][col].blink:
+						drawable.DrawPixbuf(gc, bdfFont[32].pixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
+					case terminal.display[line][col].reverse:
+						drawable.DrawPixbuf(gc, bdfFont[cIx].reversePixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
+					case terminal.display[line][col].dim:
+						drawable.DrawPixbuf(gc, bdfFont[cIx].dimPixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
+					default:
+						drawable.DrawPixbuf(gc, bdfFont[cIx].pixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
+					}
 				}
+				// underscore?
+				if terminal.display[line][col].underscore {
+					drawable.DrawLine(gc, col*charWidth, ((line+1)*charHeight)-1, (col+1)*charWidth, ((line+1)*charHeight)-1)
+				}
+			} // end for col
+		} // end for line
+		// draw the cursor - if on-screen
+		if terminal.cursorX < terminal.visibleCols && terminal.cursorY < terminal.visibleLines {
+			cIx := int(terminal.display[terminal.cursorY][terminal.cursorX].charValue)
+			if terminal.display[terminal.cursorY][terminal.cursorX].reverse {
+				drawable.DrawPixbuf(gc, bdfFont[cIx].pixbuf, 0, 0, terminal.cursorX*charWidth, terminal.cursorY*charHeight, charWidth, charHeight, 0, 0, 0)
+			} else {
+				drawable.DrawPixbuf(gc, bdfFont[cIx].reversePixbuf, 0, 0, terminal.cursorX*charWidth, terminal.cursorY*charHeight, charWidth, charHeight, 0, 0, 0)
 			}
-			// underscore?
-			if terminal.display[line][col].underscore {
-				drawable.DrawLine(gc, col*charWidth, ((line+1)*charHeight)-1, (col+1)*charWidth, ((line+1)*charHeight)-1)
-			}
-		} // end for col
-	} // end for line
-	// draw the cursor - if on-screen
-	if terminal.cursorX < terminal.visibleCols && terminal.cursorY < terminal.visibleLines {
-		cIx := int(terminal.display[terminal.cursorY][terminal.cursorX].charValue)
-		if terminal.display[terminal.cursorY][terminal.cursorX].reverse {
-			drawable.DrawPixbuf(gc, bdfFont[cIx].pixbuf, 0, 0, terminal.cursorX*charWidth, terminal.cursorY*charHeight, charWidth, charHeight, 0, 0, 0)
-		} else {
-			drawable.DrawPixbuf(gc, bdfFont[cIx].reversePixbuf, 0, 0, terminal.cursorX*charWidth, terminal.cursorY*charHeight, charWidth, charHeight, 0, 0, 0)
 		}
-	}
 
-	terminal.rwMutex.RUnlock()
-	gdkWin.Invalidate(nil, false)
+		terminal.rwMutex.RUnlock()
+		gdkWin.Invalidate(nil, false)
+	})
 }
 
 func buildStatusBox() *gtk.HBox {
@@ -506,11 +511,11 @@ func buildStatusBox() *gtk.HBox {
 	esf := gtk.NewFrame("")
 	esf.Add(emuStatusLabel)
 	statusBox.Add(esf)
-	statusBox.Connect("client-event", updateStatusBox)
+	statusBox.Connect("property-notify-event", updateStatusBox)
 
 	go func() {
 		for _ = range statusUpdateTicker.C {
-			glib.IdleAdd(func() { statusBox.Emit("client-event") })
+			glib.IdleAdd(func() { statusBox.Emit("property-notify-event") })
 			//statusBox.Emit("client-event")
 		}
 	}()
@@ -519,16 +524,18 @@ func buildStatusBox() *gtk.HBox {
 
 // updateStatusBox to be run regularly - N.B. on the main thread!
 func updateStatusBox() {
-	switch status.connected {
-	case disconnected:
-		onlineLabel.SetText("Local (Offline)")
-	case serialConnected:
-		fmt.Println("Serial not yet supported")
-	case telnetConnected:
-		onlineLabel.SetText("Online (Telnet) - Host: " + status.remoteHost + " - Port: " + status.remotePort)
-	}
-	emuStat := "D" + strconv.Itoa(status.emulation) + " (" +
-		strconv.Itoa(status.visLines) + "x" + strconv.Itoa(status.visCols) + ")"
+	glib.IdleAdd(func() {
+		switch status.connected {
+		case disconnected:
+			onlineLabel.SetText("Local (Offline)")
+		case serialConnected:
+			fmt.Println("Serial not yet supported")
+		case telnetConnected:
+			onlineLabel.SetText("Online (Telnet) - Host: " + status.remoteHost + " - Port: " + status.remotePort)
+		}
+		emuStat := "D" + strconv.Itoa(status.emulation) + " (" +
+			strconv.Itoa(status.visLines) + "x" + strconv.Itoa(status.visCols) + ")"
 
-	emuStatusLabel.SetText(emuStat)
+		emuStatusLabel.SetText(emuStat)
+	})
 }
