@@ -189,6 +189,12 @@ func (t *terminalT) run() {
 	)
 	for hostData := range fromHostChan {
 		for _, ch = range hostData {
+
+			// ignore nulls???
+			if ch == 0 {
+				continue
+			}
+
 			t.rwMutex.Lock()
 			skipChar = false
 			// check for Telnet command
@@ -283,7 +289,10 @@ func (t *terminalT) run() {
 				continue
 			}
 
-			// FIXME lots of code omitted
+			// logging?
+			if t.status.logging {
+				t.status.logFile.Write([]byte{ch})
+			}
 
 			// Short commands
 			if t.inCommand {

@@ -191,6 +191,7 @@ func buildMenu() *gtk.MenuBar {
 	subMenu := gtk.NewMenu()
 	fileMenuItem.SetSubmenu(subMenu)
 	loggingMenuItem := gtk.NewMenuItemWithLabel("Logging")
+	loggingMenuItem.Connect("activate", toggleLogging)
 	subMenu.Append(loggingMenuItem)
 
 	sendFileMenuItem := gtk.NewMenuItemWithLabel("Send File")
@@ -415,6 +416,28 @@ func closeRemote() {
 	networkConnectMenuItem.SetSensitive(true)
 	networkDisconnectMenuItem.SetSensitive(false)
 	go localListener()
+}
+
+func toggleLogging() {
+	if status.logging {
+		status.logFile.Close()
+		status.logging = false
+	} else {
+		fd := gtk.NewFileChooserDialog("DasherG Logfile", win, gtk.FILE_CHOOSER_ACTION_SAVE,
+			"_Cancel", gtk.RESPONSE_CANCEL, "_Open", gtk.RESPONSE_ACCEPT)
+		res := fd.Run()
+		if res == gtk.RESPONSE_ACCEPT {
+			filename := fd.GetFilename()
+			status.logFile, err = os.Create(filename)
+			if err != nil {
+				log.Printf("WARNING: Could not open log file %s\n", filename)
+				status.logging = false
+			} else {
+				status.logging = true
+			}
+		}
+		fd.Destroy()
+	}
 }
 
 func buildCrt() *gtk.DrawingArea {

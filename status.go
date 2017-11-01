@@ -1,5 +1,7 @@
 package main
 
+import "os"
+
 const (
 	disconnected    = 0
 	serialConnected = 1
@@ -13,9 +15,10 @@ const (
 type Status struct {
 	visLines, visCols                  int
 	serialPort, remoteHost, remotePort string
-	holding                            bool
+	holding, logging                   bool
 	connected                          int
 	emulation                          int
+	logFile                            *os.File
 }
 
 func (s *Status) setup() {
