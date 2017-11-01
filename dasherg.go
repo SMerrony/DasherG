@@ -86,7 +86,7 @@ var (
 	fKeyLabs                                          [20][4]*gtk.Label
 	serialConnectMenuItem, serialDisconnectMenuItem   *gtk.MenuItem
 	networkConnectMenuItem, networkDisconnectMenuItem *gtk.MenuItem
-	onlineLabel, emuStatusLabel                       *gtk.Label
+	onlineLabel, hostLabel, emuStatusLabel            *gtk.Label
 )
 
 var (
@@ -138,7 +138,10 @@ func main() {
 
 func setupWindow(win *gtk.Window) {
 	win.SetTitle(appTitle)
-	win.Connect("destroy", func() { os.Exit(0) })
+	win.Connect("destroy", func() {
+		gtk.MainQuit()
+		//os.Exit(0)
+	})
 	win.SetDefaultSize(800, 600)
 	go keyEventHandler()
 	win.Connect("key-press-event", func(ctx *glib.CallbackContext) {
@@ -197,7 +200,8 @@ func buildMenu() *gtk.MenuBar {
 	subMenu.Append(quitMenuItem)
 	quitMenuItem.Connect("activate", func() {
 		pprof.StopCPUProfile()
-		os.Exit(0)
+		gtk.MainQuit()
+		//os.Exit(0)
 	})
 
 	viewMenuItem := gtk.NewMenuItemWithLabel("View")
@@ -452,7 +456,8 @@ func updateCrt(crt *gtk.DrawingArea, t *terminalT) {
 			blinkState = !blinkState
 			fallthrough
 		case updateCrtNormal:
-			glib.IdleAdd(func() { crt.Emit("client-event") })
+			//glib.IdleAdd(func() { crt.Emit("custom-event") })
+			crt.Emit("client-event")
 		}
 		//fmt.Println("updateCrt called")
 	}
@@ -507,16 +512,21 @@ func buildStatusBox() *gtk.HBox {
 	olf.Add(onlineLabel)
 	statusBox.Add(olf)
 
+	hostLabel = gtk.NewLabel("")
+	hlf := gtk.NewFrame("")
+	hlf.Add(hostLabel)
+	statusBox.Add(hlf)
+
 	emuStatusLabel = gtk.NewLabel("")
 	esf := gtk.NewFrame("")
 	esf.Add(emuStatusLabel)
 	statusBox.Add(esf)
-	statusBox.Connect("property-notify-event", updateStatusBox)
+	statusBox.Connect("client-event", updateStatusBox)
 
 	go func() {
 		for _ = range statusUpdateTicker.C {
-			glib.IdleAdd(func() { statusBox.Emit("property-notify-event") })
-			//statusBox.Emit("client-event")
+			//glib.IdleAdd(func() { statusBox.Emit("property-notify-event") })
+			statusBox.Emit("client-event")
 		}
 	}()
 	return statusBox
@@ -528,10 +538,13 @@ func updateStatusBox() {
 		switch status.connected {
 		case disconnected:
 			onlineLabel.SetText("Local (Offline)")
+			hostLabel.SetText("")
 		case serialConnected:
 			fmt.Println("Serial not yet supported")
+			hostLabel.SetText("")
 		case telnetConnected:
-			onlineLabel.SetText("Online (Telnet) - Host: " + status.remoteHost + " - Port: " + status.remotePort)
+			onlineLabel.SetText("Online (Telnet)")
+			hostLabel.SetText(status.remoteHost + ":" + status.remotePort)
 		}
 		emuStat := "D" + strconv.Itoa(status.emulation) + " (" +
 			strconv.Itoa(status.visLines) + "x" + strconv.Itoa(status.visCols) + ")"
