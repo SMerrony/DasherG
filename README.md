@@ -20,7 +20,9 @@ DasherG is [hosted on GitHub](https://github.com/SMerrony/aosvs-tools/tree/maste
 ## Build from Source
 ### Prerequisites
 To build from the source you will need the GTK-Development packages installed on your system.  You will also need to install the following Go packages...
-go get github.com/mattn/go-gtk/gtk
+
+```go get github.com/mattn/go-gtk/gtk```
+
 ### Build
 ```go build```
 

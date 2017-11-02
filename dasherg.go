@@ -353,6 +353,71 @@ func buildFkeyMatrix() *gtk.Table {
 			fkeyMatrix.AttachDefaults(frm, uint(f)+2, uint(f)+3, uint(l), uint(l)+1)
 		}
 	}
+
+	var keyEv gdk.EventKey
+	keyEv.Window = unsafe.Pointer(win)
+	keyEv.Type = 9 // gdk.KEY_RELEASE
+	fKeyButs[1].Connect("clicked", func() {
+		keyEv.Keyval = gdk.KEY_F1
+		keyReleaseEventChan <- &keyEv
+	})
+	fKeyButs[2].Connect("clicked", func() {
+		keyEv.Keyval = gdk.KEY_F2
+		keyReleaseEventChan <- &keyEv
+	})
+	fKeyButs[3].Connect("clicked", func() {
+		keyEv.Keyval = gdk.KEY_F3
+		keyReleaseEventChan <- &keyEv
+	})
+	fKeyButs[4].Connect("clicked", func() {
+		keyEv.Keyval = gdk.KEY_F4
+		keyReleaseEventChan <- &keyEv
+	})
+	fKeyButs[5].Connect("clicked", func() {
+		keyEv.Keyval = gdk.KEY_F5
+		keyReleaseEventChan <- &keyEv
+	})
+	fKeyButs[6].Connect("clicked", func() {
+		keyEv.Keyval = gdk.KEY_F6
+		keyReleaseEventChan <- &keyEv
+	})
+	fKeyButs[7].Connect("clicked", func() {
+		keyEv.Keyval = gdk.KEY_F7
+		keyReleaseEventChan <- &keyEv
+	})
+	fKeyButs[8].Connect("clicked", func() {
+		keyEv.Keyval = gdk.KEY_F8
+		keyReleaseEventChan <- &keyEv
+	})
+	fKeyButs[9].Connect("clicked", func() {
+		keyEv.Keyval = gdk.KEY_F9
+		keyReleaseEventChan <- &keyEv
+	})
+	fKeyButs[10].Connect("clicked", func() {
+		keyEv.Keyval = gdk.KEY_F10
+		keyReleaseEventChan <- &keyEv
+	})
+	fKeyButs[11].Connect("clicked", func() {
+		keyEv.Keyval = gdk.KEY_F11
+		keyReleaseEventChan <- &keyEv
+	})
+	fKeyButs[12].Connect("clicked", func() {
+		keyEv.Keyval = gdk.KEY_F12
+		keyReleaseEventChan <- &keyEv
+	})
+	fKeyButs[13].Connect("clicked", func() {
+		keyEv.Keyval = gdk.KEY_F13
+		keyReleaseEventChan <- &keyEv
+	})
+	fKeyButs[14].Connect("clicked", func() {
+		keyEv.Keyval = gdk.KEY_F14
+		keyReleaseEventChan <- &keyEv
+	})
+	fKeyButs[15].Connect("clicked", func() {
+		keyEv.Keyval = gdk.KEY_F15
+		keyReleaseEventChan <- &keyEv
+	})
+
 	return fkeyMatrix
 }
 

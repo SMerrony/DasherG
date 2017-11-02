@@ -56,10 +56,54 @@ func keyEventHandler() {
 
 			case gdk.KEY_Home:
 				keyboardChan <- dasherHome
-			// case gdk.KEY_Return:
-			// 	keyboardChan <- dasherNewLine
 
 			case gdk.KEY_F1:
+				keyboardChan <- dasherCmd
+				keyboardChan <- modify(113)
+			case gdk.KEY_F2:
+				keyboardChan <- dasherCmd
+				keyboardChan <- modify(114)
+			case gdk.KEY_F3:
+				keyboardChan <- dasherCmd
+				keyboardChan <- modify(115)
+			case gdk.KEY_F4:
+				keyboardChan <- dasherCmd
+				keyboardChan <- modify(116)
+			case gdk.KEY_F5:
+				keyboardChan <- dasherCmd
+				keyboardChan <- modify(117)
+
+			case gdk.KEY_F6:
+				keyboardChan <- dasherCmd
+				keyboardChan <- modify(118)
+			case gdk.KEY_F7:
+				keyboardChan <- dasherCmd
+				keyboardChan <- modify(119)
+			case gdk.KEY_F8:
+				keyboardChan <- dasherCmd
+				keyboardChan <- modify(120)
+			case gdk.KEY_F9:
+				keyboardChan <- dasherCmd
+				keyboardChan <- modify(121)
+			case gdk.KEY_F10:
+				keyboardChan <- dasherCmd
+				keyboardChan <- modify(122)
+
+			case gdk.KEY_F11:
+				keyboardChan <- dasherCmd
+				keyboardChan <- modify(123)
+			case gdk.KEY_F12:
+				keyboardChan <- dasherCmd
+				keyboardChan <- modify(124)
+			case gdk.KEY_F13:
+				keyboardChan <- dasherCmd
+				keyboardChan <- modify(125)
+			case gdk.KEY_F14:
+				keyboardChan <- dasherCmd
+				keyboardChan <- modify(126)
+			case gdk.KEY_F15:
+				keyboardChan <- dasherCmd
+				keyboardChan <- modify(112)
 
 				// Cursor keys
 			case gdk.KEY_Down:
@@ -81,4 +125,15 @@ func keyEventHandler() {
 			}
 		}
 	}
+}
+
+func modify(k byte) byte {
+	var modifier byte
+	if shiftPressed {
+		modifier -= 16
+	}
+	if ctrlPressed {
+		modifier -= 64
+	}
+	return k + modifier
 }
