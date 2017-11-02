@@ -190,11 +190,6 @@ func (t *terminalT) run() {
 	for hostData := range fromHostChan {
 		for _, ch = range hostData {
 
-			// ignore nulls???
-			if ch == 0 {
-				continue
-			}
-
 			t.rwMutex.Lock()
 			skipChar = false
 			// check for Telnet command

@@ -97,13 +97,14 @@ func telnetReader(con net.Conn, hostChan chan []byte) {
 		if n == 0 {
 			//log.Fatalf("telnet got zero-byte message from host")
 			fmt.Println("telnetReader got zero length message, stopping")
+			closeTelnetConn()
 			return
 		}
 		if err != nil {
 			log.Fatal("telnetReader got errror reading from host ", err.Error())
 		}
 		//fmt.Printf("telentReader got <%s> from host\n", hostBytes)
-		hostChan <- hostBytes
+		hostChan <- hostBytes[:n]
 	}
 }
 

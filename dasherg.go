@@ -83,10 +83,10 @@ var (
 	statusUpdateTicker = time.NewTicker(time.Millisecond * statusUpdatePeriodMs)
 
 	// widgets needing global access
-	fKeyLabs                                          [20][4]*gtk.Label
-	serialConnectMenuItem, serialDisconnectMenuItem   *gtk.MenuItem
-	networkConnectMenuItem, networkDisconnectMenuItem *gtk.MenuItem
-	onlineLabel, hostLabel, emuStatusLabel            *gtk.Label
+	fKeyLabs                                             [20][4]*gtk.Label
+	serialConnectMenuItem, serialDisconnectMenuItem      *gtk.MenuItem
+	networkConnectMenuItem, networkDisconnectMenuItem    *gtk.MenuItem
+	onlineLabel, hostLabel, loggingLabel, emuStatusLabel *gtk.Label
 )
 
 var (
@@ -540,6 +540,11 @@ func buildStatusBox() *gtk.HBox {
 	hlf.Add(hostLabel)
 	statusBox.Add(hlf)
 
+	loggingLabel = gtk.NewLabel("")
+	lf := gtk.NewFrame("")
+	lf.Add(loggingLabel)
+	statusBox.Add(lf)
+
 	emuStatusLabel = gtk.NewLabel("")
 	esf := gtk.NewFrame("")
 	esf.Add(emuStatusLabel)
@@ -568,6 +573,11 @@ func updateStatusBox() {
 		case telnetConnected:
 			onlineLabel.SetText("Online (Telnet)")
 			hostLabel.SetText(status.remoteHost + ":" + status.remotePort)
+		}
+		if status.logging {
+			loggingLabel.SetText("Logging")
+		} else {
+			loggingLabel.SetText("")
 		}
 		emuStat := "D" + strconv.Itoa(status.emulation) + " (" +
 			strconv.Itoa(status.visLines) + "x" + strconv.Itoa(status.visCols) + ")"
