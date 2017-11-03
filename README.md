@@ -1,6 +1,8 @@
 # DasherG
 DasherG is a new free terminal emulator for Data General DASHER series character-based terminals.  It is written in [Go](https://golang.org/) using the [Go-Gtk](https://github.com/mattn/go-gtk) toolkit and should run on all common platforms supported by Go.
 
+![screenshot](screenshots/2017-11-03 10-19-21-alpha-selftest.png "Alpha Screenshot")
+
 ## Key Features
 
 * ~~Serial interface support at 1200, 2400, 4800, 9600 & 19200 baud, 7 or 8 data bits (defaults to 9600, 8, n, 1)~~
