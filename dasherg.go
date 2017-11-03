@@ -107,11 +107,11 @@ func main() {
 
 	gtk.Init(nil)
 	green = gdk.NewColorRGB(0, 255, 0)
-	bdfLoad(fontFile)
+	bdfLoad(fontFile, zoomNormal)
 	go localListener()
-	status = &Status{}
+	status = new(Status)
 	status.setup()
-	terminal = &terminalT{}
+	terminal = new(terminalT)
 	terminal.setup(status, updateCrtChan)
 	win = gtk.NewWindow(gtk.WINDOW_TOPLEVEL)
 	setupWindow(win)
@@ -142,7 +142,7 @@ func setupWindow(win *gtk.Window) {
 		gtk.MainQuit()
 		//os.Exit(0)
 	})
-	win.SetDefaultSize(800, 600)
+	//win.SetDefaultSize(800, 600)
 	go keyEventHandler()
 	win.Connect("key-press-event", func(ctx *glib.CallbackContext) {
 		arg := ctx.Args(0)
@@ -230,6 +230,7 @@ func buildMenu() *gtk.MenuBar {
 	emuGroup = d211MenuItem.GetGroup()
 	subMenu.Append(d211MenuItem)
 	resizeMenuItem := gtk.NewMenuItemWithLabel("Resize")
+	resizeMenuItem.Connect("activate", resizeDialog)
 	subMenu.Append(resizeMenuItem)
 	selfTestMenuItem := gtk.NewMenuItemWithLabel("Self-Test")
 	subMenu.Append(selfTestMenuItem)
@@ -432,6 +433,99 @@ func aboutDialog() {
 	ad.Destroy()
 }
 
+func resizeDialog() {
+	rd := gtk.NewDialog()
+	rd.SetTitle("Resize Terminal")
+	vb := rd.GetVBox()
+	table := gtk.NewTable(3, 3, false)
+	cLab := gtk.NewLabel("Columns")
+	table.AttachDefaults(cLab, 0, 1, 0, 1)
+	colsCombo := gtk.NewComboBoxText()
+	colsCombo.AppendText("80")
+	colsCombo.AppendText("81")
+	colsCombo.AppendText("120")
+	colsCombo.AppendText("132")
+	colsCombo.AppendText("135")
+	switch status.visCols {
+	case 80:
+		colsCombo.SetActive(0)
+	case 81:
+		colsCombo.SetActive(1)
+	case 120:
+		colsCombo.SetActive(2)
+	case 132:
+		colsCombo.SetActive(3)
+	case 135:
+		colsCombo.SetActive(4)
+	}
+	table.AttachDefaults(colsCombo, 1, 2, 0, 1)
+	lLab := gtk.NewLabel("Lines")
+	table.AttachDefaults(lLab, 0, 1, 1, 2)
+	linesCombo := gtk.NewComboBoxText()
+	linesCombo.AppendText("24")
+	linesCombo.AppendText("25")
+	linesCombo.AppendText("36")
+	linesCombo.AppendText("48")
+	linesCombo.AppendText("66")
+	switch status.visLines {
+	case 24:
+		linesCombo.SetActive(0)
+	case 25:
+		linesCombo.SetActive(1)
+	case 36:
+		linesCombo.SetActive(2)
+	case 48:
+		linesCombo.SetActive(3)
+	case 66:
+		linesCombo.SetActive(4)
+	}
+	table.AttachDefaults(linesCombo, 1, 2, 1, 2)
+	zLab := gtk.NewLabel("Zoom")
+	table.AttachDefaults(zLab, 0, 1, 2, 3)
+	zoomCombo := gtk.NewComboBoxText()
+	zoomCombo.AppendText("Large")
+	zoomCombo.AppendText("Normal")
+	zoomCombo.AppendText("Smaller")
+	zoomCombo.AppendText("Tiny")
+	switch status.zoom {
+	case zoomLarge:
+		zoomCombo.SetActive(0)
+	case zoomNormal:
+		zoomCombo.SetActive(1)
+	case zoomSmaller:
+		zoomCombo.SetActive(2)
+	case zoomTiny:
+		zoomCombo.SetActive(3)
+	}
+	table.AttachDefaults(zoomCombo, 1, 2, 2, 3)
+	vb.PackStart(table, false, false, 1)
+
+	rd.AddButton("Cancel", gtk.RESPONSE_CANCEL)
+	rd.AddButton("OK", gtk.RESPONSE_OK)
+	rd.ShowAll()
+	response := rd.Run()
+	if response == gtk.RESPONSE_OK {
+		status.visCols, _ = strconv.Atoi(colsCombo.GetActiveText())
+		status.visLines, _ = strconv.Atoi(linesCombo.GetActiveText())
+		switch zoomCombo.GetActiveText() {
+		case "Large":
+			status.zoom = zoomLarge
+		case "Normal":
+			status.zoom = zoomNormal
+		case "Smaller":
+			status.zoom = zoomSmaller
+		case "Tiny":
+			status.zoom = zoomTiny
+		}
+		bdfLoad(fontFile, status.zoom)
+
+		crt.SetSizeRequest(status.visCols*charWidth, status.visLines*charHeight)
+		terminal.resize()
+		win.Resize(800, 600) // this is effectively a minimum size, user can override
+	}
+	rd.Destroy()
+}
+
 func openNetDialog() {
 	nd := gtk.NewDialog()
 	nd.SetTitle("Telnet Host")
@@ -506,17 +600,16 @@ func toggleLogging() {
 }
 
 func buildCrt() *gtk.DrawingArea {
-	crt := gtk.NewDrawingArea()
-	crt.SetSizeRequest(80*charWidth, 24*charHeight)
+	crt = gtk.NewDrawingArea()
+	crt.SetSizeRequest(status.visCols*charWidth, status.visLines*charHeight)
 
 	crt.Connect("configure-event", func() {
 		if offScreenPixmap != nil {
 			offScreenPixmap.Unref()
 		}
 		//allocation := crt.GetAllocation()
-		offScreenPixmap = gdk.NewPixmap(crt.GetWindow().GetDrawable(), 80*charWidth, 24*charHeight, 24)
+		offScreenPixmap = gdk.NewPixmap(crt.GetWindow().GetDrawable(), status.visCols*charWidth, status.visLines*charHeight, 24)
 		gc = gdk.NewGC(offScreenPixmap.GetDrawable())
-		gc.SetForeground(gc.GetColormap().AllocColorRGB(0, 65535, 0))
 		offScreenPixmap.GetDrawable().DrawRectangle(gc, true, 0, 0, -1, -1)
 		fmt.Println("configure-event handled")
 	})
@@ -583,6 +676,7 @@ func drawCrt() {
 			if terminal.display[terminal.cursorY][terminal.cursorX].reverse {
 				drawable.DrawPixbuf(gc, bdfFont[cIx].pixbuf, 0, 0, terminal.cursorX*charWidth, terminal.cursorY*charHeight, charWidth, charHeight, 0, 0, 0)
 			} else {
+				//fmt.Printf("Drawing cursor at %d,%d\n", terminal.cursorX*charWidth, terminal.cursorY*charHeight)
 				drawable.DrawPixbuf(gc, bdfFont[cIx].reversePixbuf, 0, 0, terminal.cursorX*charWidth, terminal.cursorY*charHeight, charWidth, charHeight, 0, 0, 0)
 			}
 		}

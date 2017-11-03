@@ -53,8 +53,8 @@ func (t *terminalT) setup(pStatus *Status, update chan int) {
 	t.rwMutex.Lock()
 	t.status = pStatus
 	t.updateCrtChan = update
-	t.visibleLines = defaultLines
-	t.visibleCols = defaultCols
+	t.visibleLines = t.status.visLines
+	t.visibleCols = t.status.visCols
 	t.cursorX = 0
 	t.cursorY = 0
 	t.rollEnabled = true
@@ -103,6 +103,14 @@ func (t *terminalT) clearScreen() {
 	}
 }
 
+func (t *terminalT) resize() {
+	t.clearScreen()
+	t.visibleLines = t.status.visLines
+	t.visibleCols = t.status.visCols
+	t.cursorX = 0
+	t.cursorY = 0
+}
+
 func (t *terminalT) eraseUnprotectedToEndOfScreen() {
 	// clear remainder of line
 	for x := t.cursorX; x < t.visibleCols; x++ {
@@ -134,8 +142,8 @@ func (t *terminalT) scrollUp(rows int) {
 
 func (t *terminalT) selfTest(hostChan chan []byte) {
 	var (
-		testLineHRule1 = "123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012"
-		testLineHRule2 = "         1         2         3         4         5         6         7         8         9         10        11        12        13"
+		testLineHRule1 = "123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012245"
+		testLineHRule2 = "         1         2         3         4         5         6         7         8         9         10        11        12        13    "
 		testLine1      = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567489!\"$%^."
 		testLineN      = "3 Normal : "
 		testLineD      = "4 Dim    : "

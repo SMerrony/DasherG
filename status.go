@@ -10,10 +10,15 @@ const (
 	d200 = 200
 	d210 = 210
 	d211 = 211
+
+	zoomLarge = iota
+	zoomNormal
+	zoomSmaller
+	zoomTiny
 )
 
 type Status struct {
-	visLines, visCols                  int
+	visLines, visCols, zoom            int
 	serialPort, remoteHost, remotePort string
 	holding, logging                   bool
 	connected                          int
@@ -24,5 +29,6 @@ type Status struct {
 func (s *Status) setup() {
 	s.visCols = defaultCols
 	s.visLines = defaultLines
-	s.emulation = d200
+	s.zoom = zoomNormal
+	s.emulation = d210
 }

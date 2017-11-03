@@ -20,8 +20,6 @@
 package main
 
 import (
-	"fmt"
-
 	"github.com/mattn/go-gtk/gdk"
 )
 
@@ -35,7 +33,7 @@ func keyEventHandler() {
 	for {
 		select {
 		case keyPressEvent := <-keyPressEventChan:
-			fmt.Println("keyEventHandler got press event")
+			//fmt.Println("keyEventHandler got press event")
 			switch keyPressEvent.Keyval {
 			case gdk.KEY_Control_L, gdk.KEY_Control_R:
 				ctrlPressed = true
@@ -44,7 +42,7 @@ func keyEventHandler() {
 			}
 
 		case keyReleaseEvent := <-keyReleaseEventChan:
-			fmt.Println("keyEventHandler got release event")
+			//fmt.Println("keyEventHandler got release event")
 			switch keyReleaseEvent.Keyval {
 			case gdk.KEY_Control_L, gdk.KEY_Control_R:
 				ctrlPressed = false
@@ -119,7 +117,7 @@ func keyEventHandler() {
 				keyByte := byte(keyReleaseEvent.Keyval)
 				if ctrlPressed {
 					keyByte &= 31 //mask off lower 5 bits
-					fmt.Printf("Keystroke modified to <%d>\n", keyByte)
+					//fmt.Printf("Keystroke modified to <%d>\n", keyByte)
 				}
 				keyboardChan <- keyByte
 			}

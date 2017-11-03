@@ -33,13 +33,9 @@ import (
 const (
 	maxChars = 128
 	bpp      = 8
-	// charWidth is the currently displayed width of a character
-	charWidth = 10
-	// charHeight is the currently displayed height of a character
-	charHeight = 18 //12
-	// width of a char in the raw font
+	// width (pixels) of a char in the raw font
 	fontWidth = 10
-	// height of a char in the raw font
+	// height (pixels) of a char in the raw font
 	fontHeight = 12
 )
 
@@ -48,9 +44,25 @@ type bdfChar struct {
 	pixbuf, dimPixbuf, reversePixbuf *gdkpixbuf.Pixbuf
 }
 
-var bdfFont [maxChars]bdfChar
+var (
+	bdfFont [maxChars]bdfChar
+	// charWidth is the currently displayed width of a character
+	charWidth int
+	// charHeight is the currently displayed height of a character
+	charHeight int
+)
 
-func bdfLoad(filename string) {
+func bdfLoad(filename string, zoom int) {
+	switch zoom {
+	case zoomLarge:
+		charWidth, charHeight = 10, 24
+	case zoomNormal:
+		charWidth, charHeight = 10, 18
+	case zoomSmaller:
+		charWidth, charHeight = 8, 12
+	case zoomTiny:
+		charWidth, charHeight = 7, 10
+	}
 
 	fontFile, err := os.Open(filename)
 	if err != nil {
