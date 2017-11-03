@@ -611,6 +611,7 @@ func buildCrt() *gtk.DrawingArea {
 		offScreenPixmap = gdk.NewPixmap(crt.GetWindow().GetDrawable(), status.visCols*charWidth, status.visLines*charHeight, 24)
 		gc = gdk.NewGC(offScreenPixmap.GetDrawable())
 		offScreenPixmap.GetDrawable().DrawRectangle(gc, true, 0, 0, -1, -1)
+		gc.SetForeground(gc.GetColormap().AllocColorRGB(0, 65535, 0))
 		fmt.Println("configure-event handled")
 	})
 
