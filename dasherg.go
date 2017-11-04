@@ -57,7 +57,10 @@ const (
 	blinkPeriodMs        = 500
 	statusUpdatePeriodMs = 500
 
-	// gtkLoopMs = 5
+	zoomLarge = iota
+	zoomNormal
+	zoomSmaller
+	zoomTiny
 )
 
 var appAuthors = []string{"Stephen Merrony"}
@@ -73,15 +76,12 @@ var (
 
 	gc              *gdk.GC
 	crt             *gtk.DrawingArea
+	zoom            = zoomNormal
 	colormap        *gdk.Colormap
 	offScreenPixmap *gdk.Pixmap
 	win             *gtk.Window
 	gdkWin          *gdk.Window
 
-	//alive      bool
-	blinkState bool
-
-	green              *gdk.Color
 	blinkTicker        = time.NewTicker(time.Millisecond * blinkPeriodMs)
 	statusUpdateTicker = time.NewTicker(time.Millisecond * statusUpdatePeriodMs)
 
@@ -109,11 +109,9 @@ func main() {
 	}
 
 	gtk.Init(nil)
-	green = gdk.NewColorRGB(0, 255, 0)
 	bdfLoad(fontFile, zoomNormal)
 	go localListener()
 	status = new(statusT)
-	status.setup()
 	terminal = new(terminalT)
 	terminal.setup(status, updateCrtChan)
 	win = gtk.NewWindow(gtk.WINDOW_TOPLEVEL)
@@ -222,15 +220,21 @@ func buildMenu() *gtk.MenuBar {
 	var emuGroup *glib.SList
 	emulationMenuItem.SetSubmenu(subMenu)
 	d200MenuItem := gtk.NewRadioMenuItemWithLabel(emuGroup, "D200") //gtk.NewCheckMenuItemWithLabel("D200")
-	d200MenuItem.Connect("activate", func() { status.emulation = d200 })
+	d200MenuItem.Connect("activate", func() { terminal.emulation = d200 })
 	emuGroup = d200MenuItem.GetGroup()
 	subMenu.Append(d200MenuItem)
 	d210MenuItem := gtk.NewRadioMenuItemWithLabel(emuGroup, "D210") //gtk.NewCheckMenuItemWithLabel("D210")
-	d210MenuItem.Connect("activate", func() { status.emulation = d210 })
+	if terminal.emulation == d210 {
+		d210MenuItem.SetActive(true)
+	}
+	d210MenuItem.Connect("activate", func() { terminal.emulation = d210 })
 	emuGroup = d210MenuItem.GetGroup()
 	subMenu.Append(d210MenuItem)
 	d211MenuItem := gtk.NewRadioMenuItemWithLabel(emuGroup, "D211") //gtk.NewCheckMenuItemWithLabel("D211")
-	d211MenuItem.Connect("activate", func() { status.emulation = d211 })
+	if terminal.emulation == d211 {
+		d211MenuItem.SetActive(true)
+	}
+	d211MenuItem.Connect("activate", func() { terminal.emulation = d211 })
 	emuGroup = d211MenuItem.GetGroup()
 	subMenu.Append(d211MenuItem)
 	resizeMenuItem := gtk.NewMenuItemWithLabel("Resize")
@@ -453,7 +457,7 @@ func resizeDialog() {
 	colsCombo.AppendText("120")
 	colsCombo.AppendText("132")
 	colsCombo.AppendText("135")
-	switch status.visCols {
+	switch terminal.visibleCols {
 	case 80:
 		colsCombo.SetActive(0)
 	case 81:
@@ -474,7 +478,8 @@ func resizeDialog() {
 	linesCombo.AppendText("36")
 	linesCombo.AppendText("48")
 	linesCombo.AppendText("66")
-	switch status.visLines {
+	terminal.rwMutex.RLock()
+	switch terminal.visibleLines {
 	case 24:
 		linesCombo.SetActive(0)
 	case 25:
@@ -486,6 +491,7 @@ func resizeDialog() {
 	case 66:
 		linesCombo.SetActive(4)
 	}
+	terminal.rwMutex.RUnlock()
 	table.AttachDefaults(linesCombo, 1, 2, 1, 2)
 	zLab := gtk.NewLabel("Zoom")
 	table.AttachDefaults(zLab, 0, 1, 2, 3)
@@ -494,7 +500,7 @@ func resizeDialog() {
 	zoomCombo.AppendText("Normal")
 	zoomCombo.AppendText("Smaller")
 	zoomCombo.AppendText("Tiny")
-	switch status.zoom {
+	switch zoom {
 	case zoomLarge:
 		zoomCombo.SetActive(0)
 	case zoomNormal:
@@ -512,21 +518,23 @@ func resizeDialog() {
 	rd.ShowAll()
 	response := rd.Run()
 	if response == gtk.RESPONSE_OK {
-		status.visCols, _ = strconv.Atoi(colsCombo.GetActiveText())
-		status.visLines, _ = strconv.Atoi(linesCombo.GetActiveText())
+		terminal.rwMutex.Lock()
+		terminal.visibleCols, _ = strconv.Atoi(colsCombo.GetActiveText())
+		terminal.visibleLines, _ = strconv.Atoi(linesCombo.GetActiveText())
 		switch zoomCombo.GetActiveText() {
 		case "Large":
-			status.zoom = zoomLarge
+			zoom = zoomLarge
 		case "Normal":
-			status.zoom = zoomNormal
+			zoom = zoomNormal
 		case "Smaller":
-			status.zoom = zoomSmaller
+			zoom = zoomSmaller
 		case "Tiny":
-			status.zoom = zoomTiny
+			zoom = zoomTiny
 		}
-		bdfLoad(fontFile, status.zoom)
+		bdfLoad(fontFile, zoom)
 
-		crt.SetSizeRequest(status.visCols*charWidth, status.visLines*charHeight)
+		crt.SetSizeRequest(terminal.visibleCols*charWidth, terminal.visibleLines*charHeight)
+		terminal.rwMutex.Unlock()
 		terminal.resize()
 		win.Resize(800, 600) // this is effectively a minimum size, user can override
 	}
@@ -608,14 +616,19 @@ func toggleLogging() {
 
 func buildCrt() *gtk.DrawingArea {
 	crt = gtk.NewDrawingArea()
-	crt.SetSizeRequest(status.visCols*charWidth, status.visLines*charHeight)
+	terminal.rwMutex.RLock()
+	crt.SetSizeRequest(terminal.visibleCols*charWidth, terminal.visibleLines*charHeight)
+	terminal.rwMutex.RUnlock()
 
 	crt.Connect("configure-event", func() {
 		if offScreenPixmap != nil {
 			offScreenPixmap.Unref()
 		}
 		//allocation := crt.GetAllocation()
-		offScreenPixmap = gdk.NewPixmap(crt.GetWindow().GetDrawable(), status.visCols*charWidth, status.visLines*charHeight, 24)
+		terminal.rwMutex.RLock()
+		offScreenPixmap = gdk.NewPixmap(crt.GetWindow().GetDrawable(),
+			terminal.visibleCols*charWidth, terminal.visibleLines*charHeight*charHeight, 24)
+		terminal.rwMutex.RUnlock()
 		gc = gdk.NewGC(offScreenPixmap.GetDrawable())
 		offScreenPixmap.GetDrawable().DrawRectangle(gc, true, 0, 0, -1, -1)
 		gc.SetForeground(gc.GetColormap().AllocColorRGB(0, 65535, 0))
@@ -642,7 +655,9 @@ func updateCrt(crt *gtk.DrawingArea, t *terminalT) {
 		updateType := <-updateCrtChan
 		switch updateType {
 		case updateCrtBlink:
-			blinkState = !blinkState
+			t.rwMutex.Lock()
+			t.blinkState = !t.blinkState
+			t.rwMutex.Unlock()
 			fallthrough
 		case updateCrtNormal:
 			//glib.IdleAdd(func() { crt.Emit("custom-event") })
@@ -662,7 +677,7 @@ func drawCrt() {
 				cIx = int(terminal.display[line][col].charValue)
 				if cIx > 31 && cIx < 128 {
 					switch {
-					case terminal.blinkEnabled && blinkState && terminal.display[line][col].blink:
+					case terminal.blinkEnabled && terminal.blinkState && terminal.display[line][col].blink:
 						drawable.DrawPixbuf(gc, bdfFont[32].pixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
 					case terminal.display[line][col].reverse:
 						drawable.DrawPixbuf(gc, bdfFont[cIx].reversePixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
@@ -730,7 +745,9 @@ func buildStatusBox() *gtk.HBox {
 // updateStatusBox to be run regularly - N.B. on the main thread!
 func updateStatusBox() {
 	glib.IdleAdd(func() {
-		switch status.connected {
+		status.rwMutex.RLock()
+		terminal.rwMutex.RLock()
+		switch terminal.connected {
 		case disconnected:
 			onlineLabel.SetText("Local (Offline)")
 			hostLabel.SetText("")
@@ -746,9 +763,10 @@ func updateStatusBox() {
 		} else {
 			loggingLabel.SetText("")
 		}
-		emuStat := "D" + strconv.Itoa(status.emulation) + " (" +
-			strconv.Itoa(status.visLines) + "x" + strconv.Itoa(status.visCols) + ")"
-
+		emuStat := "D" + strconv.Itoa(terminal.emulation) + " (" +
+			strconv.Itoa(terminal.visibleLines) + "x" + strconv.Itoa(terminal.visibleCols) + ")"
+		terminal.rwMutex.RUnlock()
+		status.rwMutex.RUnlock()
 		emuStatusLabel.SetText(emuStat)
 	})
 }

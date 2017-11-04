@@ -28,14 +28,27 @@ const (
 	totalLines, totalCols           = 96, 208
 )
 
+const (
+	disconnected    = 0
+	serialConnected = 1
+	telnetConnected = 2
+
+	d200 = 200
+	d210 = 210
+	d211 = 211
+)
+
 // terminalT encapsulates most of the emulation bevahiour itself.
 // The display[][] matrix represents the currently-displayed state of the
 // terminal (which is actually displayed elsewhere)
 type terminalT struct {
 	rwMutex                                      sync.RWMutex
+	emulation                                    int
+	connected                                    int
 	visibleLines, visibleCols                    int
 	cursorX, cursorY                             int
 	rollEnabled, blinkEnabled, protectionEnabled bool
+	blinkState                                   bool
 	display                                      [totalLines][totalCols]cell
 
 	status        *statusT
@@ -51,10 +64,11 @@ type terminalT struct {
 
 func (t *terminalT) setup(pStatus *statusT, update chan int) {
 	t.rwMutex.Lock()
+	t.emulation = d210
 	t.status = pStatus
 	t.updateCrtChan = update
-	t.visibleLines = t.status.visLines
-	t.visibleCols = t.status.visCols
+	t.visibleLines = defaultLines
+	t.visibleCols = defaultCols
 	t.cursorX = 0
 	t.cursorY = 0
 	t.rollEnabled = true
@@ -105,8 +119,6 @@ func (t *terminalT) clearScreen() {
 
 func (t *terminalT) resize() {
 	t.clearScreen()
-	t.visibleLines = t.status.visLines
-	t.visibleCols = t.status.visCols
 	t.cursorX = 0
 	t.cursorY = 0
 }
@@ -201,7 +213,7 @@ func (t *terminalT) run() {
 			t.rwMutex.Lock()
 			skipChar = false
 			// check for Telnet command
-			if t.status.connected == telnetConnected && ch == telnetCmdIAC {
+			if t.connected == telnetConnected && ch == telnetCmdIAC {
 				if t.inTelnetCommand {
 					// special case - the host really wants to send a 255 - let it through
 					t.inTelnetCommand = false
@@ -213,7 +225,7 @@ func (t *terminalT) run() {
 				}
 			}
 
-			if t.status.connected == telnetConnected && t.inTelnetCommand {
+			if t.connected == telnetConnected && t.inTelnetCommand {
 				switch ch {
 				case telnetCmdDO:
 					t.gotTelnetDo = true
@@ -231,7 +243,7 @@ func (t *terminalT) run() {
 				continue
 			}
 
-			if t.status.connected == telnetConnected && t.gotTelnetDo {
+			if t.connected == telnetConnected && t.gotTelnetDo {
 				// whatever the host asks us to do we will refuse
 				keyboardChan <- telnetCmdIAC
 				keyboardChan <- telnetCmdWONT
@@ -241,7 +253,7 @@ func (t *terminalT) run() {
 				skipChar = true
 			}
 
-			if t.status.connected == telnetConnected && t.gotTelnetWill {
+			if t.connected == telnetConnected && t.gotTelnetWill {
 				// whatever the host offers to do we will refuse
 				keyboardChan <- telnetCmdIAC
 				keyboardChan <- telnetCmdDONT
@@ -309,26 +321,33 @@ func (t *terminalT) run() {
 				case 'E':
 					t.reversedVideo = false
 					skipChar = true
-				default:
-					fmt.Println("Warning: unrecognise Break-CMD code")
-				}
-
-				// D210 commands
-				if status.emulation >= d210 && ch == 'F' {
-					t.inExtendedCommand = true
-					skipChar = true
-				}
-
-				if status.emulation >= d210 && t.inExtendedCommand {
-					switch ch {
-					case 'F':
-						t.eraseUnprotectedToEndOfScreen()
+				case 'F':
+					if t.emulation >= d210 {
+						t.inExtendedCommand = true
 						skipChar = true
-						t.inExtendedCommand = false
 					}
+				default:
+					fmt.Printf("Warning: unrecognised Break-CMD code - char <%c>\n", ch)
 				}
 
 				t.inCommand = false
+				t.rwMutex.Unlock()
+				continue
+			}
+
+			// D210 commands
+			if t.inExtendedCommand {
+				switch ch {
+				case 'F':
+					t.eraseUnprotectedToEndOfScreen()
+					fmt.Println("Erase Unprot to end of screen")
+					skipChar = true
+					t.inExtendedCommand = false
+				default:
+					fmt.Printf("Warning: unrecognised extended Break-CMD F code - char <%c>\n", ch)
+				}
+			}
+			if skipChar {
 				t.rwMutex.Unlock()
 				continue
 			}
@@ -416,12 +435,12 @@ func (t *terminalT) run() {
 				keyboardChan <- byte(t.cursorY)
 				skipChar = true
 			case dasherRevVideoOff:
-				if status.emulation >= d210 {
+				if t.emulation >= d210 {
 					t.reversedVideo = false
 					skipChar = true
 				}
 			case dasherRevVideoOn:
-				if status.emulation >= d210 {
+				if t.emulation >= d210 {
 					t.reversedVideo = true
 					skipChar = true
 				}
@@ -487,18 +506,10 @@ func (t *terminalT) run() {
 		}
 		t.updateCrtChan <- updateCrtNormal
 	}
-
-	// if !skipChar {
-	// 	t.status.dirty = true
-
-	// }
-	// if t.status.dirty {
-	// 	t.updateChan <- true
-	// }
 }
 
 func (t *terminalT) sendModelID() {
-	switch status.emulation {
+	switch t.emulation {
 	case d200:
 		keyboardChan <- 036  // Header 1
 		keyboardChan <- 0157 // Header 2             (="o")

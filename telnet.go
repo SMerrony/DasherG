@@ -26,6 +26,8 @@ import (
 	"net"
 	"strconv"
 	"time"
+
+	"github.com/mattn/go-gtk/glib"
 )
 
 const (
@@ -78,16 +80,26 @@ func openTelnetConn(hostName string, portNum int) bool {
 	}
 	go telnetReader(conn, fromHostChan)
 	go telnetWriter(bufio.NewWriter(conn), keyboardChan)
-	status.connected = telnetConnected
+	status.rwMutex.Lock()
+	terminal.rwMutex.Lock()
+	terminal.connected = telnetConnected
+	terminal.rwMutex.Unlock()
 	status.remoteHost = hostName
 	status.remotePort = strconv.Itoa(portNum)
+	status.rwMutex.Unlock()
 	return true
 }
 
 func closeTelnetConn() {
 	conn.Close()
 	stopTelnetWriterChan <- true
-	status.connected = disconnected
+	terminal.rwMutex.Lock()
+	terminal.connected = disconnected
+	terminal.rwMutex.Unlock()
+	glib.IdleAdd(func() {
+		networkDisconnectMenuItem.SetSensitive(false)
+		networkConnectMenuItem.SetSensitive(true)
+	})
 }
 
 func telnetReader(con net.Conn, hostChan chan []byte) {
