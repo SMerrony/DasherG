@@ -32,6 +32,8 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/mattn/go-gtk/gdkpixbuf"
+
 	"github.com/mattn/go-gtk/gdk"
 	"github.com/mattn/go-gtk/glib"
 	"github.com/mattn/go-gtk/gtk"
@@ -46,6 +48,7 @@ const (
 	appWebsite   = "https://github.com/SMerrony/aosvs-tools"
 
 	fontFile     = "D410-b-12.bdf"
+	iconFile     = "DGlogoOrange.png"
 	hostBuffSize = 2048
 	keyBuffSize  = 200
 
@@ -60,7 +63,7 @@ const (
 var appAuthors = []string{"Stephen Merrony"}
 
 var (
-	status   *Status
+	status   *statusT
 	terminal *terminalT
 
 	fromHostChan          = make(chan []byte, hostBuffSize)
@@ -109,7 +112,7 @@ func main() {
 	green = gdk.NewColorRGB(0, 255, 0)
 	bdfLoad(fontFile, zoomNormal)
 	go localListener()
-	status = new(Status)
+	status = new(statusT)
 	status.setup()
 	terminal = new(terminalT)
 	terminal.setup(status, updateCrtChan)
@@ -167,6 +170,7 @@ func setupWindow(win *gtk.Window) {
 	statusBox := buildStatusBox()
 	vbox.PackEnd(statusBox, false, false, 0)
 	win.Add(vbox)
+	win.SetIconFromFile(iconFile)
 }
 
 func localListener() {
@@ -334,8 +338,8 @@ func buildFkeyMatrix() *gtk.Table {
 			fkeyMatrix.AttachDefaults(frm, uint(f)+1, uint(f)+2, uint(l), uint(l)+1)
 		}
 	}
-	csfLab2 := gtk.NewLabel("")
-	csfLab2.SetMarkup("<span size=\"x-small\">Ctrl-Shift</span>")
+	csfLab2 := gtk.NewLabel("Ctrl-Shft")
+	//csfLab2.SetMarkup("<span size=\"x-small\">Ctrl-Shift</span>")
 	fkeyMatrix.AttachDefaults(csfLab2, 12, 13, 0, 1)
 
 	cfLab2 := gtk.NewLabel("Ctrl")
@@ -426,6 +430,9 @@ func aboutDialog() {
 	ad := gtk.NewAboutDialog()
 	ad.SetProgramName(appTitle)
 	ad.SetAuthors(appAuthors)
+	ad.SetIconFromFile(iconFile)
+	logo, _ := gdkpixbuf.NewPixbufFromFile(iconFile)
+	ad.SetLogo(logo)
 	ad.SetVersion(appVersion)
 	ad.SetCopyright(appCopyright)
 	ad.SetWebsite(appWebsite)

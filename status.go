@@ -17,7 +17,7 @@ const (
 	zoomTiny
 )
 
-type Status struct {
+type statusT struct {
 	visLines, visCols, zoom            int
 	serialPort, remoteHost, remotePort string
 	holding, logging                   bool
@@ -26,7 +26,7 @@ type Status struct {
 	logFile                            *os.File
 }
 
-func (s *Status) setup() {
+func (s *statusT) setup() {
 	s.visCols = defaultCols
 	s.visLines = defaultLines
 	s.zoom = zoomNormal

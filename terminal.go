@@ -38,7 +38,7 @@ type terminalT struct {
 	rollEnabled, blinkEnabled, protectionEnabled bool
 	display                                      [totalLines][totalCols]cell
 
-	status        *Status
+	status        *statusT
 	updateCrtChan chan int
 
 	inCommand, inExtendedCommand,
@@ -49,7 +49,7 @@ type terminalT struct {
 	telnetCmd, doAction, willAction             byte
 }
 
-func (t *terminalT) setup(pStatus *Status, update chan int) {
+func (t *terminalT) setup(pStatus *statusT, update chan int) {
 	t.rwMutex.Lock()
 	t.status = pStatus
 	t.updateCrtChan = update
