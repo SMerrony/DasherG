@@ -100,6 +100,7 @@ func closeTelnetConn() {
 		networkDisconnectMenuItem.SetSensitive(false)
 		networkConnectMenuItem.SetSensitive(true)
 	})
+	go localListener()
 }
 
 func telnetReader(con net.Conn, hostChan chan []byte) {

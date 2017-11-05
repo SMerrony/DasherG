@@ -265,7 +265,7 @@ func buildMenu() *gtk.MenuBar {
 	networkConnectMenuItem.Connect("activate", openNetDialog)
 	networkDisconnectMenuItem = gtk.NewMenuItemWithLabel("Disconnect")
 	subMenu.Append(networkDisconnectMenuItem)
-	networkDisconnectMenuItem.Connect("activate", closeRemote)
+	networkDisconnectMenuItem.Connect("activate", closeTelnetConn)
 	networkDisconnectMenuItem.SetSensitive(false)
 
 	helpMenuItem := gtk.NewMenuItemWithLabel("Help")
@@ -583,13 +583,6 @@ func openRemote(host string, port int) {
 		networkConnectMenuItem.SetSensitive(false)
 		networkDisconnectMenuItem.SetSensitive(true)
 	}
-}
-
-func closeRemote() {
-	closeTelnetConn()
-	networkConnectMenuItem.SetSensitive(true)
-	networkDisconnectMenuItem.SetSensitive(false)
-	go localListener()
 }
 
 func toggleLogging() {
