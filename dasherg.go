@@ -24,6 +24,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"runtime/pprof"
@@ -196,7 +197,8 @@ func buildMenu() *gtk.MenuBar {
 	loggingMenuItem.Connect("activate", toggleLogging)
 	subMenu.Append(loggingMenuItem)
 
-	sendFileMenuItem := gtk.NewMenuItemWithLabel("Send File")
+	sendFileMenuItem := gtk.NewMenuItemWithLabel("Send (Text) File")
+	sendFileMenuItem.Connect("activate", sendFile)
 	subMenu.Append(sendFileMenuItem)
 
 	quitMenuItem := gtk.NewMenuItemWithLabel("Quit")
@@ -762,4 +764,24 @@ func updateStatusBox() {
 		status.rwMutex.RUnlock()
 		emuStatusLabel.SetText(emuStat)
 	})
+}
+
+func sendFile() {
+	sd := gtk.NewFileChooserDialog("DasherG File to send", win, gtk.FILE_CHOOSER_ACTION_OPEN, "_Cancel", gtk.RESPONSE_CANCEL, "_Send", gtk.RESPONSE_ACCEPT)
+	res := sd.Run()
+	if res == gtk.RESPONSE_ACCEPT {
+		fileName := sd.GetFilename()
+		bytes, err := ioutil.ReadFile(fileName)
+		if err != nil {
+			ed := gtk.NewMessageDialog(win, gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_ERROR,
+				gtk.BUTTONS_CLOSE, "Could not open or read file to send")
+			ed.Run()
+			ed.Destroy()
+		} else {
+			for _, b := range bytes {
+				keyboardChan <- b
+			}
+		}
+	}
+	sd.Destroy()
 }
