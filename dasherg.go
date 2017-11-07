@@ -26,8 +26,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	// _ "net/http/pprof"
 	"os"
 	"runtime/pprof"
+	"runtime/trace"
 	"strconv"
 	"strings"
 	"time"
@@ -95,10 +97,12 @@ var (
 
 var (
 	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
+	cputrace   = flag.String("cputrace", "", "write trace to file")
 	hostFlag   = flag.String("host", "", "Host to connect with")
 )
 
 func main() {
+
 	flag.Parse()
 	if *cpuprofile != "" {
 		f, err := os.Create(*cpuprofile)
@@ -109,6 +113,18 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
+	if *cputrace != "" {
+		f, err := os.Create(*cputrace)
+		if err != nil {
+			log.Fatal(err)
+		}
+		_ = trace.Start(f)
+		defer trace.Stop()
+	}
+
+	glib.ThreadInit(nil)
+	gdk.ThreadsInit()
+	gdk.ThreadsEnter()
 	gtk.Init(nil)
 	bdfLoad(fontFile, zoomNormal)
 	go localListener()
@@ -655,8 +671,8 @@ func updateCrt(crt *gtk.DrawingArea, t *terminalT) {
 			t.rwMutex.Unlock()
 			fallthrough
 		case updateCrtNormal:
-			//glib.IdleAdd(func() { crt.Emit("custom-event") })
-			crt.Emit("client-event")
+			glib.IdleAdd(func() { crt.Emit("client-event") })
+			//crt.Emit("client-event")
 		}
 		//fmt.Println("updateCrt called")
 	}
@@ -730,8 +746,8 @@ func buildStatusBox() *gtk.HBox {
 
 	go func() {
 		for _ = range statusUpdateTicker.C {
-			//glib.IdleAdd(func() { statusBox.Emit("property-notify-event") })
-			statusBox.Emit("client-event")
+			glib.IdleAdd(func() { statusBox.Emit("client-event") })
+			//statusBox.Emit("client-event")
 		}
 	}()
 	return statusBox
