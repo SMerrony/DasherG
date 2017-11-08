@@ -32,7 +32,6 @@ import (
 	"runtime/trace"
 	"strconv"
 	"strings"
-	"time"
 	"unsafe"
 
 	"github.com/mattn/go-gtk/gdkpixbuf"
@@ -58,6 +57,7 @@ const (
 	updateCrtNormal      = 1
 	updateCrtBlink       = 2
 	blinkPeriodMs        = 500
+	crtRefreshMs         = 50
 	statusUpdatePeriodMs = 500
 
 	zoomLarge = iota
@@ -79,14 +79,12 @@ var (
 
 	gc              *gdk.GC
 	crt             *gtk.DrawingArea
+	crtDirty        bool
 	zoom            = zoomNormal
 	colormap        *gdk.Colormap
 	offScreenPixmap *gdk.Pixmap
 	win             *gtk.Window
 	gdkWin          *gdk.Window
-
-	blinkTicker        = time.NewTicker(time.Millisecond * blinkPeriodMs)
-	statusUpdateTicker = time.NewTicker(time.Millisecond * statusUpdatePeriodMs)
 
 	// widgets needing global access
 	fKeyLabs                                             [20][4]*gtk.Label
@@ -122,9 +120,6 @@ func main() {
 		defer trace.Stop()
 	}
 
-	glib.ThreadInit(nil)
-	gdk.ThreadsInit()
-	gdk.ThreadsEnter()
 	gtk.Init(nil)
 	bdfLoad(fontFile, zoomNormal)
 	go localListener()
@@ -150,6 +145,10 @@ func main() {
 		}
 	}
 	go updateCrt(crt, terminal)
+	glib.TimeoutAdd(crtRefreshMs, func() bool {
+		drawCrt()
+		return true
+	})
 
 	gtk.Main()
 }
@@ -174,13 +173,11 @@ func setupWindow(win *gtk.Window) {
 	vbox.PackStart(buildMenu(), false, false, 0)
 	vbox.PackStart(buildFkeyMatrix(), false, false, 0)
 	crt = buildCrt()
-	//go updateCrt(crt, terminal)
 	go terminal.run()
-	go func() {
-		for _ = range blinkTicker.C {
-			updateCrtChan <- updateCrtBlink
-		}
-	}()
+	glib.TimeoutAdd(blinkPeriodMs, func() bool {
+		updateCrtChan <- updateCrtBlink
+		return true
+	})
 	vbox.PackStart(crt, false, false, 1)
 	statusBox := buildStatusBox()
 	vbox.PackEnd(statusBox, false, false, 0)
@@ -654,8 +651,6 @@ func buildCrt() *gtk.DrawingArea {
 		//fmt.Println("expose-event handled")
 	})
 
-	// abusing this event to signal update actually required
-	crt.Connect("client-event", drawCrt)
 	return crt
 }
 
@@ -671,15 +666,15 @@ func updateCrt(crt *gtk.DrawingArea, t *terminalT) {
 			t.rwMutex.Unlock()
 			fallthrough
 		case updateCrtNormal:
-			glib.IdleAdd(func() { crt.Emit("client-event") })
-			//crt.Emit("client-event")
+			crtDirty = true
+
 		}
 		//fmt.Println("updateCrt called")
 	}
 }
 
 func drawCrt() {
-	glib.IdleAdd(func() {
+	if crtDirty {
 		var cIx int
 		drawable := offScreenPixmap.GetDrawable()
 		terminal.rwMutex.RLock()
@@ -717,7 +712,8 @@ func drawCrt() {
 
 		terminal.rwMutex.RUnlock()
 		gdkWin.Invalidate(nil, false)
-	})
+		crtDirty = false
+	}
 }
 
 func buildStatusBox() *gtk.HBox {
@@ -742,44 +738,40 @@ func buildStatusBox() *gtk.HBox {
 	esf := gtk.NewFrame("")
 	esf.Add(emuStatusLabel)
 	statusBox.Add(esf)
-	statusBox.Connect("client-event", updateStatusBox)
 
-	go func() {
-		for _ = range statusUpdateTicker.C {
-			glib.IdleAdd(func() { statusBox.Emit("client-event") })
-			//statusBox.Emit("client-event")
-		}
-	}()
+	glib.TimeoutAdd(statusUpdatePeriodMs, func() bool {
+		updateStatusBox()
+		return true
+	})
+
 	return statusBox
 }
 
 // updateStatusBox to be run regularly - N.B. on the main thread!
 func updateStatusBox() {
-	glib.IdleAdd(func() {
-		status.rwMutex.RLock()
-		terminal.rwMutex.RLock()
-		switch terminal.connected {
-		case disconnected:
-			onlineLabel.SetText("Local (Offline)")
-			hostLabel.SetText("")
-		case serialConnected:
-			fmt.Println("Serial not yet supported")
-			hostLabel.SetText("")
-		case telnetConnected:
-			onlineLabel.SetText("Online (Telnet)")
-			hostLabel.SetText(status.remoteHost + ":" + status.remotePort)
-		}
-		if status.logging {
-			loggingLabel.SetText("Logging")
-		} else {
-			loggingLabel.SetText("")
-		}
-		emuStat := "D" + strconv.Itoa(terminal.emulation) + " (" +
-			strconv.Itoa(terminal.visibleLines) + "x" + strconv.Itoa(terminal.visibleCols) + ")"
-		terminal.rwMutex.RUnlock()
-		status.rwMutex.RUnlock()
-		emuStatusLabel.SetText(emuStat)
-	})
+	status.rwMutex.RLock()
+	terminal.rwMutex.RLock()
+	switch terminal.connected {
+	case disconnected:
+		onlineLabel.SetText("Local (Offline)")
+		hostLabel.SetText("")
+	case serialConnected:
+		fmt.Println("Serial not yet supported")
+		hostLabel.SetText("")
+	case telnetConnected:
+		onlineLabel.SetText("Online (Telnet)")
+		hostLabel.SetText(status.remoteHost + ":" + status.remotePort)
+	}
+	if status.logging {
+		loggingLabel.SetText("Logging")
+	} else {
+		loggingLabel.SetText("")
+	}
+	emuStat := "D" + strconv.Itoa(terminal.emulation) + " (" +
+		strconv.Itoa(terminal.visibleLines) + "x" + strconv.Itoa(terminal.visibleCols) + ")"
+	terminal.rwMutex.RUnlock()
+	status.rwMutex.RUnlock()
+	emuStatusLabel.SetText(emuStat)
 }
 
 func sendFile() {
