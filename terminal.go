@@ -510,6 +510,7 @@ func (t *terminalT) run() {
 			} else {
 				t.display[t.cursorY][t.cursorX].set(127, t.blinking, t.dimmed, t.reversedVideo, t.underscored, t.protectd)
 			}
+			t.display[t.cursorY][t.cursorX].dirty = true
 			t.cursorX++
 			t.rwMutex.Unlock()
 			//t.updateCrtChan <- updateCrtNormal

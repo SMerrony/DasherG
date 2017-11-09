@@ -698,22 +698,25 @@ func drawCrt() {
 		drawable := offScreenPixmap.GetDrawable()
 		for line := 0; line < terminal.visibleLines; line++ {
 			for col := 0; col < terminal.visibleCols; col++ {
-				cIx = int(terminal.display[line][col].charValue)
-				if cIx > 31 && cIx < 128 {
-					switch {
-					case terminal.blinkEnabled && terminal.blinkState && terminal.display[line][col].blink:
-						drawable.DrawPixbuf(gc, bdfFont[32].pixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
-					case terminal.display[line][col].reverse:
-						drawable.DrawPixbuf(gc, bdfFont[cIx].reversePixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
-					case terminal.display[line][col].dim:
-						drawable.DrawPixbuf(gc, bdfFont[cIx].dimPixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
-					default:
-						drawable.DrawPixbuf(gc, bdfFont[cIx].pixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
+				if terminal.display[line][col].dirty {
+					cIx = int(terminal.display[line][col].charValue)
+					if cIx > 31 && cIx < 128 {
+						switch {
+						case terminal.blinkEnabled && terminal.blinkState && terminal.display[line][col].blink:
+							drawable.DrawPixbuf(gc, bdfFont[32].pixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
+						case terminal.display[line][col].reverse:
+							drawable.DrawPixbuf(gc, bdfFont[cIx].reversePixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
+						case terminal.display[line][col].dim:
+							drawable.DrawPixbuf(gc, bdfFont[cIx].dimPixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
+						default:
+							drawable.DrawPixbuf(gc, bdfFont[cIx].pixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
+						}
 					}
-				}
-				// underscore?
-				if terminal.display[line][col].underscore {
-					drawable.DrawLine(gc, col*charWidth, ((line+1)*charHeight)-1, (col+1)*charWidth, ((line+1)*charHeight)-1)
+					// underscore?
+					if terminal.display[line][col].underscore {
+						drawable.DrawLine(gc, col*charWidth, ((line+1)*charHeight)-1, (col+1)*charWidth-1, ((line+1)*charHeight)-1)
+					}
+					terminal.display[line][col].dirty = false
 				}
 			} // end for col
 		} // end for line

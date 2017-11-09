@@ -22,6 +22,7 @@ package main
 type cell struct {
 	charValue                                byte
 	blink, dim, reverse, underscore, protect bool
+	dirty                                    bool
 }
 
 func (cell *cell) set(cv byte, bl, dm, rev, under, prot bool) {
@@ -31,6 +32,7 @@ func (cell *cell) set(cv byte, bl, dm, rev, under, prot bool) {
 	cell.reverse = rev
 	cell.underscore = under
 	cell.protect = prot
+	cell.dirty = true
 }
 
 func (cell *cell) clearToSpace() {
@@ -40,6 +42,7 @@ func (cell *cell) clearToSpace() {
 	cell.reverse = false
 	cell.underscore = false
 	cell.protect = false
+	cell.dirty = true
 }
 
 func (cell *cell) clearToSpaceIfUnprotected() {
@@ -55,4 +58,5 @@ func (cell *cell) copy(fromcell *cell) {
 	cell.reverse = fromcell.reverse
 	cell.underscore = fromcell.underscore
 	cell.protect = fromcell.protect
+	cell.dirty = true
 }
