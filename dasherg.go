@@ -26,6 +26,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"os/exec"
+	"runtime"
 	// _ "net/http/pprof"
 	"os"
 	"runtime/pprof"
@@ -48,15 +50,16 @@ const (
 	appCopyright = "Copyright ©2017 S.Merrony"
 	appVersion   = "0.1 alpha"
 	appWebsite   = "https://github.com/SMerrony/aosvs-tools"
-
 	fontFile     = "D410-b-12.bdf"
+	helpURL      = "https://github.com/SMerrony/aosvs-tools/tree/master/dasherg"
 	iconFile     = "DGlogoOrange.png"
 	hostBuffSize = 2048
 	keyBuffSize  = 200
 
-	updateCrtNormal      = 1
-	updateCrtBlink       = 2
-	blinkPeriodMs        = 500
+	updateCrtNormal = 1 // crt is 'dirty' and needs updating
+	updateCrtBlink  = 2 // crt blink state needs flipping
+	blinkPeriodMs   = 500
+	// crtRefreshMs influences the responsiveness of the display. 50ms = 20Hz or 20fps
 	crtRefreshMs         = 50
 	statusUpdatePeriodMs = 500
 
@@ -288,6 +291,7 @@ func buildMenu() *gtk.MenuBar {
 	subMenu = gtk.NewMenu()
 	helpMenuItem.SetSubmenu(subMenu)
 	onlineHelpMenuItem := gtk.NewMenuItemWithLabel("Online Help")
+	onlineHelpMenuItem.Connect("activate", func() { openBrowser(helpURL) })
 	subMenu.Append(onlineHelpMenuItem)
 	aboutMenuItem := gtk.NewMenuItemWithLabel("About")
 	subMenu.Append(aboutMenuItem)
@@ -554,6 +558,25 @@ func resizeDialog() {
 		win.Resize(800, 600) // this is effectively a minimum size, user can override
 	}
 	rd.Destroy()
+}
+
+func openBrowser(url string) {
+	var err error
+
+	switch runtime.GOOS {
+	case "linux":
+		err = exec.Command("xdg-open", url).Start()
+	case "windows":
+		err = exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
+	case "darwin":
+		err = exec.Command("open", url).Start()
+	default:
+		err = fmt.Errorf("unsupported platform")
+	}
+	if err != nil {
+		log.Fatal(err)
+	}
+
 }
 
 func openNetDialog() {
