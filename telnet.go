@@ -80,13 +80,11 @@ func openTelnetConn(hostName string, portNum int) bool {
 	}
 	go telnetReader(conn, fromHostChan)
 	go telnetWriter(bufio.NewWriter(conn), keyboardChan)
-	status.rwMutex.Lock()
 	terminal.rwMutex.Lock()
 	terminal.connected = telnetConnected
+	terminal.remoteHost = hostName
+	terminal.remotePort = strconv.Itoa(portNum)
 	terminal.rwMutex.Unlock()
-	status.remoteHost = hostName
-	status.remotePort = strconv.Itoa(portNum)
-	status.rwMutex.Unlock()
 	return true
 }
 

@@ -36,9 +36,8 @@ import (
 	"strings"
 	"unsafe"
 
-	"github.com/mattn/go-gtk/gdkpixbuf"
-
 	"github.com/mattn/go-gtk/gdk"
+	"github.com/mattn/go-gtk/gdkpixbuf"
 	"github.com/mattn/go-gtk/glib"
 	"github.com/mattn/go-gtk/gtk"
 )
@@ -72,7 +71,6 @@ const (
 var appAuthors = []string{"Stephen Merrony"}
 
 var (
-	status   *statusT
 	terminal *terminalT
 
 	fromHostChan          = make(chan []byte, hostBuffSize)
@@ -82,7 +80,6 @@ var (
 
 	gc              *gdk.GC
 	crt             *gtk.DrawingArea
-	crtDirty        bool
 	zoom            = zoomNormal
 	colormap        *gdk.Colormap
 	offScreenPixmap *gdk.Pixmap
@@ -126,9 +123,8 @@ func main() {
 	gtk.Init(nil)
 	bdfLoad(fontFile, zoomNormal)
 	go localListener()
-	status = new(statusT)
 	terminal = new(terminalT)
-	terminal.setup(status, updateCrtChan)
+	terminal.setup(updateCrtChan)
 	win = gtk.NewWindow(gtk.WINDOW_TOPLEVEL)
 	setupWindow(win)
 	win.ShowAll()
@@ -624,21 +620,21 @@ func openRemote(host string, port int) {
 }
 
 func toggleLogging() {
-	if status.logging {
-		status.logFile.Close()
-		status.logging = false
+	if terminal.logging {
+		terminal.logFile.Close()
+		terminal.logging = false
 	} else {
 		fd := gtk.NewFileChooserDialog("DasherG Logfile", win, gtk.FILE_CHOOSER_ACTION_SAVE,
 			"_Cancel", gtk.RESPONSE_CANCEL, "_Open", gtk.RESPONSE_ACCEPT)
 		res := fd.Run()
 		if res == gtk.RESPONSE_ACCEPT {
 			filename := fd.GetFilename()
-			status.logFile, err = os.Create(filename)
+			terminal.logFile, err = os.Create(filename)
 			if err != nil {
 				log.Printf("WARNING: Could not open log file %s\n", filename)
-				status.logging = false
+				terminal.logging = false
 			} else {
-				status.logging = true
+				terminal.logging = true
 			}
 		}
 		fd.Destroy()
@@ -682,25 +678,24 @@ func updateCrt(crt *gtk.DrawingArea, t *terminalT) {
 
 	for {
 		updateType := <-updateCrtChan
+		t.rwMutex.Lock()
 		switch updateType {
 		case updateCrtBlink:
-			t.rwMutex.Lock()
 			t.blinkState = !t.blinkState
-			t.rwMutex.Unlock()
 			fallthrough
 		case updateCrtNormal:
-			crtDirty = true
-
+			terminal.terminalUpdated = true
 		}
+		t.rwMutex.Unlock()
 		//fmt.Println("updateCrt called")
 	}
 }
 
 func drawCrt() {
-	if crtDirty {
+	terminal.rwMutex.Lock()
+	if terminal.terminalUpdated {
 		var cIx int
 		drawable := offScreenPixmap.GetDrawable()
-		terminal.rwMutex.RLock()
 		for line := 0; line < terminal.visibleLines; line++ {
 			for col := 0; col < terminal.visibleCols; col++ {
 				cIx = int(terminal.display[line][col].charValue)
@@ -732,11 +727,10 @@ func drawCrt() {
 				drawable.DrawPixbuf(gc, bdfFont[cIx].reversePixbuf, 0, 0, terminal.cursorX*charWidth, terminal.cursorY*charHeight, charWidth, charHeight, 0, 0, 0)
 			}
 		}
-
-		terminal.rwMutex.RUnlock()
+		terminal.terminalUpdated = false
 		gdkWin.Invalidate(nil, false)
-		crtDirty = false
 	}
+	terminal.rwMutex.Unlock()
 }
 
 func buildStatusBox() *gtk.HBox {
@@ -772,7 +766,6 @@ func buildStatusBox() *gtk.HBox {
 
 // updateStatusBox to be run regularly - N.B. on the main thread!
 func updateStatusBox() {
-	status.rwMutex.RLock()
 	terminal.rwMutex.RLock()
 	switch terminal.connected {
 	case disconnected:
@@ -783,17 +776,16 @@ func updateStatusBox() {
 		hostLabel.SetText("")
 	case telnetConnected:
 		onlineLabel.SetText("Online (Telnet)")
-		hostLabel.SetText(status.remoteHost + ":" + status.remotePort)
+		hostLabel.SetText(terminal.remoteHost + ":" + terminal.remotePort)
 	}
-	if status.logging {
+	if terminal.logging {
 		loggingLabel.SetText("Logging")
 	} else {
 		loggingLabel.SetText("")
 	}
-	emuStat := "D" + strconv.Itoa(terminal.emulation) + " (" +
+	emuStat := "D" + strconv.Itoa(int(terminal.emulation)) + " (" +
 		strconv.Itoa(terminal.visibleLines) + "x" + strconv.Itoa(terminal.visibleCols) + ")"
 	terminal.rwMutex.RUnlock()
-	status.rwMutex.RUnlock()
 	emuStatusLabel.SetText(emuStat)
 }
 

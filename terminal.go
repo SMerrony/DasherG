@@ -19,8 +19,11 @@
 
 package main
 
-import "fmt"
-import "sync"
+import (
+	"fmt"
+	"os"
+	"sync"
+)
 
 const (
 	defaultLines, defaultCols       = 24, 80
@@ -28,14 +31,16 @@ const (
 	totalLines, totalCols           = 96, 208
 )
 
+type emulType int
+
 const (
 	disconnected    = 0
 	serialConnected = 1
 	telnetConnected = 2
 
-	d200 = 200
-	d210 = 210
-	d211 = 211
+	d200 emulType = 200
+	d210 emulType = 210
+	d211 emulType = 211
 )
 
 // terminalT encapsulates most of the emulation bevahiour itself.
@@ -43,16 +48,22 @@ const (
 // terminal (which is actually displayed elsewhere)
 type terminalT struct {
 	rwMutex                                      sync.RWMutex
-	emulation                                    int
+	emulation                                    emulType
 	connected                                    int
+	serialPort, remoteHost, remotePort           string
 	visibleLines, visibleCols                    int
 	cursorX, cursorY                             int
 	rollEnabled, blinkEnabled, protectionEnabled bool
 	blinkState                                   bool
-	display                                      [totalLines][totalCols]cell
+	holding, logging                             bool
+	logFile                                      *os.File
 
-	status        *statusT
+	// display is the 2D array of cells containing the terminal 'contents'
+	display [totalLines][totalCols]cell
+
 	updateCrtChan chan int
+	// terminalUpdated indicates that a visual refresh is required
+	terminalUpdated bool
 
 	inCommand, inExtendedCommand,
 	readingWindowAddressX, readingWindowAddressY,
@@ -62,10 +73,9 @@ type terminalT struct {
 	telnetCmd, doAction, willAction             byte
 }
 
-func (t *terminalT) setup(pStatus *statusT, update chan int) {
+func (t *terminalT) setup(update chan int) {
 	t.rwMutex.Lock()
 	t.emulation = d210
-	t.status = pStatus
 	t.updateCrtChan = update
 	t.visibleLines = defaultLines
 	t.visibleCols = defaultCols
@@ -305,8 +315,8 @@ func (t *terminalT) run() {
 			}
 
 			// logging?
-			if t.status.logging {
-				t.status.logFile.Write([]byte{ch})
+			if t.logging {
+				t.logFile.Write([]byte{ch})
 			}
 
 			// Short commands
