@@ -350,7 +350,7 @@ func (t *terminalT) run() {
 				switch ch {
 				case 'F':
 					t.eraseUnprotectedToEndOfScreen()
-					fmt.Println("Erase Unprot to end of screen")
+					// fmt.Println("Erase Unprot to end of screen")
 					skipChar = true
 					t.inExtendedCommand = false
 				default:

@@ -592,6 +592,9 @@ func openNetDialog() {
 
 	nd.AddButton("Cancel", gtk.RESPONSE_CANCEL)
 	nd.AddButton("OK", gtk.RESPONSE_OK)
+	//ok := nd.AddButton("OK", gtk.RESPONSE_OK)
+	// ok.SetActivatesDefault(true) // FIXME - need to add this call to go-gtk
+	nd.SetDefaultResponse(gtk.RESPONSE_OK)
 	nd.ShowAll()
 	response := nd.Run()
 
@@ -698,7 +701,7 @@ func drawCrt() {
 		drawable := offScreenPixmap.GetDrawable()
 		for line := 0; line < terminal.visibleLines; line++ {
 			for col := 0; col < terminal.visibleCols; col++ {
-				if terminal.display[line][col].dirty {
+				if terminal.display[line][col].dirty || (terminal.blinkEnabled && terminal.display[line][col].blink) {
 					cIx = int(terminal.display[line][col].charValue)
 					if cIx > 31 && cIx < 128 {
 						switch {
