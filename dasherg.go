@@ -148,7 +148,7 @@ func main() {
 		return true
 	})
 
-	// testing... I don't know why doing this in terminal.setup above is not working
+	// testing... I don't know why doing this in terminal.setup above is being lost
 	terminal.emulation = d210
 
 	gtk.Main()
@@ -586,6 +586,7 @@ func drawCrt() {
 				//fmt.Printf("Drawing cursor at %d,%d\n", terminal.cursorX*charWidth, terminal.cursorY*charHeight)
 				drawable.DrawPixbuf(gc, bdfFont[cIx].reversePixbuf, 0, 0, terminal.cursorX*charWidth, terminal.cursorY*charHeight, charWidth, charHeight, 0, 0, 0)
 			}
+			terminal.display[terminal.cursorY][terminal.cursorX].dirty = true // this ensures that the old cursor pos is redrawn on the next refresh
 		}
 		terminal.terminalUpdated = false
 		gdkWin.Invalidate(nil, false)

@@ -295,8 +295,10 @@ func (t *terminalT) run() {
 
 			if t.readingWindowAddressY {
 				t.newYaddress = int(ch & 0x7f)
+				t.display[t.cursorX][t.cursorY].dirty = true
 				t.cursorX = t.newXaddress
 				t.cursorY = t.newYaddress
+				t.display[t.cursorX][t.cursorY].dirty = true
 				if t.newYaddress == 127 {
 					// special case - y stays the same - see D410 User Manual p.3-25
 					t.newYaddress = t.cursorY
