@@ -228,6 +228,7 @@ func buildMenu() *gtk.MenuBar {
 	subMenu = gtk.NewMenu()
 	viewMenuItem.SetSubmenu(subMenu)
 	viewHistoryItem := gtk.NewMenuItemWithLabel("History")
+	viewHistoryItem.Connect("activate", func() { showHistory(terminal) })
 	subMenu.Append(viewHistoryItem)
 	loadTemplateMenuItem := gtk.NewMenuItemWithLabel("Load Func. Key Template")
 	loadTemplateMenuItem.Connect("activate", loadFKeyTemplate)
@@ -474,6 +475,31 @@ func openRemote(host string, port int) {
 		networkConnectMenuItem.SetSensitive(false)
 		networkDisconnectMenuItem.SetSensitive(true)
 	}
+}
+
+func showHistory(t *terminalT) {
+	hd := gtk.NewDialog()
+	hd.SetTitle("History")
+	ca := hd.GetVBox()
+	scrolledWindow := gtk.NewScrolledWindow(nil, nil)
+	tv := gtk.NewTextView()
+	scrolledWindow.Add(tv)
+	tb := tv.GetBuffer()
+	var iter gtk.TextIter
+	tb.GetStartIter(&iter)
+	for _, line := range t.history {
+		if len(line) > 0 {
+			tb.Insert(&iter, line+"\n")
+		}
+	}
+	tv.SetEditable(false)
+	tv.SetSizeRequest(t.visibleCols*charWidth, t.visibleLines*charHeight)
+	ca.PackStart(scrolledWindow, true, true, 1)
+	hd.AddButton("OK", gtk.RESPONSE_OK)
+	hd.SetDefaultResponse(gtk.RESPONSE_OK)
+	hd.ShowAll()
+	hd.Run()
+	hd.Destroy()
 }
 
 func toggleLogging() {

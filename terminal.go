@@ -29,6 +29,7 @@ const (
 	defaultLines, defaultCols       = 24, 80
 	maxVisibleLines, maxVisibleCols = 66, 135
 	totalLines, totalCols           = 96, 208
+	historyLines                    = 2000
 )
 
 type emulType int
@@ -60,6 +61,7 @@ type terminalT struct {
 
 	// display is the 2D array of cells containing the terminal 'contents'
 	display [totalLines][totalCols]cell
+	history []string
 
 	updateCrtChan chan int
 	// terminalUpdated indicates that a visual refresh is required
@@ -96,6 +98,7 @@ func (t *terminalT) setup(update chan int) {
 	t.reversedVideo = false
 	t.underscored = false
 	t.protectd = false
+	t.history = make([]string, historyLines)
 	t.clearScreen()
 	// t.display[0][0].charValue = '0'
 	// t.display[1][1].charValue = '1'
@@ -149,9 +152,15 @@ func (t *terminalT) eraseUnprotectedToEndOfScreen() {
 func (t *terminalT) scrollUp(rows int) {
 	for times := 0; times < rows; times++ {
 		// store top line in history
-		//QString line;
-		//for (int c = 0; c < visible_cols; c++) line.append( display[0][c].charValue );
-		//history->addLine( line );
+		var line string
+		for c := 0; c < t.visibleCols; c++ {
+			line += string(t.display[0][c].charValue)
+		}
+		if len(t.history) >= historyLines {
+			t.history = t.history[1:]
+		}
+		t.history = append(t.history, line)
+
 		// move each char up a row
 		for r := 1; r < totalLines; r++ {
 			for c := 0; c < t.visibleCols; c++ {
@@ -295,10 +304,8 @@ func (t *terminalT) run() {
 
 			if t.readingWindowAddressY {
 				t.newYaddress = int(ch & 0x7f)
-				t.display[t.cursorX][t.cursorY].dirty = true
 				t.cursorX = t.newXaddress
 				t.cursorY = t.newYaddress
-				t.display[t.cursorX][t.cursorY].dirty = true
 				if t.newYaddress == 127 {
 					// special case - y stays the same - see D410 User Manual p.3-25
 					t.newYaddress = t.cursorY
