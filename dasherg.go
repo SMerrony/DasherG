@@ -148,6 +148,9 @@ func main() {
 		return true
 	})
 
+	// testing... I don't know why doing this in terminal.setup above is not working
+	terminal.emulation = d210
+
 	gtk.Main()
 }
 
