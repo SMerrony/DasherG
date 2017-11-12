@@ -433,9 +433,8 @@ func openBrowser(url string) {
 func openNetDialog() {
 	nd := gtk.NewDialog()
 	nd.SetTitle("Telnet Host")
-
+	nd.SetIconFromFile(iconFile)
 	ca := nd.GetVBox()
-
 	hostLab := gtk.NewLabel("Host:")
 	ca.PackStart(hostLab, true, true, 0)
 	hostEntry := gtk.NewEntry()
@@ -479,10 +478,12 @@ func openRemote(host string, port int) {
 
 func showHistory(t *terminalT) {
 	hd := gtk.NewDialog()
-	hd.SetTitle("History")
+	hd.SetTitle("DasherG - Terminal History")
+	hd.SetIconFromFile(iconFile)
 	ca := hd.GetVBox()
 	scrolledWindow := gtk.NewScrolledWindow(nil, nil)
 	tv := gtk.NewTextView()
+	tv.ModifyFontEasy("monospace")
 	scrolledWindow.Add(tv)
 	tb := tv.GetBuffer()
 	var iter gtk.TextIter
