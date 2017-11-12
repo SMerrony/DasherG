@@ -269,8 +269,10 @@ func buildMenu() *gtk.MenuBar {
 	subMenu = gtk.NewMenu()
 	serialMenuItem.SetSubmenu(subMenu)
 	serialConnectMenuItem = gtk.NewMenuItemWithLabel("Connect")
+	serialConnectMenuItem.Connect("activate", openSerialDialog)
 	subMenu.Append(serialConnectMenuItem)
 	serialDisconnectMenuItem = gtk.NewMenuItemWithLabel("Disconnect")
+	serialDisconnectMenuItem.Connect("activate", closeSerial)
 	subMenu.Append(serialDisconnectMenuItem)
 	serialDisconnectMenuItem.SetSensitive(false)
 
@@ -461,30 +463,101 @@ func openNetDialog() {
 			ed.Run()
 			ed.Destroy()
 		} else {
-			openRemote(host, port)
+			if openTelnetConn(host, port) {
+				localListenerStopChan <- true
+				networkConnectMenuItem.SetSensitive(false)
+				serialConnectMenuItem.SetSensitive(false)
+				networkDisconnectMenuItem.SetSensitive(true)
+			}
 		}
 	}
 
 	nd.Destroy()
 }
 
-func openRemote(host string, port int) {
-	if openTelnetConn(host, port) {
-		localListenerStopChan <- true
-		networkConnectMenuItem.SetSensitive(false)
-		networkDisconnectMenuItem.SetSensitive(true)
-	}
-}
-
 func closeRemote() {
 	closeTelnetConn()
 	glib.IdleAdd(func() {
 		networkDisconnectMenuItem.SetSensitive(false)
+		serialConnectMenuItem.SetSensitive(true)
 		networkConnectMenuItem.SetSensitive(true)
 	})
 	go localListener()
 }
 
+func openSerialDialog() {
+	sd := gtk.NewDialog()
+	sd.SetTitle("Serial Port")
+	sd.SetIconFromFile(iconFile)
+	ca := sd.GetVBox()
+	table := gtk.NewTable(5, 2, false)
+	portLab := gtk.NewLabel("Port:")
+	table.AttachDefaults(portLab, 0, 1, 0, 1)
+	portEntry := gtk.NewEntry()
+	table.AttachDefaults(portEntry, 1, 2, 0, 1)
+	baudLab := gtk.NewLabel("Baud:")
+	table.AttachDefaults(baudLab, 0, 1, 1, 2)
+	baudCombo := gtk.NewComboBoxText()
+	baudCombo.AppendText("300")
+	baudCombo.AppendText("1200")
+	baudCombo.AppendText("2400")
+	baudCombo.AppendText("9600")
+	baudCombo.AppendText("19200")
+	baudCombo.SetActive(3)
+	table.AttachDefaults(baudCombo, 1, 2, 1, 2)
+	bitsLab := gtk.NewLabel("Data bits:")
+	table.AttachDefaults(bitsLab, 0, 1, 2, 3)
+	bitsCombo := gtk.NewComboBoxText()
+	bitsCombo.AppendText("7")
+	bitsCombo.AppendText("8")
+	bitsCombo.SetActive(1)
+	table.AttachDefaults(bitsCombo, 1, 2, 2, 3)
+	parityLab := gtk.NewLabel("Parity:")
+	table.AttachDefaults(parityLab, 0, 1, 3, 4)
+	parityCombo := gtk.NewComboBoxText()
+	parityCombo.AppendText("None")
+	parityCombo.AppendText("Even")
+	parityCombo.AppendText("Odd")
+	parityCombo.SetActive(0)
+	table.AttachDefaults(parityCombo, 1, 2, 3, 4)
+	stopLab := gtk.NewLabel("Stop bits:")
+	table.AttachDefaults(stopLab, 0, 1, 4, 5)
+	stopCombo := gtk.NewComboBoxText()
+	stopCombo.AppendText("1")
+	//stopCombo.AppendText("1.5")
+	stopCombo.AppendText("2")
+	stopCombo.SetActive(0)
+	table.AttachDefaults(stopCombo, 1, 2, 4, 5)
+	ca.PackStart(table, true, true, 0)
+	sd.AddButton("Cancel", gtk.RESPONSE_CANCEL)
+	sd.AddButton("OK", gtk.RESPONSE_OK)
+	sd.SetDefaultResponse(gtk.RESPONSE_OK)
+	sd.ShowAll()
+	response := sd.Run()
+
+	if response == gtk.RESPONSE_OK {
+		baud, _ := strconv.Atoi(baudCombo.GetActiveText())
+		bits, _ := strconv.Atoi(bitsCombo.GetActiveText())
+		stopBits, _ := strconv.Atoi(stopCombo.GetActiveText())
+		if openSerialPort(portEntry.GetText(), baud, bits, parityCombo.GetActiveText(), stopBits) {
+			localListenerStopChan <- true
+			serialConnectMenuItem.SetSensitive(false)
+			networkConnectMenuItem.SetSensitive(false)
+			serialDisconnectMenuItem.SetSensitive(true)
+		}
+	}
+	sd.Destroy()
+}
+
+func closeSerial() {
+	closeSerialPort()
+	glib.IdleAdd(func() {
+		serialDisconnectMenuItem.SetSensitive(false)
+		networkConnectMenuItem.SetSensitive(true)
+		serialConnectMenuItem.SetSensitive(true)
+	})
+	go localListener()
+}
 func showHistory(t *terminalT) {
 	hd := gtk.NewDialog()
 	hd.SetTitle("DasherG - Terminal History")
@@ -669,8 +742,8 @@ func updateStatusBox() {
 		onlineLabel.SetText("Local (Offline)")
 		hostLabel.SetText("")
 	case serialConnected:
-		fmt.Println("Serial not yet supported")
-		hostLabel.SetText("")
+		onlineLabel.SetText("Online (Serial)")
+		hostLabel.SetText(terminal.serialPort)
 	case telnetConnected:
 		onlineLabel.SetText("Online (Telnet)")
 		hostLabel.SetText(terminal.remoteHost + ":" + terminal.remotePort)
