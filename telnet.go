@@ -26,8 +26,6 @@ import (
 	"net"
 	"strconv"
 	"time"
-
-	"github.com/mattn/go-gtk/glib"
 )
 
 const (
@@ -94,11 +92,6 @@ func closeTelnetConn() {
 	terminal.rwMutex.Lock()
 	terminal.connected = disconnected
 	terminal.rwMutex.Unlock()
-	glib.IdleAdd(func() {
-		networkDisconnectMenuItem.SetSensitive(false)
-		networkConnectMenuItem.SetSensitive(true)
-	})
-	go localListener()
 }
 
 func telnetReader(con net.Conn, hostChan chan []byte) {
@@ -108,7 +101,7 @@ func telnetReader(con net.Conn, hostChan chan []byte) {
 		if n == 0 {
 			//log.Fatalf("telnet got zero-byte message from host")
 			fmt.Println("telnetReader got zero length message, stopping")
-			closeTelnetConn()
+			closeRemote()
 			return
 		}
 		if err != nil {
