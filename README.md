@@ -5,17 +5,18 @@ DasherG is a new free terminal emulator for Data General DASHER series character
 
 ## Key Features
 
-* ~~Serial interface support at 1200, 2400, 4800, 9600 & 19200 baud, 7 or 8 data bits (defaults to 9600, 8, n, 1)~~
+* Serial interface support at 300, 1200, 2400, 4800, 9600 & 19200 baud, 7 or 8 data bits (defaults to 9600, 8, n, 1)
 * Network Interface (Telnet) support
 * Dasher D200, D210 ~~& D211~~ Emulation
-* 15 (plus Ctrl & Shift) Dasher Function keys, Erase Page, Erase EOL, Hold, Local Print and md-Break keys
+* 15 (plus Ctrl & Shift) Dasher Function keys, Erase Page, Erase EOL, ~~Hold~~, ~~Local Print~~ and ~~Cmd-Break~~ keys
 * Reverse video, blinking, dim and underlined characters
 * Various terminal widths, heights and zoom-levels available
 * Pixel-for-pixel copy of D410 character set
 * Session logging to file
-* ~~Loadable function key templates (BROWSE, SED and SMI provided as examples)~~
+* Loadable function key templates (BROWSE, SED and SMI provided as examples)
 * ~~Reconnect function (over telnet)~~
-* ~~2000-line terminal history~~
+* 2000-line terminal history
+* May specify ```-host=host:port``` on command line
 
 ## Download
 DasherG is [hosted on GitHub](https://github.com/SMerrony/aosvs-tools/tree/master/dasherg).
@@ -24,7 +25,11 @@ DasherG is [hosted on GitHub](https://github.com/SMerrony/aosvs-tools/tree/maste
 ### Prerequisites
 To build from the source you will need the GTK-Development packages installed on your system.  You will also need to install the following Go packages...
 
-```go get github.com/mattn/go-gtk/gtk```
+```go get github.com/mattn/go-gtk/gtk``` 
+
+and 
+
+```go install github.com/jacobsa/go-serial/serial```
 
 ### Build
 ```go build```
@@ -41,3 +46,13 @@ From the build or install directory simply type
 Optionally, you may add the ```-host=host:port``` argument to connect to a running host via telnet. Eg. 
 
 ```./dasherg -host=localhost:23```
+
+### Function Keys
+You may have to use the keys simulated on the toolbar in DasherG - your OS might interfere with the physical F-keys on your keyboard.  The Shift and Control keys can be used in conjunction with the simulated F-keys just like a real Dasher.
+
+~~The "Brk" key sends a Command-Break signal to the host when connected via the serial interface.~~
+
+~~"Hold" and "Local Print" work as you would expect.~~
+
+### Emulation Details
+[See here](https://github.com/SMerrony/aosvs-tools/tree/master/dasherg/implementationChart.md)
