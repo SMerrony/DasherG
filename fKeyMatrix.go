@@ -43,6 +43,7 @@ func buildFkeyMatrix() *gtk.Table {
 
 	locPrBut := gtk.NewButtonWithLabel("LocPr")
 	locPrBut.SetTooltipText("Local Print")
+	//locPrBut.Connect("clicked", localPrint)
 	locPrBut.SetCanFocus(false)
 	//locPrBut.Connect("clicked", func() { keyboardChan <- dasherPrintScreen })
 	fkeyMatrix.AttachDefaults(locPrBut, 0, 1, 0, 1)
@@ -50,6 +51,11 @@ func buildFkeyMatrix() *gtk.Table {
 	breakBut.SetCanFocus(false)
 	fkeyMatrix.AttachDefaults(breakBut, 0, 1, 4, 5)
 	holdBut := gtk.NewButtonWithLabel("Hold")
+	holdBut.Connect("clicked", func() {
+		terminal.rwMutex.Lock()
+		terminal.holding = !terminal.holding
+		terminal.rwMutex.Unlock()
+	})
 	holdBut.SetCanFocus(false)
 	fkeyMatrix.AttachDefaults(holdBut, 18, 19, 0, 1)
 	erPgBut := gtk.NewButtonWithLabel("Er Pg")

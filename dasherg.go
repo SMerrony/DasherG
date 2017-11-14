@@ -755,6 +755,9 @@ func updateStatusBox() {
 	}
 	emuStat := "D" + strconv.Itoa(int(terminal.emulation)) + " (" +
 		strconv.Itoa(terminal.visibleLines) + "x" + strconv.Itoa(terminal.visibleCols) + ")"
+	if terminal.holding {
+		emuStat += " (Hold)"
+	}
 	terminal.rwMutex.RUnlock()
 	emuStatusLabel.SetText(emuStat)
 }
@@ -778,3 +781,26 @@ func sendFile() {
 	}
 	sd.Destroy()
 }
+
+// func localPrint() {
+// 	printOp := gtk.NewPrintOperation()
+// 	printOp.Connect("begin-print", func(ctx *glib.CallbackContext) {
+// 		arg := ctx.Args(0)
+// 		printBegin(unsafe.Pointer(&arg))
+// 	})
+// 	//printOp.Connect("draw-page", printCrt)
+// 	printOp.Run(gtk.PRINT_OPERATION_ACTION_PRINT_DIALOG, win)
+// 	//printOp.Run(gtk.PRINT_OPERATION_ACTION_PRINT, win)
+// }
+
+// //func printBegin(op gtk.PrintOperation, context gtk.PrintContext) {
+// func printBegin(ctx unsafe.Pointer) {
+// 	fmt.Println("printBegin() invoked")
+// 	pCtx := pango.ContextFromUnsafe(ctx)
+// 	layout := pango.NewLayout(pCtx)
+// 	layout.SetText("Hello, World!")
+// }
+
+// func printCrt() {
+// 	fmt.Println("printCrt() invoked")
+// }

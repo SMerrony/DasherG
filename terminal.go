@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"os"
 	"sync"
+	"time"
 )
 
 const (
@@ -30,6 +31,7 @@ const (
 	maxVisibleLines, maxVisibleCols = 66, 135
 	totalLines, totalCols           = 96, 208
 	historyLines                    = 2000
+	holdPauseMs                     = 500 * time.Millisecond
 )
 
 type emulType int
@@ -81,23 +83,8 @@ func (t *terminalT) setup(update chan int) {
 	t.updateCrtChan = update
 	t.visibleLines = defaultLines
 	t.visibleCols = defaultCols
-	t.cursorX = 0
-	t.cursorY = 0
 	t.rollEnabled = true
 	t.blinkEnabled = true
-	t.protectionEnabled = false
-	t.inCommand = false
-	t.inExtendedCommand = false
-	t.inTelnetCommand = false
-	t.gotTelnetDo = false
-	t.gotTelnetWill = false
-	t.readingWindowAddressX = false
-	t.readingWindowAddressY = false
-	t.blinking = false
-	t.dimmed = false
-	t.reversedVideo = false
-	t.underscored = false
-	t.protectd = false
 	t.history = make([]string, historyLines)
 	t.clearScreen()
 	// t.display[0][0].charValue = '0'
@@ -227,6 +214,15 @@ func (t *terminalT) run() {
 		ch       byte
 	)
 	for hostData := range fromHostChan {
+		// pause if we are HOLDing
+		t.rwMutex.RLock()
+		for t.holding {
+			t.rwMutex.RUnlock()
+			time.Sleep(holdPauseMs)
+			t.rwMutex.RLock()
+		}
+		t.rwMutex.RUnlock()
+
 		for _, ch = range hostData {
 
 			t.rwMutex.Lock()
