@@ -48,11 +48,11 @@ Optionally, you may add the ```-host=host:port``` argument to connect to a runni
 ```./dasherg -host=localhost:23```
 
 ### Function Keys
-You may have to use the keys simulated on the toolbar in DasherG - your OS might interfere with the physical F-keys on your keyboard.  The Shift and Control keys can be used in conjunction with the simulated F-keys just like a real Dasher.
+You may have to use the keys simulated on the toolbar in DasherG as your OS might interfere with the physical function keys on your keyboard.  The Shift and Control keys can be used in conjunction with the simulated F-keys just like a real Dasher.
 
 ~~The "Brk" key sends a Command-Break signal to the host when connected via the serial interface.~~
 
-~~"Hold" and "Local Print" work as you would expect.~~
+"Hold" ~~and "Local Print"~~ work as you would expect.
 
 ### Emulation Details
 [See here](https://github.com/SMerrony/aosvs-tools/tree/master/dasherg/implementationChart.md)
