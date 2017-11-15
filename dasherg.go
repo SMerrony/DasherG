@@ -440,10 +440,14 @@ func openNetDialog() {
 	hostLab := gtk.NewLabel("Host:")
 	ca.PackStart(hostLab, true, true, 0)
 	hostEntry := gtk.NewEntry()
+	hostEntry.SetText(lastHost)
 	ca.PackStart(hostEntry, true, true, 0)
 	portLab := gtk.NewLabel("Host:")
 	ca.PackStart(portLab, true, true, 0)
 	portEntry := gtk.NewEntry()
+	if lastPort != 0 {
+		portEntry.SetText(strconv.Itoa(lastPort))
+	}
 	ca.PackStart(portEntry, true, true, 0)
 
 	nd.AddButton("Cancel", gtk.RESPONSE_CANCEL)

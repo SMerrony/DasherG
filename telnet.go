@@ -68,6 +68,8 @@ var (
 	conn                 net.Conn
 	err                  error
 	stopTelnetWriterChan = make(chan bool)
+	lastHost             string
+	lastPort             int
 )
 
 func openTelnetConn(hostName string, portNum int) bool {
@@ -76,6 +78,8 @@ func openTelnetConn(hostName string, portNum int) bool {
 	if err != nil {
 		return false
 	}
+	lastHost = hostName
+	lastPort = portNum
 	go telnetReader(conn, fromHostChan)
 	go telnetWriter(bufio.NewWriter(conn), keyboardChan)
 	terminal.rwMutex.Lock()
