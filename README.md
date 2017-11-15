@@ -18,7 +18,7 @@ DasherG is a new free terminal emulator for Data General DASHER series character
 * May specify ```-host=host:port``` on command line
 
 ## Download
-DasherG is [hosted on GitHub](https://github.com/SMerrony/aosvs-tools/tree/master/dasherg).
+DasherG is [hosted on GitHub](https://github.com/SMerrony/DasherG).
 
 ## Build from Source
 ### Prerequisites
@@ -54,4 +54,4 @@ You may have to use the keys simulated on the toolbar in DasherG as your OS migh
 "Hold" and "Local Print" work as you would expect, although the print actually goes to a user-specified image (PNG) file.
 
 ### Emulation Details
-[See here](https://github.com/SMerrony/aosvs-tools/tree/master/dasherg/implementationChart.md)
+[See here](https://github.com/SMerrony/DasherG/blob/master/implementationChart.md)
