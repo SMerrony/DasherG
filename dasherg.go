@@ -24,6 +24,10 @@ package main
 import (
 	"flag"
 	"fmt"
+	"image"
+	"image/color"
+	"image/draw"
+	"image/png"
 	"io/ioutil"
 	"log"
 	"os/exec"
@@ -47,7 +51,7 @@ const (
 	appTitle     = "DasherG"
 	appComment   = "A Data General DASHER terminal emulator"
 	appCopyright = "Copyright ©2017 S.Merrony"
-	appVersion   = "0.1 alpha"
+	appVersion   = "0.9 beta"
 	appWebsite   = "https://github.com/SMerrony/aosvs-tools"
 	fontFile     = "D410-b-12.bdf"
 	helpURL      = "https://github.com/SMerrony/aosvs-tools/tree/master/dasherg"
@@ -786,25 +790,55 @@ func sendFile() {
 	sd.Destroy()
 }
 
-// func localPrint() {
-// 	printOp := gtk.NewPrintOperation()
-// 	printOp.Connect("begin-print", func(ctx *glib.CallbackContext) {
-// 		arg := ctx.Args(0)
-// 		printBegin(unsafe.Pointer(&arg))
-// 	})
-// 	//printOp.Connect("draw-page", printCrt)
-// 	printOp.Run(gtk.PRINT_OPERATION_ACTION_PRINT_DIALOG, win)
-// 	//printOp.Run(gtk.PRINT_OPERATION_ACTION_PRINT, win)
-// }
-
-// //func printBegin(op gtk.PrintOperation, context gtk.PrintContext) {
-// func printBegin(ctx unsafe.Pointer) {
-// 	fmt.Println("printBegin() invoked")
-// 	pCtx := pango.ContextFromUnsafe(ctx)
-// 	layout := pango.NewLayout(pCtx)
-// 	layout.SetText("Hello, World!")
-// }
-
-// func printCrt() {
-// 	fmt.Println("printCrt() invoked")
-// }
+func localPrint() {
+	fd := gtk.NewFileChooserDialog("DasherG Screen-Dump", win, gtk.FILE_CHOOSER_ACTION_SAVE,
+		"_Cancel", gtk.RESPONSE_CANCEL, "_Save", gtk.RESPONSE_ACCEPT)
+	fd.SetFilename("DASHER.png")
+	res := fd.Run()
+	if res == gtk.RESPONSE_ACCEPT {
+		filename := fd.GetFilename()
+		dumpFile, err := os.Create(filename)
+		if err != nil {
+			fmt.Printf("ERROR: Could not create file <%s> for screen-dump\n", filename)
+		} else {
+			defer dumpFile.Close()
+			img := image.NewNRGBA(image.Rect(0, 0, (terminal.visibleCols+1)*fontWidth, (terminal.visibleLines+1)*fontHeight))
+			bg := image.NewUniform(color.RGBA{255, 255, 255, 255})   // prepare white for background
+			grey := image.NewUniform(color.RGBA{128, 128, 128, 255}) // prepare grey for foreground
+			blk := image.NewUniform(color.RGBA{0, 0, 0, 255})        // prepare black for foreground
+			draw.Draw(img, img.Bounds(), bg, image.ZP, draw.Src)     // fill the background
+			for line := 0; line < terminal.visibleLines; line++ {
+				for col := 0; col < terminal.visibleCols; col++ {
+					for x := 0; x < fontWidth; x++ {
+						for y := 0; y < fontHeight; y++ {
+							switch {
+							case terminal.display[line][col].dim:
+								if bdfFont[terminal.display[line][col].charValue].pixels[x][y] {
+									img.Set(col*fontWidth+x, (line+1)*fontHeight-y, grey)
+								}
+							case terminal.display[line][col].reverse:
+								if !bdfFont[terminal.display[line][col].charValue].pixels[x][y] {
+									img.Set(col*fontWidth+x, (line+1)*fontHeight-y, blk)
+								}
+							default:
+								if bdfFont[terminal.display[line][col].charValue].pixels[x][y] {
+									img.Set(col*fontWidth+x, (line+1)*fontHeight-y, blk)
+								}
+							}
+						}
+					}
+					if terminal.display[line][col].underscore {
+						for x := 0; x < fontWidth; x++ {
+							img.Set(col*fontWidth+x, (line+1)*fontHeight, blk)
+						}
+					}
+				}
+			}
+			if err := png.Encode(dumpFile, img); err != nil {
+				fmt.Printf("ERROR: Could not save PNG screen-dump, %v\n", err)
+			}
+			dumpFile.Close()
+		}
+	}
+	fd.Destroy()
+}

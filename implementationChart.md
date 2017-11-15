@@ -20,7 +20,7 @@
 | Erase Page/Window                    | 014         | Ctrl-L or Erase Page       | Y     | Y    |      |      |      | ~Clear Screen on a D200    |
 | New Line                             | 012         | Ctrl-J                     | Y     | Y    |      |      |      | ~Enter/Return              |
 | Print Form                           | 001         | Ctrl-A or Shift-Local Print | -    | -    | N    |      |      | TODO            |
-| Print Screen/Window                  | 021         | Ctrl-Q or Local Print      | N     | N    |      |      |      | TODO            |
+| Print Screen/Window                  | 021         | Ctrl-Q or Local Print      | N     | N    |      |      |      | Local Print button works    |
 | Read Model ID                        | 036 103     | Cmd-Brk C                  | N     | N    |      |      |      | TODO            |
 | Read Cursor/Window Address           | 005         | Ctrl-E                     | Y     | Y    |      |      |      |                 |
 | Remote Test Enter                    | 036 101     |                            | N     | N    |      |      |      | *Will not implement in emulator* |

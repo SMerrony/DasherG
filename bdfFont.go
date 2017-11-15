@@ -42,6 +42,7 @@ const (
 type bdfChar struct {
 	loaded                           bool
 	pixbuf, dimPixbuf, reversePixbuf *gdkpixbuf.Pixbuf
+	pixels                           [fontWidth][fontHeight]bool
 }
 
 var (
@@ -128,6 +129,7 @@ func bdfLoad(filename string, zoom int) {
 					tmpPixbuf.GetPixels()[((yOffset+bitMapLine)*rowStride)+((xOffset+i)*nChannels)+1] = 255
 					tmpDimPixbuf.GetPixels()[((yOffset+bitMapLine)*rowStride)+((xOffset+i)*nChannels)+1] = 128
 					tmpRevPixbuf.GetPixels()[((yOffset+bitMapLine)*rowStride)+((xOffset+i)*nChannels)+1] = 0
+					bdfFont[asciiCode].pixels[xOffset+i][yOffset+bitMapLine] = true
 				}
 				lineByte <<= 1
 			}

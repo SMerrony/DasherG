@@ -43,7 +43,7 @@ func buildFkeyMatrix() *gtk.Table {
 
 	locPrBut := gtk.NewButtonWithLabel("LocPr")
 	locPrBut.SetTooltipText("Local Print")
-	//locPrBut.Connect("clicked", localPrint)
+	locPrBut.Connect("clicked", localPrint)
 	locPrBut.SetCanFocus(false)
 	//locPrBut.Connect("clicked", func() { keyboardChan <- dasherPrintScreen })
 	fkeyMatrix.AttachDefaults(locPrBut, 0, 1, 0, 1)
