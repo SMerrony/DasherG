@@ -438,21 +438,21 @@ func openBrowser(url string) {
 
 func openNetDialog() {
 	nd := gtk.NewDialog()
-	nd.SetTitle("Telnet Host")
+	nd.SetTitle("DasherG - Telnet Host")
 	nd.SetIconFromFile(iconFile)
 	ca := nd.GetVBox()
 	hostLab := gtk.NewLabel("Host:")
-	ca.PackStart(hostLab, true, true, 0)
+	ca.PackStart(hostLab, true, true, 5)
 	hostEntry := gtk.NewEntry()
 	hostEntry.SetText(lastHost)
-	ca.PackStart(hostEntry, true, true, 0)
-	portLab := gtk.NewLabel("Host:")
-	ca.PackStart(portLab, true, true, 0)
+	ca.PackStart(hostEntry, true, true, 5)
+	portLab := gtk.NewLabel("Port:")
+	ca.PackStart(portLab, true, true, 5)
 	portEntry := gtk.NewEntry()
 	if lastPort != 0 {
 		portEntry.SetText(strconv.Itoa(lastPort))
 	}
-	ca.PackStart(portEntry, true, true, 0)
+	ca.PackStart(portEntry, true, true, 5)
 
 	nd.AddButton("Cancel", gtk.RESPONSE_CANCEL)
 	nd.AddButton("OK", gtk.RESPONSE_OK)
@@ -476,6 +476,11 @@ func openNetDialog() {
 				networkConnectMenuItem.SetSensitive(false)
 				serialConnectMenuItem.SetSensitive(false)
 				networkDisconnectMenuItem.SetSensitive(true)
+			} else {
+				ed := gtk.NewMessageDialog(win, gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_ERROR,
+					gtk.BUTTONS_CLOSE, "Could not connect to remote host")
+				ed.Run()
+				ed.Destroy()
 			}
 		}
 	}
@@ -495,10 +500,12 @@ func closeRemote() {
 
 func openSerialDialog() {
 	sd := gtk.NewDialog()
-	sd.SetTitle("Serial Port")
+	sd.SetTitle("DasherG - Serial Port")
 	sd.SetIconFromFile(iconFile)
 	ca := sd.GetVBox()
 	table := gtk.NewTable(5, 2, false)
+	table.SetColSpacings(5)
+	table.SetRowSpacings(5)
 	portLab := gtk.NewLabel("Port:")
 	table.AttachDefaults(portLab, 0, 1, 0, 1)
 	portEntry := gtk.NewEntry()
@@ -536,7 +543,7 @@ func openSerialDialog() {
 	stopCombo.AppendText("2")
 	stopCombo.SetActive(0)
 	table.AttachDefaults(stopCombo, 1, 2, 4, 5)
-	ca.PackStart(table, true, true, 0)
+	ca.PackStart(table, true, true, 5)
 	sd.AddButton("Cancel", gtk.RESPONSE_CANCEL)
 	sd.AddButton("OK", gtk.RESPONSE_OK)
 	sd.SetDefaultResponse(gtk.RESPONSE_OK)
@@ -552,6 +559,11 @@ func openSerialDialog() {
 			serialConnectMenuItem.SetSensitive(false)
 			networkConnectMenuItem.SetSensitive(false)
 			serialDisconnectMenuItem.SetSensitive(true)
+		} else {
+			ed := gtk.NewMessageDialog(win, gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_ERROR,
+				gtk.BUTTONS_CLOSE, "Could not connect via serial port")
+			ed.Run()
+			ed.Destroy()
 		}
 	}
 	sd.Destroy()
