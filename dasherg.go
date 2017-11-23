@@ -449,6 +449,7 @@ func openNetDialog() {
 	portLab := gtk.NewLabel("Host:")
 	ca.PackStart(portLab, true, true, 0)
 	portEntry := gtk.NewEntry()
+	portEntry.SetActivatesDefault(true) // hitting ENTER will cause default (OK) response
 	if lastPort != 0 {
 		portEntry.SetText(strconv.Itoa(lastPort))
 	}
@@ -456,8 +457,6 @@ func openNetDialog() {
 
 	nd.AddButton("Cancel", gtk.RESPONSE_CANCEL)
 	nd.AddButton("OK", gtk.RESPONSE_OK)
-	//ok := nd.AddButton("OK", gtk.RESPONSE_OK)
-	// ok.SetActivatesDefault(true) // FIXME - need to add this call to go-gtk
 	nd.SetDefaultResponse(gtk.RESPONSE_OK)
 	nd.ShowAll()
 	response := nd.Run()
