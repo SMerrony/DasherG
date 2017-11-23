@@ -53,5 +53,9 @@ You may have to use the keys simulated on the toolbar in DasherG as your OS migh
 
 "Hold" and "Local Print" work as you would expect, although the print actually goes to a user-specified image (PNG) file.
 
+### Bell Sound
+
+For the system bell to operate, DasherG must have been started from a terminal which supports the bell.
+
 ### Emulation Details
 [See here](https://github.com/SMerrony/DasherG/blob/master/implementationChart.md)

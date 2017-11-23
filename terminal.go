@@ -371,8 +371,7 @@ func (t *terminalT) run() {
 			case dasherNul:
 				skipChar = true
 			case dasherBell:
-				// TODO - how to handle this?
-				fmt.Println("ignored BELL")
+				fmt.Println("\x07BELL!")
 				skipChar = true
 			case dasherBlinkOn:
 				t.blinking = true
