@@ -69,6 +69,10 @@ type terminalT struct {
 	// terminalUpdated indicates that a visual refresh is required
 	terminalUpdated bool
 
+	// some empty structures for efficiency
+	emptyCell cell
+	emptyLine [totalCols]cell
+
 	inCommand, inExtendedCommand,
 	readingWindowAddressX, readingWindowAddressY,
 	blinking, dimmed, reversedVideo, underscored, protectd bool
@@ -83,6 +87,10 @@ func (t *terminalT) setup(update chan int) {
 	t.updateCrtChan = update
 	t.visibleLines = defaultLines
 	t.visibleCols = defaultCols
+	t.emptyCell.clearToSpace()
+	for c := range t.emptyLine {
+		t.emptyLine[c] = t.emptyCell
+	}
 	t.rollEnabled = true
 	t.blinkEnabled = true
 	t.history = make([]string, historyLines)
@@ -99,9 +107,10 @@ func (t *terminalT) setup(update chan int) {
 
 func (t *terminalT) clearLine(line int) {
 	// TODO handle history here
-	for cc := 0; cc < t.visibleCols; cc++ {
-		t.display[line][cc].clearToSpace()
-	}
+	// for cc := 0; cc < t.visibleCols; cc++ {
+	// 	t.display[line][cc].clearToSpace()
+	// }
+	t.display[line] = t.emptyLine
 	t.inCommand = false
 	t.readingWindowAddressX = false
 	t.readingWindowAddressY = false
@@ -113,7 +122,8 @@ func (t *terminalT) clearLine(line int) {
 
 func (t *terminalT) clearScreen() {
 	for row := 0; row < t.visibleLines; row++ {
-		t.clearLine(row)
+		//t.clearLine(row)
+		t.display[row] = t.emptyLine
 	}
 }
 
@@ -431,7 +441,8 @@ func (t *terminalT) run() {
 				skipChar = true
 			case dasherEraseEol:
 				for col := t.cursorX; col < t.visibleCols; col++ {
-					t.display[t.cursorY][col].clearToSpace()
+					//t.display[t.cursorY][col].clearToSpace()
+					t.display[t.cursorY][col] = t.emptyCell
 				}
 				skipChar = true
 			case dasherErasePage:
