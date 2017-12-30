@@ -121,10 +121,27 @@ func (t *terminalT) clearLine(line int) {
 }
 
 func (t *terminalT) clearScreen() {
+	var line string
 	for row := 0; row < t.visibleLines; row++ {
-		//t.clearLine(row)
+		// store in history
+		line = ""
+		for c := 0; c < t.visibleCols; c++ {
+			line += string(t.display[row][c].charValue)
+		}
+		if len(t.history) >= historyLines {
+			t.history = t.history[1:]
+		}
+		t.history = append(t.history, line)
+		// clear the line
 		t.display[row] = t.emptyLine
 	}
+	t.inCommand = false
+	t.readingWindowAddressX = false
+	t.readingWindowAddressY = false
+	t.blinking = false
+	t.dimmed = false
+	t.reversedVideo = false
+	t.underscored = false
 }
 
 func (t *terminalT) resize() {

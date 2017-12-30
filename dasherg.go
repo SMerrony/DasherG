@@ -51,7 +51,7 @@ const (
 	appTitle     = "DasherG"
 	appComment   = "A Data General DASHER terminal emulator"
 	appCopyright = "Copyright ©2017 S.Merrony"
-	appVersion   = "0.9 beta"
+	appVersion   = "0.91 beta"
 	appWebsite   = "https://github.com/SMerrony/DasherG"
 	fontFile     = "D410-b-12.bdf"
 	helpURL      = "https://github.com/SMerrony/DasherG"
