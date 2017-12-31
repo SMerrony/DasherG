@@ -59,6 +59,7 @@ type terminalT struct {
 	rollEnabled, blinkEnabled, protectionEnabled bool
 	blinkState                                   bool
 	holding, logging                             bool
+	expecting                                    bool
 	logFile                                      *os.File
 
 	// display is the 2D array of cells containing the terminal 'contents'
@@ -106,10 +107,6 @@ func (t *terminalT) setup(update chan int) {
 }
 
 func (t *terminalT) clearLine(line int) {
-	// TODO handle history here
-	// for cc := 0; cc < t.visibleCols; cc++ {
-	// 	t.display[line][cc].clearToSpace()
-	// }
 	t.display[line] = t.emptyLine
 	t.inCommand = false
 	t.readingWindowAddressX = false
@@ -544,6 +541,9 @@ func (t *terminalT) run() {
 			}
 			t.display[t.cursorY][t.cursorX].dirty = true
 			t.cursorX++
+			if t.expecting {
+				expectChan <- ch
+			}
 			t.rwMutex.Unlock()
 			//t.updateCrtChan <- updateCrtNormal
 		}
