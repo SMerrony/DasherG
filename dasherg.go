@@ -22,6 +22,7 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"image"
@@ -32,6 +33,7 @@ import (
 	"log"
 	"os/exec"
 	"runtime"
+	"time"
 	// _ "net/http/pprof"
 	"os"
 	"runtime/pprof"
@@ -81,6 +83,7 @@ var (
 	keyboardChan          = make(chan byte, keyBuffSize)
 	localListenerStopChan = make(chan bool)
 	updateCrtChan         = make(chan int, hostBuffSize)
+	expectChan            = make(chan byte, hostBuffSize)
 
 	gc              *gdk.GC
 	crt             *gtk.DrawingArea
@@ -218,6 +221,10 @@ func buildMenu() *gtk.MenuBar {
 	sendFileMenuItem := gtk.NewMenuItemWithLabel("Send (Text) File")
 	sendFileMenuItem.Connect("activate", sendFile)
 	subMenu.Append(sendFileMenuItem)
+
+	expectFileMenuItem := gtk.NewMenuItemWithLabel("Run mini-Expect Script")
+	expectFileMenuItem.Connect("activate", expectScript)
+	subMenu.Append(expectFileMenuItem)
 
 	quitMenuItem := gtk.NewMenuItemWithLabel("Quit")
 	subMenu.Append(quitMenuItem)
@@ -799,6 +806,72 @@ func sendFile() {
 		}
 	}
 	sd.Destroy()
+}
+
+func expectScript() {
+	ed := gtk.NewFileChooserDialog("DasherG mini-Expect Script to run", win, gtk.FILE_CHOOSER_ACTION_OPEN, "_Cancel", gtk.RESPONSE_CANCEL, "_Run", gtk.RESPONSE_ACCEPT)
+	res := ed.Run()
+	if res == gtk.RESPONSE_ACCEPT {
+		expectFile, err := os.Open(ed.GetFilename())
+		if err != nil {
+			ed := gtk.NewMessageDialog(win, gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_ERROR,
+				gtk.BUTTONS_CLOSE, "Could not open or read mini-Expect script file")
+			ed.Run()
+			ed.Destroy()
+		} else {
+			defer expectFile.Close()
+			scanner := bufio.NewScanner(expectFile)
+			for scanner.Scan() {
+				expectLine := scanner.Text()
+				fmt.Printf("DEBUG: Expect line <%s>\n", expectLine)
+				if expectLine[:1] == "#" {
+					fmt.Printf("DEBUG: Ignoring comment line <%s>\n", expectLine)
+					continue
+				}
+				switch {
+				case strings.HasPrefix(expectLine, "expect"):
+					expectStr := strings.Split(expectLine, "\"")[1]
+					terminal.rwMutex.Lock()
+					terminal.expecting = true
+					terminal.rwMutex.Unlock()
+					hostString := ""
+					for b := range expectChan {
+						if b == dasherNewLine {
+							hostString = ""
+						} else {
+							hostString += string(b)
+							if strings.HasSuffix(hostString, expectStr) {
+								terminal.rwMutex.Lock()
+								terminal.expecting = false
+								terminal.rwMutex.Unlock()
+								break
+							}
+						}
+					}
+
+				case strings.HasPrefix(expectLine, "send"):
+					sendLine := strings.Split(expectLine, "\"")[1]
+					fmt.Printf("DEBUG: send line <%s>\n", sendLine)
+					sendLine = strings.Replace(sendLine, "\\n", fmt.Sprintf("%c", 0x0D), -1)
+					for c := 0; c < len(sendLine); c++ {
+						fmt.Printf("DEBUG: sending char <%c>\n", sendLine[c])
+						keyboardChan <- byte(sendLine[c])
+						time.Sleep(time.Millisecond * 50)
+					}
+				case strings.HasPrefix(expectLine, "exit"):
+					fmt.Println("DEBUG: exiting mini-Expect")
+					break
+				default:
+					ed := gtk.NewMessageDialog(win, gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_ERROR,
+						gtk.BUTTONS_CLOSE, "Unknown command in mini-Expect script file")
+					ed.Run()
+					ed.Destroy()
+					break
+				}
+			}
+		}
+	}
+	ed.Destroy()
 }
 
 func localPrint() {
