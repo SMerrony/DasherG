@@ -33,7 +33,6 @@ import (
 	"log"
 	"os/exec"
 	"runtime"
-	"time"
 	// _ "net/http/pprof"
 	"os"
 	"runtime/pprof"
@@ -831,6 +830,7 @@ func expectScript() {
 				switch {
 				case strings.HasPrefix(expectLine, "expect"):
 					expectStr := strings.Split(expectLine, "\"")[1]
+					gtk.MainIterationDo(false)
 					terminal.rwMutex.Lock()
 					terminal.expecting = true
 					terminal.rwMutex.Unlock()
@@ -847,6 +847,9 @@ func expectScript() {
 								break
 							}
 						}
+						for gtk.EventsPending() {
+							gtk.MainIterationDo(false)
+						}
 					}
 
 				case strings.HasPrefix(expectLine, "send"):
@@ -856,7 +859,7 @@ func expectScript() {
 					for c := 0; c < len(sendLine); c++ {
 						fmt.Printf("DEBUG: sending char <%c>\n", sendLine[c])
 						keyboardChan <- byte(sendLine[c])
-						time.Sleep(time.Millisecond * 50)
+						gtk.MainIterationDo(false)
 					}
 				case strings.HasPrefix(expectLine, "exit"):
 					fmt.Println("DEBUG: exiting mini-Expect")
