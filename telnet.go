@@ -98,7 +98,7 @@ func closeTelnetConn() {
 	terminal.rwMutex.Unlock()
 }
 
-func telnetReader(con net.Conn, hostChan chan []byte) {
+func telnetReader(con net.Conn, hostChan chan<- []byte) {
 	for {
 		hostBytes := make([]byte, hostBuffSize)
 		n, err := con.Read(hostBytes)
@@ -116,7 +116,7 @@ func telnetReader(con net.Conn, hostChan chan []byte) {
 	}
 }
 
-func telnetWriter(writer *bufio.Writer, kbdChan chan byte) {
+func telnetWriter(writer *bufio.Writer, kbdChan <-chan byte) {
 	for {
 		select {
 		case k := <-kbdChan:

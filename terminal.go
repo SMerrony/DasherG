@@ -51,6 +51,8 @@ const (
 // terminal (which is actually displayed elsewhere)
 type terminalT struct {
 	rwMutex                                      sync.RWMutex
+	fromHostChan                                 <-chan []byte
+	expectChan                                   chan<- byte
 	emulation                                    emulType
 	connected                                    int
 	serialPort, remoteHost, remotePort           string
@@ -82,8 +84,10 @@ type terminalT struct {
 	telnetCmd, doAction, willAction             byte
 }
 
-func (t *terminalT) setup(update chan int) {
+func (t *terminalT) setup(fromHostChan <-chan []byte, update chan int, expectChan chan<- byte) {
 	t.rwMutex.Lock()
+	t.fromHostChan = fromHostChan
+	t.expectChan = expectChan
 	t.emulation = d210
 	t.updateCrtChan = update
 	t.visibleLines = defaultLines
@@ -237,317 +241,324 @@ func (t *terminalT) run() {
 		skipChar bool
 		ch       byte
 	)
-	for hostData := range fromHostChan {
-		// pause if we are HOLDing
-		t.rwMutex.RLock()
-		for t.holding {
-			t.rwMutex.RUnlock()
-			time.Sleep(holdPauseMs)
+	//for hostData := range t.fromHostChan {
+	for {
+		select {
+		case hostData := <-t.fromHostChan:
+			// pause if we are HOLDing
 			t.rwMutex.RLock()
-		}
-		t.rwMutex.RUnlock()
+			for t.holding {
+				t.rwMutex.RUnlock()
+				time.Sleep(holdPauseMs)
+				t.rwMutex.RLock()
+			}
+			t.rwMutex.RUnlock()
 
-		for _, ch = range hostData {
+			for _, ch = range hostData {
 
-			t.rwMutex.Lock()
-			skipChar = false
-			// check for Telnet command
-			if t.connected == telnetConnected && ch == telnetCmdIAC {
-				if t.inTelnetCommand {
-					// special case - the host really wants to send a 255 - let it through
+				t.rwMutex.Lock()
+				skipChar = false
+				// check for Telnet command
+				if t.connected == telnetConnected && ch == telnetCmdIAC {
+					if t.inTelnetCommand {
+						// special case - the host really wants to send a 255 - let it through
+						t.inTelnetCommand = false
+					} else {
+						t.inTelnetCommand = true
+						skipChar = true
+						t.rwMutex.Unlock()
+						continue
+					}
+				}
+
+				if t.connected == telnetConnected && t.inTelnetCommand {
+					switch ch {
+					case telnetCmdDO:
+						t.gotTelnetDo = true
+						skipChar = true
+					case telnetCmdWILL:
+						t.gotTelnetWill = true
+						skipChar = true
+					case telnetCmdAO, telnetCmdAYT, telnetCmdBRK, telnetCmdDM, telnetCmdDONT, telnetCmdEC,
+						telnetCmdEL, telnetCmdGA, telnetCmdIP, telnetCmdNOP, telnetCmdSB, telnetCmdSE:
+						skipChar = true
+					}
+				}
+				if skipChar {
+					t.rwMutex.Unlock()
+					continue
+				}
+
+				if t.connected == telnetConnected && t.gotTelnetDo {
+					// whatever the host asks us to do we will refuse
+					keyboardChan <- telnetCmdIAC
+					keyboardChan <- telnetCmdWONT
+					keyboardChan <- ch
+					t.gotTelnetDo = false
 					t.inTelnetCommand = false
-				} else {
-					t.inTelnetCommand = true
+					skipChar = true
+				}
+
+				if t.connected == telnetConnected && t.gotTelnetWill {
+					// whatever the host offers to do we will refuse
+					keyboardChan <- telnetCmdIAC
+					keyboardChan <- telnetCmdDONT
+					keyboardChan <- ch
+					t.gotTelnetWill = false
+					t.inTelnetCommand = false
+					skipChar = true
+				}
+				if skipChar {
+					t.rwMutex.Unlock()
+					continue
+				}
+
+				if t.readingWindowAddressX {
+					t.newXaddress = int(ch & 0x7f)
+					if t.newXaddress >= t.visibleCols {
+						t.newXaddress -= t.visibleCols
+					}
+					if t.newXaddress == 127 {
+						// special case - x stays the same - see D410 User Manual p.3-25
+						t.newXaddress = t.cursorX
+					}
+					t.readingWindowAddressX = false
+					t.readingWindowAddressY = true
 					skipChar = true
 					t.rwMutex.Unlock()
 					continue
 				}
-			}
 
-			if t.connected == telnetConnected && t.inTelnetCommand {
-				switch ch {
-				case telnetCmdDO:
-					t.gotTelnetDo = true
-					skipChar = true
-				case telnetCmdWILL:
-					t.gotTelnetWill = true
-					skipChar = true
-				case telnetCmdAO, telnetCmdAYT, telnetCmdBRK, telnetCmdDM, telnetCmdDONT, telnetCmdEC,
-					telnetCmdEL, telnetCmdGA, telnetCmdIP, telnetCmdNOP, telnetCmdSB, telnetCmdSE:
-					skipChar = true
-				}
-			}
-			if skipChar {
-				t.rwMutex.Unlock()
-				continue
-			}
-
-			if t.connected == telnetConnected && t.gotTelnetDo {
-				// whatever the host asks us to do we will refuse
-				keyboardChan <- telnetCmdIAC
-				keyboardChan <- telnetCmdWONT
-				keyboardChan <- ch
-				t.gotTelnetDo = false
-				t.inTelnetCommand = false
-				skipChar = true
-			}
-
-			if t.connected == telnetConnected && t.gotTelnetWill {
-				// whatever the host offers to do we will refuse
-				keyboardChan <- telnetCmdIAC
-				keyboardChan <- telnetCmdDONT
-				keyboardChan <- ch
-				t.gotTelnetWill = false
-				t.inTelnetCommand = false
-				skipChar = true
-			}
-			if skipChar {
-				t.rwMutex.Unlock()
-				continue
-			}
-
-			if t.readingWindowAddressX {
-				t.newXaddress = int(ch & 0x7f)
-				if t.newXaddress >= t.visibleCols {
-					t.newXaddress -= t.visibleCols
-				}
-				if t.newXaddress == 127 {
-					// special case - x stays the same - see D410 User Manual p.3-25
-					t.newXaddress = t.cursorX
-				}
-				t.readingWindowAddressX = false
-				t.readingWindowAddressY = true
-				skipChar = true
-				t.rwMutex.Unlock()
-				continue
-			}
-
-			if t.readingWindowAddressY {
-				t.newYaddress = int(ch & 0x7f)
-				t.cursorX = t.newXaddress
-				t.cursorY = t.newYaddress
-				if t.newYaddress == 127 {
-					// special case - y stays the same - see D410 User Manual p.3-25
-					t.newYaddress = t.cursorY
-				}
-				if t.cursorY >= t.visibleLines {
-					// see end of p.3-24 in D410 User Manual
-					if t.rollEnabled {
-						t.scrollUp(t.cursorY - (t.visibleLines - 1))
+				if t.readingWindowAddressY {
+					t.newYaddress = int(ch & 0x7f)
+					t.cursorX = t.newXaddress
+					t.cursorY = t.newYaddress
+					if t.newYaddress == 127 {
+						// special case - y stays the same - see D410 User Manual p.3-25
+						t.newYaddress = t.cursorY
 					}
-					t.cursorY -= t.visibleLines
+					if t.cursorY >= t.visibleLines {
+						// see end of p.3-24 in D410 User Manual
+						if t.rollEnabled {
+							t.scrollUp(t.cursorY - (t.visibleLines - 1))
+						}
+						t.cursorY -= t.visibleLines
+					}
+					t.readingWindowAddressY = false
+					skipChar = true
+					t.rwMutex.Unlock()
+					continue
 				}
-				t.readingWindowAddressY = false
-				skipChar = true
-				t.rwMutex.Unlock()
-				continue
-			}
 
-			// logging?
-			if t.logging {
-				t.logFile.Write([]byte{ch})
-			}
+				// logging?
+				if t.logging {
+					t.logFile.Write([]byte{ch})
+				}
 
-			// Short commands
-			if t.inCommand {
-				switch ch {
-				case 'C': // requires response
-					t.sendModelID()
-					skipChar = true
-				case 'D':
-					t.reversedVideo = true
-					skipChar = true
-				case 'E':
-					t.reversedVideo = false
-					skipChar = true
-				case 'F':
-					if t.emulation >= d210 {
-						t.inExtendedCommand = true
+				// Short commands
+				if t.inCommand {
+					switch ch {
+					case 'C': // requires response
+						t.sendModelID()
 						skipChar = true
+					case 'D':
+						t.reversedVideo = true
+						skipChar = true
+					case 'E':
+						t.reversedVideo = false
+						skipChar = true
+					case 'F':
+						if t.emulation >= d210 {
+							t.inExtendedCommand = true
+							skipChar = true
+						}
+					default:
+						fmt.Printf("Warning: unrecognised Break-CMD code - char <%c>\n", ch)
 					}
-				default:
-					fmt.Printf("Warning: unrecognised Break-CMD code - char <%c>\n", ch)
+
+					t.inCommand = false
+					t.rwMutex.Unlock()
+					continue
 				}
 
-				t.inCommand = false
-				t.rwMutex.Unlock()
-				continue
-			}
+				// D210 commands
+				if t.inExtendedCommand {
+					switch ch {
+					case 'F':
+						t.eraseUnprotectedToEndOfScreen()
+						// fmt.Println("Erase Unprot to end of screen")
+						skipChar = true
+						t.inExtendedCommand = false
+					default:
+						fmt.Printf("Warning: unrecognised extended Break-CMD F code - char <%c>\n", ch)
+					}
+				}
+				if skipChar {
+					t.rwMutex.Unlock()
+					continue
+				}
 
-			// D210 commands
-			if t.inExtendedCommand {
 				switch ch {
-				case 'F':
-					t.eraseUnprotectedToEndOfScreen()
-					// fmt.Println("Erase Unprot to end of screen")
+				case dasherNul:
 					skipChar = true
-					t.inExtendedCommand = false
-				default:
-					fmt.Printf("Warning: unrecognised extended Break-CMD F code - char <%c>\n", ch)
-				}
-			}
-			if skipChar {
-				t.rwMutex.Unlock()
-				continue
-			}
-
-			switch ch {
-			case dasherNul:
-				skipChar = true
-			case dasherBell:
-				fmt.Println("\x07BELL!")
-				skipChar = true
-			case dasherBlinkOn:
-				t.blinking = true
-				skipChar = true
-			case dasherBlinkOff:
-				t.blinking = false
-				skipChar = true
-			case dasherBlinkDisable:
-				t.blinkEnabled = false
-				skipChar = true
-			case dasherBlinkEnable:
-				t.blinkEnabled = true
-				skipChar = true
-			case dasherCursorDown:
-				if t.cursorY < t.visibleLines-1 {
-					t.cursorY++
-				} else {
-					t.cursorY = 0
-				}
-				skipChar = true
-			case dasherCursorLeft:
-				if t.cursorX > 0 {
-					t.cursorX--
-				} else {
-					t.cursorX = t.visibleCols - 1
+				case dasherBell:
+					fmt.Println("\x07BELL!")
+					skipChar = true
+				case dasherBlinkOn:
+					t.blinking = true
+					skipChar = true
+				case dasherBlinkOff:
+					t.blinking = false
+					skipChar = true
+				case dasherBlinkDisable:
+					t.blinkEnabled = false
+					skipChar = true
+				case dasherBlinkEnable:
+					t.blinkEnabled = true
+					skipChar = true
+				case dasherCursorDown:
+					if t.cursorY < t.visibleLines-1 {
+						t.cursorY++
+					} else {
+						t.cursorY = 0
+					}
+					skipChar = true
+				case dasherCursorLeft:
+					if t.cursorX > 0 {
+						t.cursorX--
+					} else {
+						t.cursorX = t.visibleCols - 1
+						if t.cursorY > 0 {
+							t.cursorY--
+						} else {
+							t.cursorY = t.visibleLines - 1
+						}
+					}
+					skipChar = true
+				case dasherCursorRight:
+					if t.cursorX < t.visibleCols-1 {
+						t.cursorX++
+					} else {
+						t.cursorX = 0
+						if t.cursorY < t.visibleLines-2 {
+							t.cursorY++
+						} else {
+							t.cursorY = 0
+						}
+					}
+					skipChar = true
+				case dasherCursorUp:
 					if t.cursorY > 0 {
 						t.cursorY--
 					} else {
 						t.cursorY = t.visibleLines - 1
 					}
-				}
-				skipChar = true
-			case dasherCursorRight:
-				if t.cursorX < t.visibleCols-1 {
-					t.cursorX++
-				} else {
+					skipChar = true
+				case dasherDimOn:
+					t.dimmed = true
+					skipChar = true
+				case dasherDimOff:
+					t.dimmed = false
+					skipChar = true
+				case dasherEraseEol:
+					for col := t.cursorX; col < t.visibleCols; col++ {
+						//t.display[t.cursorY][col].clearToSpace()
+						t.display[t.cursorY][col] = t.emptyCell
+					}
+					skipChar = true
+				case dasherErasePage:
+					t.clearScreen()
 					t.cursorX = 0
-					if t.cursorY < t.visibleLines-2 {
+					t.cursorY = 0
+					skipChar = true
+				case dasherHome:
+					t.cursorX = 0
+					t.cursorY = 0
+					skipChar = true
+				case dasherReadWindowAdd: // REQUIRES RESPONSE - see D410 User Manual p.3-18
+					keyboardChan <- 31
+					keyboardChan <- byte(t.cursorX)
+					keyboardChan <- byte(t.cursorY)
+					skipChar = true
+				case dasherRevVideoOff:
+					if t.emulation >= d210 {
+						t.reversedVideo = false
+						skipChar = true
+					}
+				case dasherRevVideoOn:
+					if t.emulation >= d210 {
+						t.reversedVideo = true
+						skipChar = true
+					}
+				case dasherRollDisable:
+					t.rollEnabled = false
+					skipChar = true
+				case dasherRollEnable:
+					t.rollEnabled = true
+					skipChar = true
+				case dasherUnderline:
+					t.underscored = true
+					skipChar = true
+				case dasherNormal:
+					t.underscored = false
+					skipChar = true
+				case dasherWriteWindowAddr:
+					t.readingWindowAddressX = true
+					skipChar = true
+				case dasherCmd:
+					t.inCommand = true
+					skipChar = true
+				}
+
+				if skipChar {
+					t.rwMutex.Unlock()
+					continue
+				}
+
+				// wrap due to hitting margin or new line?
+				if t.cursorX == t.visibleCols || ch == dasherNewLine {
+					if t.cursorY == t.visibleLines-1 { // hit bottom of screen
+						if t.rollEnabled {
+							t.scrollUp(1)
+						} else {
+							t.cursorY = 0
+							t.clearLine(t.cursorY)
+						}
+					} else {
 						t.cursorY++
-					} else {
-						t.cursorY = 0
+						if !t.rollEnabled {
+							t.clearLine(t.cursorY)
+						}
 					}
+					t.cursorX = 0
 				}
-				skipChar = true
-			case dasherCursorUp:
-				if t.cursorY > 0 {
-					t.cursorY--
+
+				// CR?
+				if ch == dasherCR || ch == dasherNewLine {
+					t.cursorX = 0
+					if t.expecting {
+						t.expectChan <- ch
+					}
+					t.rwMutex.Unlock()
+					continue
+				}
+
+				// finally, put the char in the displayable char matrix
+				if ch > 0 && int(ch) < len(bdfFont) && bdfFont[ch].loaded {
+					t.display[t.cursorY][t.cursorX].set(ch, t.blinking, t.dimmed, t.reversedVideo, t.underscored, t.protectd)
 				} else {
-					t.cursorY = t.visibleLines - 1
+					t.display[t.cursorY][t.cursorX].set(127, t.blinking, t.dimmed, t.reversedVideo, t.underscored, t.protectd)
 				}
-				skipChar = true
-			case dasherDimOn:
-				t.dimmed = true
-				skipChar = true
-			case dasherDimOff:
-				t.dimmed = false
-				skipChar = true
-			case dasherEraseEol:
-				for col := t.cursorX; col < t.visibleCols; col++ {
-					//t.display[t.cursorY][col].clearToSpace()
-					t.display[t.cursorY][col] = t.emptyCell
+				t.display[t.cursorY][t.cursorX].dirty = true
+				t.cursorX++
+				if t.expecting {
+					t.expectChan <- ch
 				}
-				skipChar = true
-			case dasherErasePage:
-				t.clearScreen()
-				t.cursorX = 0
-				t.cursorY = 0
-				skipChar = true
-			case dasherHome:
-				t.cursorX = 0
-				t.cursorY = 0
-				skipChar = true
-			case dasherReadWindowAdd: // REQUIRES RESPONSE - see D410 User Manual p.3-18
-				keyboardChan <- 31
-				keyboardChan <- byte(t.cursorX)
-				keyboardChan <- byte(t.cursorY)
-				skipChar = true
-			case dasherRevVideoOff:
-				if t.emulation >= d210 {
-					t.reversedVideo = false
-					skipChar = true
-				}
-			case dasherRevVideoOn:
-				if t.emulation >= d210 {
-					t.reversedVideo = true
-					skipChar = true
-				}
-			case dasherRollDisable:
-				t.rollEnabled = false
-				skipChar = true
-			case dasherRollEnable:
-				t.rollEnabled = true
-				skipChar = true
-			case dasherUnderline:
-				t.underscored = true
-				skipChar = true
-			case dasherNormal:
-				t.underscored = false
-				skipChar = true
-			case dasherWriteWindowAddr:
-				t.readingWindowAddressX = true
-				skipChar = true
-			case dasherCmd:
-				t.inCommand = true
-				skipChar = true
-			}
-
-			if skipChar {
 				t.rwMutex.Unlock()
-				continue
+				//t.updateCrtChan <- updateCrtNormal
 			}
-
-			// wrap due to hitting margin or new line?
-			if t.cursorX == t.visibleCols || ch == dasherNewLine {
-				if t.cursorY == t.visibleLines-1 { // hit bottom of screen
-					if t.rollEnabled {
-						t.scrollUp(1)
-					} else {
-						t.cursorY = 0
-						t.clearLine(t.cursorY)
-					}
-				} else {
-					t.cursorY++
-					if !t.rollEnabled {
-						t.clearLine(t.cursorY)
-					}
-				}
-				t.cursorX = 0
-			}
-
-			// CR?
-			if ch == dasherCR || ch == dasherNewLine {
-				t.cursorX = 0
-				t.rwMutex.Unlock()
-				continue
-			}
-
-			// finally, put the char in the displayable char matrix
-			if ch > 0 && int(ch) < len(bdfFont) && bdfFont[ch].loaded {
-				t.display[t.cursorY][t.cursorX].set(ch, t.blinking, t.dimmed, t.reversedVideo, t.underscored, t.protectd)
-			} else {
-				t.display[t.cursorY][t.cursorX].set(127, t.blinking, t.dimmed, t.reversedVideo, t.underscored, t.protectd)
-			}
-			t.display[t.cursorY][t.cursorX].dirty = true
-			t.cursorX++
-			if t.expecting {
-				expectChan <- ch
-			}
-			t.rwMutex.Unlock()
-			//t.updateCrtChan <- updateCrtNormal
+			t.updateCrtChan <- updateCrtNormal
 		}
-		t.updateCrtChan <- updateCrtNormal
 	}
 }
 
