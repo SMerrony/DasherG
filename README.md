@@ -16,6 +16,7 @@ DasherG is a new free terminal emulator for Data General DASHER series character
 * Loadable function key templates (BROWSE, SED and SMI provided as examples)
 * 2000-line terminal history
 * May specify ```-host=host:port``` on command line
+* Support for mini-Expect scripts to automate some tasks [see Wiki](https://github.com/SMerrony/DasherG/wiki/DasherG-Mini-Expect-Scripts).
 
 ## Download
 DasherG is [hosted on GitHub](https://github.com/SMerrony/DasherG).

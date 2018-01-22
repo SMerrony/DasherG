@@ -29,7 +29,7 @@ var (
 	ctrlPressed, shiftPressed bool
 )
 
-func keyEventHandler() {
+func keyEventHandler(kbdChan chan<- byte) {
 	for {
 		select {
 		case keyPressEvent := <-keyPressEventChan:
@@ -50,68 +50,68 @@ func keyEventHandler() {
 				shiftPressed = false
 
 			case gdk.KEY_Escape:
-				keyboardChan <- '\033'
+				kbdChan <- '\033'
 
 			case gdk.KEY_Home:
-				keyboardChan <- dasherHome
+				kbdChan <- dasherHome
 
 			case gdk.KEY_F1:
-				keyboardChan <- dasherCmd
-				keyboardChan <- modify(113)
+				kbdChan <- dasherCmd
+				kbdChan <- modify(113)
 			case gdk.KEY_F2:
-				keyboardChan <- dasherCmd
-				keyboardChan <- modify(114)
+				kbdChan <- dasherCmd
+				kbdChan <- modify(114)
 			case gdk.KEY_F3:
-				keyboardChan <- dasherCmd
-				keyboardChan <- modify(115)
+				kbdChan <- dasherCmd
+				kbdChan <- modify(115)
 			case gdk.KEY_F4:
-				keyboardChan <- dasherCmd
-				keyboardChan <- modify(116)
+				kbdChan <- dasherCmd
+				kbdChan <- modify(116)
 			case gdk.KEY_F5:
-				keyboardChan <- dasherCmd
-				keyboardChan <- modify(117)
+				kbdChan <- dasherCmd
+				kbdChan <- modify(117)
 
 			case gdk.KEY_F6:
-				keyboardChan <- dasherCmd
-				keyboardChan <- modify(118)
+				kbdChan <- dasherCmd
+				kbdChan <- modify(118)
 			case gdk.KEY_F7:
-				keyboardChan <- dasherCmd
-				keyboardChan <- modify(119)
+				kbdChan <- dasherCmd
+				kbdChan <- modify(119)
 			case gdk.KEY_F8:
-				keyboardChan <- dasherCmd
-				keyboardChan <- modify(120)
+				kbdChan <- dasherCmd
+				kbdChan <- modify(120)
 			case gdk.KEY_F9:
-				keyboardChan <- dasherCmd
-				keyboardChan <- modify(121)
+				kbdChan <- dasherCmd
+				kbdChan <- modify(121)
 			case gdk.KEY_F10:
-				keyboardChan <- dasherCmd
-				keyboardChan <- modify(122)
+				kbdChan <- dasherCmd
+				kbdChan <- modify(122)
 
 			case gdk.KEY_F11:
-				keyboardChan <- dasherCmd
-				keyboardChan <- modify(123)
+				kbdChan <- dasherCmd
+				kbdChan <- modify(123)
 			case gdk.KEY_F12:
-				keyboardChan <- dasherCmd
-				keyboardChan <- modify(124)
+				kbdChan <- dasherCmd
+				kbdChan <- modify(124)
 			case gdk.KEY_F13:
-				keyboardChan <- dasherCmd
-				keyboardChan <- modify(125)
+				kbdChan <- dasherCmd
+				kbdChan <- modify(125)
 			case gdk.KEY_F14:
-				keyboardChan <- dasherCmd
-				keyboardChan <- modify(126)
+				kbdChan <- dasherCmd
+				kbdChan <- modify(126)
 			case gdk.KEY_F15:
-				keyboardChan <- dasherCmd
-				keyboardChan <- modify(112)
+				kbdChan <- dasherCmd
+				kbdChan <- modify(112)
 
 				// Cursor keys
 			case gdk.KEY_Down:
-				keyboardChan <- dasherCursorDown
+				kbdChan <- dasherCursorDown
 			case gdk.KEY_Left:
-				keyboardChan <- dasherCursorLeft
+				kbdChan <- dasherCursorLeft
 			case gdk.KEY_Right:
-				keyboardChan <- dasherCursorRight
+				kbdChan <- dasherCursorRight
 			case gdk.KEY_Up:
-				keyboardChan <- dasherCursorUp
+				kbdChan <- dasherCursorUp
 
 			default:
 				keyByte := byte(keyReleaseEvent.Keyval)
@@ -119,7 +119,7 @@ func keyEventHandler() {
 					keyByte &= 31 //mask off lower 5 bits
 					//fmt.Printf("Keystroke modified to <%d>\n", keyByte)
 				}
-				keyboardChan <- keyByte
+				kbdChan <- keyByte
 			}
 		}
 	}

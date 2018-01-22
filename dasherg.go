@@ -33,6 +33,7 @@ import (
 	"log"
 	"os/exec"
 	"runtime"
+	"time"
 	// _ "net/http/pprof"
 	"os"
 	"runtime/pprof"
@@ -51,7 +52,7 @@ const (
 	appID        = "uk.co.merrony.dasherg"
 	appTitle     = "DasherG"
 	appComment   = "A Data General DASHER terminal emulator"
-	appCopyright = "Copyright ©2017 S.Merrony"
+	appCopyright = "Copyright ©2017, 2018 S.Merrony"
 	appVersion   = "0.91 beta"
 	appWebsite   = "https://github.com/SMerrony/DasherG"
 	fontFile     = "D410-b-12.bdf"
@@ -84,6 +85,8 @@ var (
 	updateCrtChan         = make(chan int, hostBuffSize)
 	expectChan            = make(chan byte, hostBuffSize)
 
+	traceExpect bool
+
 	gc              *gdk.GC
 	crt             *gtk.DrawingArea
 	zoom            = zoomNormal
@@ -99,9 +102,10 @@ var (
 )
 
 var (
-	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to file")
-	cputrace   = flag.String("cputrace", "", "write trace to file")
-	hostFlag   = flag.String("host", "", "Host to connect with")
+	cpuprofile      = flag.String("cpuprofile", "", "write cpu profile to file")
+	cputrace        = flag.String("cputrace", "", "write trace to file")
+	hostFlag        = flag.String("host", "", "Host to connect with")
+	traceExpectFlag = flag.Bool("tracescript", false, "Print trace of Mini-Expect script to STDOUT")
 )
 
 func main() {
@@ -125,11 +129,15 @@ func main() {
 		defer trace.Stop()
 	}
 
+	if *traceExpectFlag {
+		traceExpect = true
+	}
+
 	gtk.Init(nil)
 	bdfLoad(fontFile, zoomNormal)
-	go localListener()
+	go localListener(keyboardChan, fromHostChan)
 	terminal = new(terminalT)
-	terminal.setup(updateCrtChan)
+	terminal.setup(fromHostChan, updateCrtChan, expectChan)
 	win = gtk.NewWindow(gtk.WINDOW_TOPLEVEL)
 	setupWindow(win)
 	win.ShowAll()
@@ -167,7 +175,7 @@ func setupWindow(win *gtk.Window) {
 		//os.Exit(0)
 	})
 	//win.SetDefaultSize(800, 600)
-	go keyEventHandler()
+	go keyEventHandler(keyboardChan)
 	win.Connect("key-press-event", func(ctx *glib.CallbackContext) {
 		arg := ctx.Args(0)
 		keyPressEventChan <- *(**gdk.EventKey)(unsafe.Pointer(&arg))
@@ -192,13 +200,13 @@ func setupWindow(win *gtk.Window) {
 	win.SetIconFromFile(iconFile)
 }
 
-func localListener() {
-	key := make([]byte, 2)
+func localListener(kbdChan <-chan byte, frmHostChan chan<- []byte) {
 	for {
+		key := make([]byte, 2)
 		select {
-		case kev := <-keyboardChan:
+		case kev := <-kbdChan:
 			key[0] = kev
-			fromHostChan <- key
+			frmHostChan <- key
 		case <-localListenerStopChan:
 			fmt.Println("localListener stopped")
 			return
@@ -500,7 +508,7 @@ func closeRemote() {
 		serialConnectMenuItem.SetSensitive(true)
 		networkConnectMenuItem.SetSensitive(true)
 	})
-	go localListener()
+	go localListener(keyboardChan, fromHostChan)
 }
 
 func openSerialDialog() {
@@ -581,7 +589,7 @@ func closeSerial() {
 		networkConnectMenuItem.SetSensitive(true)
 		serialConnectMenuItem.SetSensitive(true)
 	})
-	go localListener()
+	go localListener(keyboardChan, fromHostChan)
 }
 func showHistory(t *terminalT) {
 	hd := gtk.NewDialog()
@@ -818,63 +826,98 @@ func expectScript() {
 			ed.Run()
 			ed.Destroy()
 		} else {
-			defer expectFile.Close()
-			scanner := bufio.NewScanner(expectFile)
-			for scanner.Scan() {
-				expectLine := scanner.Text()
-				fmt.Printf("DEBUG: Expect line <%s>\n", expectLine)
-				if expectLine[:1] == "#" {
-					fmt.Printf("DEBUG: Ignoring comment line <%s>\n", expectLine)
-					continue
-				}
-				switch {
-				case strings.HasPrefix(expectLine, "expect"):
-					expectStr := strings.Split(expectLine, "\"")[1]
-					gtk.MainIterationDo(false)
-					terminal.rwMutex.Lock()
-					terminal.expecting = true
-					terminal.rwMutex.Unlock()
-					hostString := ""
-					for b := range expectChan {
-						if b == dasherNewLine {
-							hostString = ""
-						} else {
-							hostString += string(b)
-							if strings.HasSuffix(hostString, expectStr) {
-								terminal.rwMutex.Lock()
-								terminal.expecting = false
-								terminal.rwMutex.Unlock()
-								break
-							}
-						}
-						for gtk.EventsPending() {
-							gtk.MainIterationDo(false)
-						}
-					}
+			//ed.Destroy()
+			go expectRunner(expectFile, expectChan, keyboardChan, terminal)
+			ed.Destroy()
+		}
+	}
+	//ed.Destroy()
 
-				case strings.HasPrefix(expectLine, "send"):
-					sendLine := strings.Split(expectLine, "\"")[1]
-					fmt.Printf("DEBUG: send line <%s>\n", sendLine)
-					sendLine = strings.Replace(sendLine, "\\n", fmt.Sprintf("%c", 0x0D), -1)
-					for c := 0; c < len(sendLine); c++ {
-						fmt.Printf("DEBUG: sending char <%c>\n", sendLine[c])
-						keyboardChan <- byte(sendLine[c])
-						gtk.MainIterationDo(false)
+}
+
+// expectRunner must be run as a Goroutine - not in the main loop
+func expectRunner(expectFile *os.File, expectChan <-chan byte, kbdChan chan<- byte, term *terminalT) {
+	defer expectFile.Close()
+	term.rwMutex.Lock()
+	term.expecting = true
+	term.rwMutex.Unlock()
+	scanner := bufio.NewScanner(expectFile)
+	for scanner.Scan() {
+		expectLine := scanner.Text()
+		if traceExpect {
+			fmt.Printf("DEBUG: Expect line <%s>\n", expectLine)
+		}
+		if expectLine[:1] == "#" {
+			if traceExpect {
+				fmt.Printf("DEBUG: Ignoring comment line <%s>\n", expectLine)
+			}
+			continue
+		}
+		switch {
+		// expect
+		case strings.HasPrefix(expectLine, "expect"):
+			expectStr := strings.Split(expectLine, "\"")[1]
+			hostString := ""
+			found := false
+			time.Sleep(200 * time.Millisecond)
+			for {
+				select {
+				case b := <-expectChan:
+					if b == dasherCR || b == dasherNewLine {
+						hostString = ""
+					} else {
+						hostString += string(b)
+						if traceExpect {
+							fmt.Printf("DEBUG: Expect want <%s>, response so far is: <%s>\n", expectStr, hostString)
+						}
+						if strings.HasSuffix(hostString, expectStr) {
+							found = true
+							break
+						}
 					}
-				case strings.HasPrefix(expectLine, "exit"):
-					fmt.Println("DEBUG: exiting mini-Expect")
-					break
-				default:
-					ed := gtk.NewMessageDialog(win, gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_ERROR,
-						gtk.BUTTONS_CLOSE, "Unknown command in mini-Expect script file")
-					ed.Run()
-					ed.Destroy()
+				}
+				if found {
+					if traceExpect {
+						fmt.Printf("DEBUG: found expect string<%s>\n", expectStr)
+					}
 					break
 				}
 			}
+
+		// send
+		case strings.HasPrefix(expectLine, "send"):
+			sendLine := strings.Split(expectLine, "\"")[1]
+			if traceExpect {
+				fmt.Printf("DEBUG: send line <%s>\n", sendLine)
+			}
+			sendLine = strings.Replace(sendLine, "\\n", fmt.Sprintf("%c", 0x0D), -1)
+			for _, ch := range sendLine {
+				if traceExpect {
+					fmt.Printf("DEBUG: sending char <%c>\n", ch)
+				}
+				kbdChan <- byte(ch)
+				// the following delay seems to be crucial...
+				time.Sleep(150 * time.Millisecond)
+			}
+
+		// exit
+		case strings.HasPrefix(expectLine, "exit"):
+			if traceExpect {
+				fmt.Println("DEBUG: exiting mini-Expect")
+			}
+			break
+
+		default:
+			ed := gtk.NewMessageDialog(win, gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_ERROR,
+				gtk.BUTTONS_CLOSE, "Unknown command in mini-Expect script file")
+			ed.Run()
+			ed.Destroy()
+			break
 		}
 	}
-	ed.Destroy()
+	term.rwMutex.Lock()
+	term.expecting = false
+	term.rwMutex.Unlock()
 }
 
 func localPrint() {
