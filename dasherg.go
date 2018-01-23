@@ -99,6 +99,7 @@ var (
 	serialConnectMenuItem, serialDisconnectMenuItem      *gtk.MenuItem
 	networkConnectMenuItem, networkDisconnectMenuItem    *gtk.MenuItem
 	onlineLabel, hostLabel, loggingLabel, emuStatusLabel *gtk.Label
+	expectDialog                                         *gtk.FileChooserDialog
 )
 
 var (
@@ -230,7 +231,7 @@ func buildMenu() *gtk.MenuBar {
 	subMenu.Append(sendFileMenuItem)
 
 	expectFileMenuItem := gtk.NewMenuItemWithLabel("Run mini-Expect Script")
-	expectFileMenuItem.Connect("activate", expectScript)
+	expectFileMenuItem.Connect("activate", chooseExpectScript)
 	subMenu.Append(expectFileMenuItem)
 
 	quitMenuItem := gtk.NewMenuItemWithLabel("Quit")
@@ -815,24 +816,21 @@ func sendFile() {
 	sd.Destroy()
 }
 
-func expectScript() {
-	ed := gtk.NewFileChooserDialog("DasherG mini-Expect Script to run", win, gtk.FILE_CHOOSER_ACTION_OPEN, "_Cancel", gtk.RESPONSE_CANCEL, "_Run", gtk.RESPONSE_ACCEPT)
-	res := ed.Run()
+func chooseExpectScript() {
+	expectDialog = gtk.NewFileChooserDialog("DasherG mini-Expect Script to run", win, gtk.FILE_CHOOSER_ACTION_OPEN, "_Cancel", gtk.RESPONSE_CANCEL, "_Run", gtk.RESPONSE_ACCEPT)
+	res := expectDialog.Run()
 	if res == gtk.RESPONSE_ACCEPT {
-		expectFile, err := os.Open(ed.GetFilename())
+		expectFile, err := os.Open(expectDialog.GetFilename())
 		if err != nil {
-			ed := gtk.NewMessageDialog(win, gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_ERROR,
+			errDialog := gtk.NewMessageDialog(win, gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_ERROR,
 				gtk.BUTTONS_CLOSE, "Could not open or read mini-Expect script file")
-			ed.Run()
-			ed.Destroy()
+			errDialog.Run()
+			errDialog.Destroy()
 		} else {
-			//ed.Destroy()
 			go expectRunner(expectFile, expectChan, keyboardChan, terminal)
-			ed.Destroy()
+			expectDialog.Destroy()
 		}
 	}
-	//ed.Destroy()
-
 }
 
 // expectRunner must be run as a Goroutine - not in the main loop
@@ -880,6 +878,7 @@ func expectRunner(expectFile *os.File, expectChan <-chan byte, kbdChan chan<- by
 					if traceExpect {
 						fmt.Printf("DEBUG: found expect string<%s>\n", expectStr)
 					}
+					time.Sleep(100 * time.Millisecond)
 					break
 				}
 			}
