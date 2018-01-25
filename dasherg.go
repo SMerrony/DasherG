@@ -32,6 +32,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"time"
 	// _ "net/http/pprof"
@@ -84,8 +85,9 @@ var (
 	localListenerStopChan = make(chan bool)
 	updateCrtChan         = make(chan int, hostBuffSize)
 	expectChan            = make(chan byte, hostBuffSize)
+	traceExpect           bool
 
-	traceExpect bool
+	iconPath string
 
 	gc              *gdk.GC
 	crt             *gtk.DrawingArea
@@ -135,7 +137,16 @@ func main() {
 	}
 
 	gtk.Init(nil)
-	bdfLoad(fontFile, zoomNormal)
+
+	// get path of current executable for prepending to font and icon filenames
+	executable, err := os.Executable()
+	if err != nil {
+		log.Fatal(err)
+	}
+	execDir := filepath.Dir(executable)
+	iconPath = filepath.Join(execDir, iconFile)
+	fontPath := filepath.Join(execDir, fontFile)
+	bdfLoad(fontPath, zoomNormal)
 	go localListener(keyboardChan, fromHostChan)
 	terminal = new(terminalT)
 	terminal.setup(fromHostChan, updateCrtChan, expectChan)
@@ -198,7 +209,7 @@ func setupWindow(win *gtk.Window) {
 	statusBox := buildStatusBox()
 	vbox.PackEnd(statusBox, false, false, 0)
 	win.Add(vbox)
-	win.SetIconFromFile(iconFile)
+	win.SetIconFromFile(iconPath)
 }
 
 func localListener(kbdChan <-chan byte, frmHostChan chan<- []byte) {
@@ -332,8 +343,8 @@ func aboutDialog() {
 	ad := gtk.NewAboutDialog()
 	ad.SetProgramName(appTitle)
 	ad.SetAuthors(appAuthors)
-	ad.SetIconFromFile(iconFile)
-	logo, _ := gdkpixbuf.NewPixbufFromFile(iconFile)
+	ad.SetIconFromFile(iconPath)
+	logo, _ := gdkpixbuf.NewPixbufFromFile(iconPath)
 	ad.SetLogo(logo)
 	ad.SetVersion(appVersion)
 	ad.SetCopyright(appCopyright)
@@ -461,7 +472,7 @@ func openBrowser(url string) {
 func openNetDialog() {
 	nd := gtk.NewDialog()
 	nd.SetTitle("DasherG - Telnet Host")
-	nd.SetIconFromFile(iconFile)
+	nd.SetIconFromFile(iconPath)
 	ca := nd.GetVBox()
 	hostLab := gtk.NewLabel("Host:")
 	ca.PackStart(hostLab, true, true, 5)
@@ -522,7 +533,7 @@ func closeRemote() {
 func openSerialDialog() {
 	sd := gtk.NewDialog()
 	sd.SetTitle("DasherG - Serial Port")
-	sd.SetIconFromFile(iconFile)
+	sd.SetIconFromFile(iconPath)
 	ca := sd.GetVBox()
 	table := gtk.NewTable(5, 2, false)
 	table.SetColSpacings(5)
@@ -602,7 +613,7 @@ func closeSerial() {
 func showHistory(t *terminalT) {
 	hd := gtk.NewDialog()
 	hd.SetTitle("DasherG - Terminal History")
-	hd.SetIconFromFile(iconFile)
+	hd.SetIconFromFile(iconPath)
 	ca := hd.GetVBox()
 	scrolledWindow := gtk.NewScrolledWindow(nil, nil)
 	tv := gtk.NewTextView()
