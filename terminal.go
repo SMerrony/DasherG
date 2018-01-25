@@ -31,7 +31,7 @@ const (
 	maxVisibleLines, maxVisibleCols = 66, 135
 	totalLines, totalCols           = 96, 208
 	historyLines                    = 2000
-	holdPauseMs                     = 500 * time.Millisecond
+	holdPauseMs                     = 500
 )
 
 type emulType int
@@ -249,7 +249,7 @@ func (t *terminalT) run() {
 			t.rwMutex.RLock()
 			for t.holding {
 				t.rwMutex.RUnlock()
-				time.Sleep(holdPauseMs)
+				time.Sleep(holdPauseMs * time.Millisecond)
 				t.rwMutex.RLock()
 			}
 			t.rwMutex.RUnlock()

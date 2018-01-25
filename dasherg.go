@@ -53,7 +53,7 @@ const (
 	appTitle     = "DasherG"
 	appComment   = "A Data General DASHER terminal emulator"
 	appCopyright = "Copyright ©2017, 2018 S.Merrony"
-	appVersion   = "0.91 beta"
+	appVersion   = "0.92 beta"
 	appWebsite   = "https://github.com/SMerrony/DasherG"
 	fontFile     = "D410-b-12.bdf"
 	helpURL      = "https://github.com/SMerrony/DasherG"
@@ -226,13 +226,17 @@ func buildMenu() *gtk.MenuBar {
 	loggingMenuItem.Connect("activate", toggleLogging)
 	subMenu.Append(loggingMenuItem)
 
-	sendFileMenuItem := gtk.NewMenuItemWithLabel("Send (Text) File")
-	sendFileMenuItem.Connect("activate", sendFile)
-	subMenu.Append(sendFileMenuItem)
+	subMenu.Append(gtk.NewSeparatorMenuItem())
 
 	expectFileMenuItem := gtk.NewMenuItemWithLabel("Run mini-Expect Script")
 	expectFileMenuItem.Connect("activate", chooseExpectScript)
 	subMenu.Append(expectFileMenuItem)
+
+	sendFileMenuItem := gtk.NewMenuItemWithLabel("Send (Text) File")
+	sendFileMenuItem.Connect("activate", sendFile)
+	subMenu.Append(sendFileMenuItem)
+
+	subMenu.Append(gtk.NewSeparatorMenuItem())
 
 	quitMenuItem := gtk.NewMenuItemWithLabel("Quit")
 	subMenu.Append(quitMenuItem)
@@ -276,9 +280,11 @@ func buildMenu() *gtk.MenuBar {
 	d211MenuItem.Connect("activate", func() { terminal.emulation = d211 })
 	emuGroup = d211MenuItem.GetGroup()
 	subMenu.Append(d211MenuItem)
+	subMenu.Append(gtk.NewSeparatorMenuItem())
 	resizeMenuItem := gtk.NewMenuItemWithLabel("Resize")
 	resizeMenuItem.Connect("activate", resizeDialog)
 	subMenu.Append(resizeMenuItem)
+	subMenu.Append(gtk.NewSeparatorMenuItem())
 	selfTestMenuItem := gtk.NewMenuItemWithLabel("Self-Test")
 	subMenu.Append(selfTestMenuItem)
 	selfTestMenuItem.Connect("activate", func() { terminal.selfTest(fromHostChan) })
@@ -314,6 +320,7 @@ func buildMenu() *gtk.MenuBar {
 	onlineHelpMenuItem := gtk.NewMenuItemWithLabel("Online Help")
 	onlineHelpMenuItem.Connect("activate", func() { openBrowser(helpURL) })
 	subMenu.Append(onlineHelpMenuItem)
+	subMenu.Append(gtk.NewSeparatorMenuItem())
 	aboutMenuItem := gtk.NewMenuItemWithLabel("About")
 	subMenu.Append(aboutMenuItem)
 	aboutMenuItem.Connect("activate", aboutDialog)
