@@ -32,7 +32,6 @@ import (
 	"io/ioutil"
 	"log"
 	"os/exec"
-	"path/filepath"
 	"runtime"
 	"time"
 	// _ "net/http/pprof"
@@ -49,6 +48,8 @@ import (
 	"github.com/mattn/go-gtk/gtk"
 )
 
+//go:generate go-bindata -prefix "resources/" -pkg main -o resources.go resources/...
+
 const (
 	appID        = "uk.co.merrony.dasherg"
 	appTitle     = "DasherG"
@@ -58,7 +59,7 @@ const (
 	appWebsite   = "https://github.com/SMerrony/DasherG"
 	fontFile     = "D410-b-12.bdf"
 	helpURL      = "https://github.com/SMerrony/DasherG"
-	iconFile     = "DGlogoOrange.png"
+
 	hostBuffSize = 2048
 	keyBuffSize  = 200
 
@@ -96,6 +97,7 @@ var (
 	offScreenPixmap *gdk.Pixmap
 	win             *gtk.Window
 	gdkWin          *gdk.Window
+	iconPixbuf      *gdkpixbuf.Pixbuf
 
 	// widgets needing global access
 	serialConnectMenuItem, serialDisconnectMenuItem      *gtk.MenuItem
@@ -138,15 +140,10 @@ func main() {
 
 	gtk.Init(nil)
 
-	// get path of current executable for prepending to font and icon filenames
-	executable, err := os.Executable()
-	if err != nil {
-		log.Fatal(err)
-	}
-	execDir := filepath.Dir(executable)
-	iconPath = filepath.Join(execDir, iconFile)
-	fontPath := filepath.Join(execDir, fontFile)
-	bdfLoad(fontPath, zoomNormal)
+	// get the application and dialog icon
+	iconPixbuf = gdkpixbuf.NewPixbufFromData(iconPNG)
+
+	bdfLoad(fontFile, zoomNormal)
 	go localListener(keyboardChan, fromHostChan)
 	terminal = new(terminalT)
 	terminal.setup(fromHostChan, updateCrtChan, expectChan)
@@ -209,7 +206,7 @@ func setupWindow(win *gtk.Window) {
 	statusBox := buildStatusBox()
 	vbox.PackEnd(statusBox, false, false, 0)
 	win.Add(vbox)
-	win.SetIconFromFile(iconPath)
+	win.SetIcon(iconPixbuf)
 }
 
 func localListener(kbdChan <-chan byte, frmHostChan chan<- []byte) {
@@ -343,9 +340,8 @@ func aboutDialog() {
 	ad := gtk.NewAboutDialog()
 	ad.SetProgramName(appTitle)
 	ad.SetAuthors(appAuthors)
-	ad.SetIconFromFile(iconPath)
-	logo, _ := gdkpixbuf.NewPixbufFromFile(iconPath)
-	ad.SetLogo(logo)
+	ad.SetIcon(iconPixbuf)
+	ad.SetLogo(iconPixbuf)
 	ad.SetVersion(appVersion)
 	ad.SetCopyright(appCopyright)
 	ad.SetWebsite(appWebsite)
@@ -472,7 +468,7 @@ func openBrowser(url string) {
 func openNetDialog() {
 	nd := gtk.NewDialog()
 	nd.SetTitle("DasherG - Telnet Host")
-	nd.SetIconFromFile(iconPath)
+	nd.SetIcon(iconPixbuf)
 	ca := nd.GetVBox()
 	hostLab := gtk.NewLabel("Host:")
 	ca.PackStart(hostLab, true, true, 5)
@@ -533,7 +529,7 @@ func closeRemote() {
 func openSerialDialog() {
 	sd := gtk.NewDialog()
 	sd.SetTitle("DasherG - Serial Port")
-	sd.SetIconFromFile(iconPath)
+	sd.SetIcon(iconPixbuf)
 	ca := sd.GetVBox()
 	table := gtk.NewTable(5, 2, false)
 	table.SetColSpacings(5)
@@ -613,7 +609,7 @@ func closeSerial() {
 func showHistory(t *terminalT) {
 	hd := gtk.NewDialog()
 	hd.SetTitle("DasherG - Terminal History")
-	hd.SetIconFromFile(iconPath)
+	hd.SetIcon(iconPixbuf)
 	ca := hd.GetVBox()
 	scrolledWindow := gtk.NewScrolledWindow(nil, nil)
 	tv := gtk.NewTextView()

@@ -21,9 +21,9 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"log"
-	"os"
 	"strconv"
 	"strings"
 
@@ -65,12 +65,13 @@ func bdfLoad(filename string, zoom int) {
 		charWidth, charHeight = 7, 10
 	}
 
-	fontFile, err := os.Open(filename)
+	fontData, err := Asset(filename)
 	if err != nil {
-		log.Fatalf("Could not open BDF font file <%s>, %v\n", filename, err)
+		log.Fatalf("Could not load BDF font resource<%s>, %v\n", filename, err)
 	}
-	defer fontFile.Close()
-	scanner := bufio.NewScanner(fontFile)
+
+	buffer := bytes.NewBuffer(fontData)
+	scanner := bufio.NewScanner(buffer)
 	for scanner.Scan() {
 		if strings.TrimRight(scanner.Text(), "\n") == "ENDPROPERTIES" {
 			break
