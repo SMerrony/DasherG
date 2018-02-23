@@ -123,7 +123,7 @@ func telnetWriter(writer *bufio.Writer, kbdChan <-chan byte) {
 			writer.Write([]byte{k})
 			writer.Flush()
 			//fmt.Printf("Wrote <%d> to host\n", k)
-		case _ = <-stopTelnetWriterChan:
+		case <-stopTelnetWriterChan:
 			fmt.Println("telnetWriter stopping")
 			return
 		}

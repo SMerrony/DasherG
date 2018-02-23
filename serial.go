@@ -95,7 +95,7 @@ func serialWriter(port io.ReadWriteCloser, kbdChan chan byte) {
 		case k := <-kbdChan:
 			port.Write([]byte{k})
 			//fmt.Printf("Wrote <%d> to host\n", k)
-		case _ = <-stopSerialWriterChan:
+		case <-stopSerialWriterChan:
 			fmt.Println("serialWriter stopping")
 			return
 		}

@@ -41,6 +41,7 @@ func expectRunner(expectFile *os.File, expectChan <-chan byte, kbdChan chan<- by
 	term.expecting = true
 	term.rwMutex.Unlock()
 	scanner := bufio.NewScanner(expectFile)
+scriptLoop:
 	for scanner.Scan() {
 		expectLine := scanner.Text()
 		if traceExpect {
@@ -105,14 +106,14 @@ func expectRunner(expectFile *os.File, expectChan <-chan byte, kbdChan chan<- by
 			if traceExpect {
 				fmt.Println("DEBUG: exiting mini-Expect")
 			}
-			break
+			break scriptLoop
 
 		default:
 			ed := gtk.NewMessageDialog(win, gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_ERROR,
 				gtk.BUTTONS_CLOSE, "Unknown command in mini-Expect script file")
 			ed.Run()
 			ed.Destroy()
-			break
+			break scriptLoop
 		}
 	}
 	term.rwMutex.Lock()
