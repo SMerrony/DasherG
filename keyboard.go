@@ -1,4 +1,4 @@
-// Copyright (C) 2017  Steve Merrony
+// Copyright (C) 2017, 2018  Steve Merrony
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -54,6 +54,9 @@ func keyEventHandler(kbdChan chan<- byte) {
 
 			case gdk.KEY_Home:
 				kbdChan <- dasherHome
+
+			case gdk.KEY_Delete: // the DEL key must map to 127 which is the DASHER DEL code
+				kbdChan <- modify(127)
 
 			case gdk.KEY_F1:
 				kbdChan <- dasherCmd
