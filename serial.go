@@ -75,9 +75,10 @@ func serialReader(port sers.SerialPort, hostChan chan []byte) {
 		hostBytes := make([]byte, hostBuffSize)
 		n, err := port.Read(hostBytes)
 		if n == 0 {
-			fmt.Println("ERROR: serialReader got zero length message, stopping")
-			closeSerial()
-			return
+			fmt.Println("WARNING: serialReader got zero length message")
+			if err == nil {
+				continue
+			}
 		}
 		if err != nil {
 			log.Fatal("ERROR: serialReader got errror reading from port ", err.Error())
