@@ -32,6 +32,7 @@ import (
 	"log"
 	"os/exec"
 	"runtime"
+
 	// _ "net/http/pprof"
 	"os"
 	"runtime/pprof"
@@ -52,8 +53,8 @@ const (
 	appID        = "uk.co.merrony.dasherg"
 	appTitle     = "DasherG"
 	appComment   = "A Data General DASHER terminal emulator"
-	appCopyright = "Copyright ©2017, 2018 S.Merrony"
-	appVersion   = "0.95 beta"
+	appCopyright = "Copyright ©2017, 2018, 2019 S.Merrony"
+	appSemVer    = "v0.9.6"
 	appWebsite   = "https://github.com/SMerrony/DasherG"
 	fontFile     = "D410-b-12.bdf"
 	helpURL      = "https://github.com/SMerrony/DasherG"
@@ -102,15 +103,21 @@ var (
 )
 
 var (
-	cpuprofile      = flag.String("cpuprofile", "", "write cpu profile to file")
-	cputrace        = flag.String("cputrace", "", "write trace to file")
+	cpuprofile      = flag.String("cpuprofile", "", "Write cpu profile to file")
+	cputrace        = flag.String("cputrace", "", "Write trace to file")
 	hostFlag        = flag.String("host", "", "Host to connect with")
 	traceExpectFlag = flag.Bool("tracescript", false, "Print trace of Mini-Expect script to STDOUT")
+	versionFlag     = flag.Bool("version", false, "Display version number and exit")
 )
 
 func main() {
 
 	flag.Parse()
+	if *versionFlag {
+		fmt.Println(appTitle, appSemVer)
+		os.Exit(0)
+	}
+
 	if *cpuprofile != "" {
 		f, err := os.Create(*cpuprofile)
 		if err != nil {
@@ -337,7 +344,7 @@ func aboutDialog() {
 	ad.SetAuthors(appAuthors)
 	ad.SetIcon(iconPixbuf)
 	ad.SetLogo(iconPixbuf)
-	ad.SetVersion(appVersion)
+	ad.SetVersion(appSemVer)
 	ad.SetCopyright(appCopyright)
 	ad.SetWebsite(appWebsite)
 	ad.Run()
