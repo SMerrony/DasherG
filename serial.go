@@ -21,12 +21,13 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"log"
+	"time"
 
-	//"github.com/jacobsa/go-serial/serial"
 	"github.com/distributed/sers"
 )
+
+const breakMs = 110 // How many ms to hold BREAK signal
 
 var (
 	serPort              sers.SerialPort // io.ReadWriteCloser
@@ -37,20 +38,12 @@ func openSerialPort(port string, baud int, bits int, parityStr string, stopBits 
 	var parity int
 	switch parityStr {
 	case "None":
-		parity = sers.N // serial.PARITY_NONE
+		parity = sers.N
 	case "Even":
-		parity = sers.E // serial.PARITY_EVEN
+		parity = sers.E
 	case "Odd":
-		parity = sers.O // serial.PARITY_ODD
+		parity = sers.O
 	}
-	// options := serial.OpenOptions{
-	// 	PortName:        port,
-	// 	BaudRate:        uint(baud),
-	// 	DataBits:        uint(bits),
-	// 	StopBits:        uint(stopBits),
-	// 	ParityMode:      parity,
-	// 	MinimumReadSize: 1,
-	// }
 	serPort, err = sers.Open(port) // serial.Open(options)
 	if err != nil {
 		fmt.Printf("ERROR: Could not open serial port - %s\n", err.Error())
@@ -77,12 +70,12 @@ func closeSerialPort() {
 	terminal.rwMutex.Unlock()
 }
 
-func serialReader(port io.ReadWriteCloser, hostChan chan []byte) {
+func serialReader(port sers.SerialPort, hostChan chan []byte) {
 	for {
 		hostBytes := make([]byte, hostBuffSize)
 		n, err := port.Read(hostBytes)
 		if n == 0 {
-			fmt.Println("ERROR: serialReader got zero length message, stopping\n")
+			fmt.Println("ERROR: serialReader got zero length message, stopping")
 			closeSerial()
 			return
 		}
@@ -93,12 +86,19 @@ func serialReader(port io.ReadWriteCloser, hostChan chan []byte) {
 	}
 }
 
-func serialWriter(port io.ReadWriteCloser, kbdChan chan byte) {
+func serialWriter(port sers.SerialPort, kbdChan chan byte) {
 	for {
 		select {
 		case k := <-kbdChan:
-			port.Write([]byte{k})
-			//fmt.Printf("Wrote <%d> to host\n", k)
+			if k == dasherDummyBreak {
+				//fmt.Println("DEBUG: Setting BREAK on")
+				port.SetBreak(true)
+				time.Sleep(breakMs * time.Millisecond)
+				port.SetBreak(false)
+				//fmt.Println("DEBUG: Set BREAK off")
+			} else {
+				port.Write([]byte{k})
+			}
 		case <-stopSerialWriterChan:
 			fmt.Println("serialWriter stopping")
 			return

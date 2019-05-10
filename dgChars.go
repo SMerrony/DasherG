@@ -1,4 +1,4 @@
-// Copyright (C) 2017  Steve Merrony
+// Copyright (C) 2017, 2019  Steve Merrony
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -51,5 +51,8 @@ const (
 	dasherDimOff          = 29
 	dasherCmd             = 30
 
-	dasherDelete = 0177
+	dasherDelete = 0177 // = 127. or 0x7F
+
+	// It should be safe to use values over 0177 / 0x7F as all the Dasher codes are 7-bit
+	dasherDummyBreak = 130 // used internally to handle Keyboard BREAK
 )
