@@ -32,6 +32,7 @@ import (
 	"log"
 	"os/exec"
 	"runtime"
+
 	// _ "net/http/pprof"
 	"os"
 	"runtime/pprof"
@@ -248,6 +249,14 @@ func buildMenu() *gtk.MenuBar {
 		gtk.MainQuit()
 		//os.Exit(0)
 	})
+
+	editMenuItem := gtk.NewMenuItemWithLabel("Edit")
+	menuBar.Append(editMenuItem)
+	subMenu = gtk.NewMenu()
+	editMenuItem.SetSubmenu(subMenu)
+	pasteItem := gtk.NewMenuItemWithLabel("Paste")
+	pasteItem.Connect("activate", pasteClipboard)
+	subMenu.Append(pasteItem)
 
 	viewMenuItem := gtk.NewMenuItemWithLabel("View")
 	menuBar.Append(viewMenuItem)
@@ -894,4 +903,18 @@ func localPrint() {
 		}
 	}
 	fd.Destroy()
+}
+
+func pasteClipboard() {
+	clipboard := gtk.NewClipboardGetForDisplay(gdk.DisplayGetDefault(), gdk.SELECTION_CLIPBOARD)
+	text := clipboard.WaitForText()
+	if len(text) == 0 {
+		ed := gtk.NewMessageDialog(win, gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_ERROR,
+			gtk.BUTTONS_CLOSE, "Nothing in Clipboard to Paste")
+		ed.Run()
+	} else {
+		for _, ch := range text {
+			keyboardChan <- byte(ch)
+		}
+	}
 }
