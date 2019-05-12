@@ -21,38 +21,36 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"log"
+	"time"
 
-	"github.com/jacobsa/go-serial/serial"
+	"github.com/distributed/sers"
 )
 
+const breakMs = 110 // How many ms to hold BREAK signal
+
 var (
-	serPort              io.ReadWriteCloser
+	serPort              sers.SerialPort // io.ReadWriteCloser
 	stopSerialWriterChan = make(chan bool)
 )
 
 func openSerialPort(port string, baud int, bits int, parityStr string, stopBits int) bool {
-	var parity serial.ParityMode
+	var parity int
 	switch parityStr {
 	case "None":
-		parity = serial.PARITY_NONE
+		parity = sers.N
 	case "Even":
-		parity = serial.PARITY_EVEN
+		parity = sers.E
 	case "Odd":
-		parity = serial.PARITY_ODD
+		parity = sers.O
 	}
-	options := serial.OpenOptions{
-		PortName:        port,
-		BaudRate:        uint(baud),
-		DataBits:        uint(bits),
-		StopBits:        uint(stopBits),
-		ParityMode:      parity,
-		MinimumReadSize: 1,
-	}
-	serPort, err = serial.Open(options)
+	serPort, err = sers.Open(port) // serial.Open(options)
 	if err != nil {
-		fmt.Printf("ERROR opening serial port %v\n", err)
+		fmt.Printf("ERROR: Could not open serial port - %s\n", err.Error())
+		return false
+	}
+	if err = serPort.SetMode(baud, bits, parity, stopBits, sers.NO_HANDSHAKE); err != nil {
+		fmt.Printf("ERROR: Could not set serial part mode as requested - %s\n", err.Error())
 		return false
 	}
 	go serialReader(serPort, fromHostChan)
@@ -72,29 +70,36 @@ func closeSerialPort() {
 	terminal.rwMutex.Unlock()
 }
 
-func serialReader(port io.ReadWriteCloser, hostChan chan []byte) {
+func serialReader(port sers.SerialPort, hostChan chan []byte) {
 	for {
 		hostBytes := make([]byte, hostBuffSize)
 		n, err := port.Read(hostBytes)
 		if n == 0 {
-			fmt.Println("serialReader got zero length message, stopping")
-			closeSerial()
-			return
+			fmt.Println("WARNING: serialReader got zero length message")
+			if err == nil {
+				continue
+			}
 		}
 		if err != nil {
-			log.Fatal("serialReader got errror reading from port ", err.Error())
+			log.Fatal("ERROR: serialReader got errror reading from port ", err.Error())
 		}
 		hostChan <- hostBytes[:n]
 	}
-
 }
 
-func serialWriter(port io.ReadWriteCloser, kbdChan chan byte) {
+func serialWriter(port sers.SerialPort, kbdChan chan byte) {
 	for {
 		select {
 		case k := <-kbdChan:
-			port.Write([]byte{k})
-			//fmt.Printf("Wrote <%d> to host\n", k)
+			if k == dasherDummyBreak {
+				//fmt.Println("DEBUG: Setting BREAK on")
+				port.SetBreak(true)
+				time.Sleep(breakMs * time.Millisecond)
+				port.SetBreak(false)
+				//fmt.Println("DEBUG: Set BREAK off")
+			} else {
+				port.Write([]byte{k})
+			}
 		case <-stopSerialWriterChan:
 			fmt.Println("serialWriter stopping")
 			return

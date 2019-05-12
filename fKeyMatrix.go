@@ -1,6 +1,6 @@
 // fKeyMatrix.go
 
-// Copyright (C) 2017  Steve Merrony
+// Copyright (C) 2017,2019 Steve Merrony
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -45,11 +45,14 @@ func buildFkeyMatrix() *gtk.Table {
 	locPrBut.SetTooltipText("Local Print")
 	locPrBut.Connect("clicked", localPrint)
 	locPrBut.SetCanFocus(false)
-	//locPrBut.Connect("clicked", func() { keyboardChan <- dasherPrintScreen })
 	fkeyMatrix.AttachDefaults(locPrBut, 0, 1, 0, 1)
+
 	breakBut := gtk.NewButtonWithLabel("Break")
+	breakBut.SetTooltipText("Send BREAK signal on Serial Connection")
+	breakBut.Connect("clicked", func() { keyboardChan <- dasherDummyBreak })
 	breakBut.SetCanFocus(false)
 	fkeyMatrix.AttachDefaults(breakBut, 0, 1, 4, 5)
+
 	holdBut := gtk.NewButtonWithLabel("Hold")
 	holdBut.Connect("clicked", func() {
 		terminal.rwMutex.Lock()
@@ -58,16 +61,19 @@ func buildFkeyMatrix() *gtk.Table {
 	})
 	holdBut.SetCanFocus(false)
 	fkeyMatrix.AttachDefaults(holdBut, 18, 19, 0, 1)
+
 	erPgBut := gtk.NewButtonWithLabel("Er Pg")
 	erPgBut.SetTooltipText("Erase Page")
 	erPgBut.SetCanFocus(false)
 	erPgBut.Connect("clicked", func() { keyboardChan <- dasherErasePage })
 	fkeyMatrix.AttachDefaults(erPgBut, 18, 19, 1, 2)
+
 	crBut := gtk.NewButtonWithLabel("CR")
 	crBut.SetTooltipText("Carriage Return")
 	crBut.SetCanFocus(false)
 	crBut.Connect("clicked", func() { keyboardChan <- dasherCR })
 	fkeyMatrix.AttachDefaults(crBut, 18, 19, 2, 3)
+
 	erEOLBut := gtk.NewButtonWithLabel("ErEOL")
 	erEOLBut.SetTooltipText("Erase to End Of Line")
 	erEOLBut.SetCanFocus(false)
