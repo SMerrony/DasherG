@@ -912,6 +912,7 @@ func pasteClipboard() {
 		ed := gtk.NewMessageDialog(win, gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_ERROR,
 			gtk.BUTTONS_CLOSE, "Nothing in Clipboard to Paste")
 		ed.Run()
+		ed.Destroy()
 	} else {
 		for _, ch := range text {
 			keyboardChan <- byte(ch)
