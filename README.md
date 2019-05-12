@@ -8,7 +8,7 @@ DasherG is a new free terminal emulator for Data General DASHER series character
 * Serial interface support at 300, 1200, 2400, 4800, 9600 & 19200 baud, 7 or 8 data bits (defaults to 9600, 8, n, 1)
 * Network Interface (Telnet) support
 * Dasher D200, D210 ~~& D211~~ Emulation
-* 15 (plus Ctrl & Shift) Dasher Function keys, Erase Page, Erase EOL, Hold, Local Print and ~~Cmd-Break~~ keys
+* 15 (plus Ctrl & Shift) Dasher Function keys, Erase Page, Erase EOL, Hold, Local Print and Break keys
 * Reverse video, blinking, dim and underlined characters
 * Various terminal widths, heights and zoom-levels available
 * Pixel-for-pixel copy of D410 character set
