@@ -22,6 +22,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/distributed/sers"
@@ -81,6 +82,10 @@ func serialReader(port sers.SerialPort, hostChan chan []byte) {
 			}
 		}
 		if err != nil {
+			if strings.Contains(err.Error(), "closed") {
+				// port closed normally
+				return
+			}
 			log.Fatal("ERROR: serialReader got errror reading from port ", err.Error())
 		}
 		hostChan <- hostBytes[:n]
