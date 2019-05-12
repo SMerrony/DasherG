@@ -29,7 +29,7 @@ To build from the source you will need the GTK-Development packages installed on
 
 and 
 
-```go install github.com/jacobsa/go-serial/serial```
+```go get github.com/distributed/sers```
 
 ### Build
 ```go build```
@@ -50,7 +50,7 @@ Optionally, you may add the ```-host=host:port``` argument to connect to a runni
 ### Function Keys
 You may have to use the keys simulated on the toolbar in DasherG as your OS might interfere with the physical function keys on your keyboard.  The Shift and Control keys can be used in conjunction with the simulated F-keys just like a real Dasher.
 
-~~The "Brk" key sends a Command-Break signal to the host when connected via the serial interface.~~
+The "Brk" button sends a Command-Break signal to the host when connected via the serial interface.
 
 "Hold" and "Local Print" work as you would expect, although the print actually goes to a user-specified image (PNG) file.
 
