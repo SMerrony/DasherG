@@ -689,7 +689,6 @@ func buildCrt() *gtk.DrawingArea {
 		gc = gdk.NewGC(offScreenPixmap.GetDrawable())
 		offScreenPixmap.GetDrawable().DrawRectangle(gc, true, 0, 0, -1, -1)
 		gc.SetForeground(gc.GetColormap().AllocColorRGB(0, 65535, 0))
-		fmt.Println("configure-event handled")
 	})
 
 	crt.Connect("expose-event", func() {
@@ -702,25 +701,24 @@ func buildCrt() *gtk.DrawingArea {
 	crt.Connect("button-press-event", func(ctx *glib.CallbackContext) {
 		arg := ctx.Args(0)
 		btnPressEvent := *(**gdk.EventButton)(unsafe.Pointer(&arg))
-		fmt.Printf("Mouse clicked at %d, %d\t", btnPressEvent.X, btnPressEvent.Y)
+		//fmt.Printf("DEBUG: Mouse clicked at %d, %d\t", btnPressEvent.X, btnPressEvent.Y)
 		selectionRegion.startRow = int(btnPressEvent.Y) / charHeight
 		selectionRegion.startCol = int(btnPressEvent.X) / charWidth
 		selectionRegion.endRow = selectionRegion.startRow
 		selectionRegion.endCol = selectionRegion.startCol
 		selectionRegion.isActive = true
-		fmt.Printf("Row: %d, Col: %d, Character: %c\n", selectionRegion.startRow, selectionRegion.startCol, terminal.display[selectionRegion.startRow][selectionRegion.startCol].charValue)
 		mne = crt.Connect("motion-notify-event", handleMotionNotifyEvent)
 	})
 	crt.AddEvents(int(gdk.BUTTON_RELEASE_MASK))
 	crt.Connect("button-release-event", func(ctx *glib.CallbackContext) {
 		arg := ctx.Args(0)
 		btnPressEvent := *(**gdk.EventButton)(unsafe.Pointer(&arg))
-		fmt.Printf("Mouse released at %d, %d\t", btnPressEvent.X, btnPressEvent.Y)
+		//fmt.Printf("DEBUG: Mouse released at %d, %d\t", btnPressEvent.X, btnPressEvent.Y)
 		selectionRegion.endRow = int(btnPressEvent.Y) / charHeight
 		selectionRegion.endCol = int(btnPressEvent.X) / charWidth
-		sel := copySelection()
+		sel := getSelection()
 		selectionRegion.isActive = false
-		fmt.Printf("Copied selection: <%s>\n", sel)
+		//fmt.Printf("DEBUG: Copied selection: <%s>\n", sel)
 		clipboard := gtk.NewClipboardGetForDisplay(gdk.DisplayGetDefault(), gdk.SELECTION_CLIPBOARD)
 		clipboard.SetText(sel)
 		crt.HandlerDisconnect(mne)
@@ -730,7 +728,8 @@ func buildCrt() *gtk.DrawingArea {
 	return crt
 }
 
-func copySelection() string {
+// getSelection returns a DG-ASCII string containing the mouse-selected portion of the screen
+func getSelection() string {
 	startCharPosn := selectionRegion.startCol + selectionRegion.startRow*terminal.visibleCols
 	endCharPosn := selectionRegion.endCol + selectionRegion.endRow*terminal.visibleCols
 	selection := ""
@@ -740,6 +739,7 @@ func copySelection() string {
 		for row := selectionRegion.startRow; row <= selectionRegion.endRow; row++ {
 			for col < terminal.visibleCols {
 				selection += string(terminal.display[row][col].charValue)
+				terminal.display[row][col].dirty = true
 				if row == selectionRegion.endRow && col == selectionRegion.endCol {
 					return selection
 				}
@@ -761,7 +761,7 @@ func handleMotionNotifyEvent(ctx *glib.CallbackContext) {
 	col := int(btnPressEvent.X) / charWidth
 	if row != selectionRegion.endRow || col != selectionRegion.endCol {
 		// moved at least 1 cell...
-		fmt.Printf("Row: %d, Col: %d, Character: %c\n", row, col, terminal.display[row][col].charValue)
+		// fmt.Printf("DEBUG: Row: %d, Col: %d, Character: %c\n", row, col, terminal.display[row][col].charValue)
 		selectionRegion.endCol = col
 		selectionRegion.endRow = row
 	}
@@ -825,6 +825,32 @@ func drawCrt() {
 			}
 			terminal.display[terminal.cursorY][terminal.cursorX].dirty = true // this ensures that the old cursor pos is redrawn on the next refresh
 		}
+		// shade any selected area
+		if selectionRegion.isActive {
+			startCharPosn := selectionRegion.startCol + selectionRegion.startRow*terminal.visibleCols
+			endCharPosn := selectionRegion.endCol + selectionRegion.endRow*terminal.visibleCols
+			if startCharPosn <= endCharPosn {
+				// normal (forward) selection
+				col := selectionRegion.startCol
+				for row := selectionRegion.startRow; row <= selectionRegion.endRow; row++ {
+					for col < terminal.visibleCols {
+						// cIx = int(terminal.display[terminal.cursorY][terminal.cursorX].charValue)
+						// if terminal.display[row][col].reverse {
+						// 	drawable.DrawPixbuf(gc, bdfFont[cIx].pixbuf, 0, 0, col*charWidth, row*charHeight, charWidth, charHeight, 0, 0, 0)
+						// } else {
+						// 	drawable.DrawPixbuf(gc, bdfFont[cIx].reversePixbuf, 0, 0, col*charWidth, row*charHeight, charWidth, charHeight, 0, 0, 0)
+						// }
+						drawable.DrawLine(gc, col*charWidth, ((row+1)*charHeight)-1, (col+1)*charWidth-1, ((row+1)*charHeight)-1)
+						if row == selectionRegion.endRow && col == selectionRegion.endCol {
+							goto shadingDone
+						}
+						col++
+					}
+					col = 0
+				}
+			}
+		}
+	shadingDone:
 		terminal.terminalUpdated = false
 		gdkWin.Invalidate(nil, false)
 	}
