@@ -87,6 +87,11 @@ var (
 	expectChan            = make(chan byte, hostBuffSize)
 	traceExpect           bool
 
+	selectionRegion struct {
+		isActive                           bool
+		startRow, startCol, endRow, endCol int
+	}
+
 	gc              *gdk.GC
 	crt             *gtk.DrawingArea
 	zoom            = zoomNormal
@@ -183,7 +188,6 @@ func setupWindow(win *gtk.Window) {
 	win.SetTitle(appTitle)
 	win.Connect("destroy", func() {
 		gtk.MainQuit()
-		//os.Exit(0)
 	})
 	//win.SetDefaultSize(800, 600)
 	go keyEventHandler(keyboardChan)
@@ -667,6 +671,7 @@ func toggleLogging() {
 }
 
 func buildCrt() *gtk.DrawingArea {
+	var mne int
 	crt = gtk.NewDrawingArea()
 	terminal.rwMutex.RLock()
 	crt.SetSizeRequest(terminal.visibleCols*charWidth, terminal.visibleLines*charHeight)
@@ -688,14 +693,78 @@ func buildCrt() *gtk.DrawingArea {
 	})
 
 	crt.Connect("expose-event", func() {
-		// if pixmap == nil {
-		// 	return
-		// }
 		gdkWin.GetDrawable().DrawDrawable(gc, offScreenPixmap.GetDrawable(), 0, 0, 0, 0, -1, -1)
 		//fmt.Println("expose-event handled")
 	})
 
+	crt.SetCanFocus(true)
+	crt.AddEvents(int(gdk.BUTTON_PRESS_MASK))
+	crt.Connect("button-press-event", func(ctx *glib.CallbackContext) {
+		arg := ctx.Args(0)
+		btnPressEvent := *(**gdk.EventButton)(unsafe.Pointer(&arg))
+		fmt.Printf("Mouse clicked at %d, %d\t", btnPressEvent.X, btnPressEvent.Y)
+		selectionRegion.startRow = int(btnPressEvent.Y) / charHeight
+		selectionRegion.startCol = int(btnPressEvent.X) / charWidth
+		selectionRegion.endRow = selectionRegion.startRow
+		selectionRegion.endCol = selectionRegion.startCol
+		selectionRegion.isActive = true
+		fmt.Printf("Row: %d, Col: %d, Character: %c\n", selectionRegion.startRow, selectionRegion.startCol, terminal.display[selectionRegion.startRow][selectionRegion.startCol].charValue)
+		mne = crt.Connect("motion-notify-event", handleMotionNotifyEvent)
+	})
+	crt.AddEvents(int(gdk.BUTTON_RELEASE_MASK))
+	crt.Connect("button-release-event", func(ctx *glib.CallbackContext) {
+		arg := ctx.Args(0)
+		btnPressEvent := *(**gdk.EventButton)(unsafe.Pointer(&arg))
+		fmt.Printf("Mouse released at %d, %d\t", btnPressEvent.X, btnPressEvent.Y)
+		selectionRegion.endRow = int(btnPressEvent.Y) / charHeight
+		selectionRegion.endCol = int(btnPressEvent.X) / charWidth
+		sel := copySelection()
+		selectionRegion.isActive = false
+		fmt.Printf("Copied selection: <%s>\n", sel)
+		clipboard := gtk.NewClipboardGetForDisplay(gdk.DisplayGetDefault(), gdk.SELECTION_CLIPBOARD)
+		clipboard.SetText(sel)
+		crt.HandlerDisconnect(mne)
+	})
+	crt.AddEvents(int(gdk.POINTER_MOTION_MASK))
+
 	return crt
+}
+
+func copySelection() string {
+	startCharPosn := selectionRegion.startCol + selectionRegion.startRow*terminal.visibleCols
+	endCharPosn := selectionRegion.endCol + selectionRegion.endRow*terminal.visibleCols
+	selection := ""
+	if startCharPosn <= endCharPosn {
+		// normal (forward) selection
+		col := selectionRegion.startCol
+		for row := selectionRegion.startRow; row <= selectionRegion.endRow; row++ {
+			for col < terminal.visibleCols {
+				selection += string(terminal.display[row][col].charValue)
+				if row == selectionRegion.endRow && col == selectionRegion.endCol {
+					return selection
+				}
+				col++
+			}
+			selection += string(dasherNewLine)
+			col = 0
+		}
+	}
+	return selection
+}
+
+// handleMotionNotifyEvent is called every time the mouse moves after being clicked
+// in the CRT.  It is no longer called once the mouse is released.
+func handleMotionNotifyEvent(ctx *glib.CallbackContext) {
+	arg := ctx.Args(0)
+	btnPressEvent := *(**gdk.EventMotion)(unsafe.Pointer(&arg))
+	row := int(btnPressEvent.Y) / charHeight
+	col := int(btnPressEvent.X) / charWidth
+	if row != selectionRegion.endRow || col != selectionRegion.endCol {
+		// moved at least 1 cell...
+		fmt.Printf("Row: %d, Col: %d, Character: %c\n", row, col, terminal.display[row][col].charValue)
+		selectionRegion.endCol = col
+		selectionRegion.endRow = row
+	}
 }
 
 func updateCrt(crt *gtk.DrawingArea, t *terminalT) {
