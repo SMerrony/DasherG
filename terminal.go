@@ -53,6 +53,7 @@ type terminalT struct {
 	rwMutex                                      sync.RWMutex
 	fromHostChan                                 <-chan []byte
 	expectChan                                   chan<- byte
+	rawChan                                      chan byte
 	emulation                                    emulType
 	connected                                    int
 	serialPort, remoteHost, remotePort           string
@@ -62,6 +63,7 @@ type terminalT struct {
 	blinkState                                   bool
 	holding, logging                             bool
 	expecting                                    bool
+	rawMode                                      bool // in rawMode all host data is passed through to rawChan with processing here
 	logFile                                      *os.File
 
 	// display is the 2D array of cells containing the terminal 'contents'
@@ -88,6 +90,7 @@ func (t *terminalT) setup(fromHostChan <-chan []byte, update chan int, expectCha
 	t.rwMutex.Lock()
 	t.fromHostChan = fromHostChan
 	t.expectChan = expectChan
+	t.rawChan = make(chan byte)
 	t.emulation = d210
 	t.updateCrtChan = update
 	t.visibleLines = defaultLines
@@ -108,6 +111,12 @@ func (t *terminalT) setup(fromHostChan <-chan []byte, update chan int, expectCha
 	t.rwMutex.Unlock()
 	t.updateCrtChan <- updateCrtNormal
 	fmt.Printf("terminalT setup done\n")
+}
+
+func (t *terminalT) setRawMode(raw bool) {
+	t.rwMutex.Lock()
+	t.rawMode = raw
+	t.rwMutex.Unlock()
 }
 
 func (t *terminalT) clearLine(line int) {
@@ -242,9 +251,6 @@ func (t *terminalT) run() {
 		ch       byte
 	)
 	for hostData := range t.fromHostChan {
-		//for {
-		//	select {
-		//	case hostData := <-t.fromHostChan:
 		// pause if we are HOLDing
 		t.rwMutex.RLock()
 		for t.holding {
@@ -257,6 +263,13 @@ func (t *terminalT) run() {
 		for _, ch = range hostData {
 
 			t.rwMutex.Lock()
+
+			if t.rawMode {
+				t.rawChan <- ch
+				t.rwMutex.Unlock()
+				continue
+			}
+
 			skipChar = false
 			// check for Telnet command
 			if t.connected == telnetConnected && ch == telnetCmdIAC {

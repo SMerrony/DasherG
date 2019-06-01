@@ -54,7 +54,7 @@ const (
 	appTitle     = "DasherG"
 	appComment   = "A Data General DASHER terminal emulator"
 	appCopyright = "Copyright ©2017, 2018, 2019 S.Merrony"
-	appSemVer    = "v0.9.7"
+	appSemVer    = "v0.9.8" // TODO Update SemVer on each release!
 	appWebsite   = "https://github.com/SMerrony/DasherG"
 	fontFile     = "D410-b-12.bdf"
 	helpURL      = "https://github.com/SMerrony/DasherG"
@@ -246,9 +246,17 @@ func buildMenu() *gtk.MenuBar {
 	expectFileMenuItem.Connect("activate", chooseExpectScript)
 	subMenu.Append(expectFileMenuItem)
 
+	subMenu.Append(gtk.NewSeparatorMenuItem())
+
 	sendFileMenuItem := gtk.NewMenuItemWithLabel("Send (Text) File")
 	sendFileMenuItem.Connect("activate", sendFile)
 	subMenu.Append(sendFileMenuItem)
+
+	subMenu.Append(gtk.NewSeparatorMenuItem())
+
+	xmodemRcvMenuItem := gtk.NewMenuItemWithLabel("XMODEM - Receive File")
+	xmodemRcvMenuItem.Connect("activate", xmodemReceive)
+	subMenu.Append(xmodemRcvMenuItem)
 
 	subMenu.Append(gtk.NewSeparatorMenuItem())
 
@@ -934,6 +942,28 @@ func sendFile() {
 		}
 	}
 	sd.Destroy()
+}
+
+func xmodemReceive() {
+	fsd := gtk.NewFileChooserDialog("DasherG XMODEM Receive File", win, gtk.FILE_CHOOSER_ACTION_SAVE, "_Cancel", gtk.RESPONSE_CANCEL, "_Receive", gtk.RESPONSE_ACCEPT)
+	res := fsd.Run()
+	if res == gtk.RESPONSE_ACCEPT {
+		fileName := fsd.GetFilename()
+		f, err := os.Create(fileName)
+		defer f.Close()
+		if err != nil {
+			ed := gtk.NewMessageDialog(win, gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_ERROR,
+				gtk.BUTTONS_CLOSE, "Could not create file to receive")
+			ed.Run()
+			ed.Destroy()
+		} else {
+			terminal.setRawMode(true)
+			blob, _ := XModemReceive(terminal.rawChan, keyboardChan)
+			terminal.setRawMode(false)
+			f.Write(blob)
+		}
+	}
+	fsd.Destroy()
 }
 
 func chooseExpectScript() {
