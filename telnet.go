@@ -105,7 +105,7 @@ func telnetReader(con net.Conn, hostChan chan<- []byte) {
 		if n == 0 {
 			//log.Fatalf("telnet got zero-byte message from host")
 			fmt.Println("telnetReader got zero length message, stopping")
-			closeRemote()
+			telnetClose()
 			return
 		}
 		if err != nil {
