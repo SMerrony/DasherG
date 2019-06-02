@@ -3,11 +3,11 @@
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
 // in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// to use, copy, modify, merge, publish, distribute, asciiSUBlicense, and/or sell
 // copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
+// furnished to do so, asciiSUBject to the following conditions:
 // The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
+// all copies or asciiSUBstantial portions of the Software.
 
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -26,16 +26,17 @@ import (
 	"log"
 )
 
-const SOH byte = 0x01
-const STX byte = 0x02
-const EOT byte = 0x04
-const ACK byte = 0x06
-const NAK byte = 0x15
-const CAN byte = 0x18
-const POLL byte = 'C'
+const asciiSOH byte = 0x01
+const asciiSTX byte = 0x02
+const asciiEOT byte = 0x04
+const asciiACK byte = 0x06
+const asciiNAK byte = 0x15
+const asciiCAN byte = 0x18
+const asciiSUB byte = 0x1a
+const xmodemPOLL byte = 'C'
 
-const SHORT_PACKET_PAYLOAD_LEN = 128
-const LONG_PACKET_PAYLOAD_LEN = 1024
+const xmodemShortPacketLen = 128
+const xmodemLongPacketLen = 1024
 
 func crc16(data []byte) uint16 {
 	var u16CRC uint16
@@ -87,9 +88,9 @@ func crc16Constant(data []byte, length int) uint16 {
 }
 
 func sendBlock(c io.ReadWriter, block int, data []byte, packetPayloadLen int) error {
-	startByte := SOH
-	if packetPayloadLen == LONG_PACKET_PAYLOAD_LEN {
-		startByte = STX
+	startByte := asciiSOH
+	if packetPayloadLen == xmodemLongPacketLen {
+		startByte = asciiSTX
 	}
 	// send start byte and length
 	var hdr []byte
@@ -111,16 +112,16 @@ func sendBlock(c io.ReadWriter, block int, data []byte, packetPayloadLen int) er
 	var toSend bytes.Buffer
 	toSend.Write(data)
 	for toSend.Len() < packetPayloadLen {
-		toSend.Write([]byte{EOT})
+		toSend.Write([]byte{asciiEOT})
 	}
 
 	sent := 0
 	for sent < toSend.Len() {
-		if n, err := c.Write(toSend.Bytes()[sent:]); err != nil {
+		n, err := c.Write(toSend.Bytes()[sent:])
+		if err != nil {
 			return err
-		} else {
-			sent += n
 		}
+		sent += n
 	}
 
 	//calc CRC
@@ -138,11 +139,11 @@ func sendBlock(c io.ReadWriter, block int, data []byte, packetPayloadLen int) er
 }
 
 func XModemSend(c io.ReadWriter, data []byte) error {
-	return xmodemSend(c, data, SHORT_PACKET_PAYLOAD_LEN)
+	return xmodemSend(c, data, xmodemShortPacketLen)
 }
 
 func XModemSend1K(c io.ReadWriter, data []byte) error {
-	return xmodemSend(c, data, LONG_PACKET_PAYLOAD_LEN)
+	return xmodemSend(c, data, xmodemLongPacketLen)
 }
 
 func xmodemSend(c io.ReadWriter, data []byte, packetPayloadLen int) error {
@@ -152,8 +153,8 @@ func xmodemSend(c io.ReadWriter, data []byte, packetPayloadLen int) error {
 		return err
 	}
 
-	if oBuffer[0] == POLL {
-		var blocks int = len(data) / packetPayloadLen
+	if oBuffer[0] == xmodemPOLL {
+		var blocks = len(data) / packetPayloadLen
 		if len(data) > blocks*packetPayloadLen {
 			blocks++
 		}
@@ -171,14 +172,14 @@ func xmodemSend(c io.ReadWriter, data []byte, packetPayloadLen int) error {
 				return err
 			}
 
-			if oBuffer[0] == ACK {
+			if oBuffer[0] == asciiACK {
 				currentBlock++
 			} else {
 				failed++
 			}
 		}
 
-		if _, err := c.Write([]byte{EOT}); err != nil {
+		if _, err := c.Write([]byte{asciiEOT}); err != nil {
 			return err
 		}
 	}
@@ -186,125 +187,71 @@ func xmodemSend(c io.ReadWriter, data []byte, packetPayloadLen int) error {
 	return nil
 }
 
+// XModemReceive received a file using the XMODEM-CRC protocol
+// in either 128 or 1024-byte packets as determined by the sender.
 func XModemReceive(rx chan byte, tx chan byte) ([]byte, error) {
-	var data bytes.Buffer
-	// oBuffer := make([]byte, 1)
-	// dBuffer := make([]byte, LONG_PACKET_PAYLOAD_LEN)
-
+	var (
+		data       bytes.Buffer
+		packetSize int
+		crc        uint16
+	)
 	log.Println("Before")
 
 	// Start Connection
-	// if _, err := c.Write([]byte{POLL}); err != nil {
-	// 	return nil, err
-	// }
-	tx <- POLL
-
-	log.Println("Write Poll")
+	tx <- xmodemPOLL
 
 	// Read Packets
 	done := false
 	for !done {
-		// if _, err := c.Read(oBuffer); err != nil {
-		// 	return nil, err
-		// }
-		//pType := oBuffer[0]
 		pType := <-rx
 		log.Printf("PType: 0x%x\n", pType)
 
-		// if pType == EOT {
-		// 	if _, err := c.Write([]byte{ACK}); err != nil {
-		// 		return nil, err
-		// 	}
-		// 	break
-		// }
-
-		var packetSize int
 		switch pType {
-		case EOT:
-			// if _, err := c.Write([]byte{ACK}); err != nil {
-			// 	return nil, err
-			// }
-			tx <- ACK
+		case asciiEOT:
+			tx <- asciiACK
 			done = true
 			continue
-			// break
-		case SOH:
-			packetSize = SHORT_PACKET_PAYLOAD_LEN
-			// break
-		case STX:
-			packetSize = LONG_PACKET_PAYLOAD_LEN
-			// break
-		case CAN:
-			return nil, errors.New("Cancelled")
+		case asciiSOH:
+			packetSize = xmodemShortPacketLen
+		case asciiSTX:
+			packetSize = xmodemLongPacketLen
+		case asciiCAN:
+			return nil, errors.New("XMODEM Transfer asciiCancelled by Sender")
 		default:
 			return nil, errors.New("XMODEM Protocol Error")
 		}
 
-		// if _, err := c.Read(oBuffer); err != nil {
-		// 	return nil, err
-		// }
-		// packetCount := oBuffer[0]
-		// dBuffer = <-rx
 		packetCount := <-rx
-
-		// if _, err := c.Read(oBuffer); err != nil {
-		// 	return nil, err
-		// }
-		// inverseCount := oBuffer[0]
 		inverseCount := <-rx
-
 		if packetCount > inverseCount || inverseCount+packetCount != 255 {
-			// if _, err := c.Write([]byte{NAK}); err != nil {
-			// 	return nil, err
-			// }
-			tx <- NAK
+			tx <- asciiNAK
 			continue
 		}
 
 		received := 0
 		var pData bytes.Buffer
 		for received < packetSize {
-			// n, err := c.Read(dBuffer)
-			// if err != nil {
-			// 	return nil, err
-			// }
 			pData.WriteByte(<-rx)
-			// received += n
 			received++
-			// pData.Write(dBuffer[:n])
 		}
 
-		var crc uint16
-		// if _, err := c.Read(oBuffer); err != nil {
-		// 	return nil, err
-		// }
-		// crc = uint16(oBuffer[0])
-		// dBuffer = <-rx
 		crc = uint16(<-rx)
-
-		// if _, err := c.Read(oBuffer); err != nil {
-		// 	return nil, err
-		// }
 		crc <<= 8
-		// crc |= uint16(oBuffer[0])
-		// dBuffer = <-rx
 		crc |= uint16(<-rx)
 
 		// Calculate CRC
 		crcCalc := crc16(pData.Bytes())
 		if crcCalc == crc {
 			data.Write(pData.Bytes())
-			// if _, err := c.Write([]byte{ACK}); err != nil {
-			// 	return nil, err
-			// }
-			tx <- ACK
+			tx <- asciiACK
 		} else {
-			// if _, err := c.Write([]byte{NAK}); err != nil {
-			// 	return nil, err
-			// }
-			tx <- NAK
+			tx <- asciiNAK
 		}
 	}
-
-	return data.Bytes(), nil
+	blob := data.Bytes()
+	// remove any trailing EOF indicators (asciiSUBs)
+	for blob[len(blob)-1] == asciiSUB {
+		blob = blob[:len(blob)-1]
+	}
+	return blob, nil
 }
