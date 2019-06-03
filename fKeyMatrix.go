@@ -49,7 +49,11 @@ func buildFkeyMatrix() *gtk.Table {
 
 	breakBut := gtk.NewButtonWithLabel("Break")
 	breakBut.SetTooltipText("Send BREAK signal on Serial Connection")
-	breakBut.Connect("clicked", func() { keyboardChan <- dasherDummyBreak })
+	breakBut.Connect("clicked", func() {
+		if sendSerialBreakChan != nil {
+			sendSerialBreakChan <- true
+		}
+	})
 	breakBut.SetCanFocus(false)
 	fkeyMatrix.AttachDefaults(breakBut, 0, 1, 4, 5)
 
