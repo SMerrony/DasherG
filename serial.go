@@ -82,7 +82,7 @@ func serialReader(port sers.SerialPort, hostChan chan []byte) {
 			}
 		}
 		if err != nil {
-			if strings.Contains(err.Error(), "closed") {
+			if strings.Contains(err.Error(), "aborted") {
 				// port closed normally
 				return
 			}
