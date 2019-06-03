@@ -1,4 +1,4 @@
-// Copyright (C) 2017  Steve Merrony
+// Copyright (C) 2017, 2019  Steve Merrony
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -32,7 +32,8 @@ const breakMs = 110 // How many ms to hold BREAK signal
 
 var (
 	serPort              sers.SerialPort // io.ReadWriteCloser
-	stopSerialWriterChan = make(chan bool)
+	sendSerialBreakChan  chan bool
+	stopSerialWriterChan chan bool
 )
 
 func openSerialPort(port string, baud int, bits int, parityStr string, stopBits int) bool {
@@ -54,6 +55,8 @@ func openSerialPort(port string, baud int, bits int, parityStr string, stopBits 
 		fmt.Printf("ERROR: Could not set serial part mode as requested - %s\n", err.Error())
 		return false
 	}
+	sendSerialBreakChan = make(chan bool)
+	stopSerialWriterChan = make(chan bool)
 	go serialReader(serPort, fromHostChan)
 	go serialWriter(serPort, keyboardChan)
 	terminal.rwMutex.Lock()
@@ -65,6 +68,7 @@ func openSerialPort(port string, baud int, bits int, parityStr string, stopBits 
 
 func closeSerialPort() {
 	serPort.Close()
+	sendSerialBreakChan = nil
 	stopSerialWriterChan <- true
 	terminal.rwMutex.Lock()
 	terminal.connected = disconnected
@@ -96,14 +100,14 @@ func serialWriter(port sers.SerialPort, kbdChan chan byte) {
 	for {
 		select {
 		case k := <-kbdChan:
-			if k == dasherDummyBreak {
+			port.Write([]byte{k})
+		case sb := <-sendSerialBreakChan:
+			if sb {
 				//fmt.Println("DEBUG: Setting BREAK on")
 				port.SetBreak(true)
 				time.Sleep(breakMs * time.Millisecond)
 				port.SetBreak(false)
 				//fmt.Println("DEBUG: Set BREAK off")
-			} else {
-				port.Write([]byte{k})
 			}
 		case <-stopSerialWriterChan:
 			fmt.Println("serialWriter stopping")

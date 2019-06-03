@@ -52,7 +52,4 @@ const (
 	dasherCmd             = 30
 
 	dasherDelete = 0177 // = 127. or 0x7F
-
-	// It should be safe to use values over 0177 / 0x7F as all the Dasher codes are 7-bit
-	dasherDummyBreak = 130 // used internally to handle Keyboard BREAK
 )
