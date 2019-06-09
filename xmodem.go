@@ -22,8 +22,10 @@ package main
 import (
 	"bytes"
 	"errors"
-	"io"
+	"fmt"
+	"io/ioutil"
 	"log"
+	"os"
 )
 
 const asciiSOH byte = 0x01
@@ -87,26 +89,16 @@ func crc16Constant(data []byte, length int) uint16 {
 	return u16CRC
 }
 
-func sendBlock(c io.ReadWriter, block int, data []byte, packetPayloadLen int) error {
+func sendBlock(tx chan byte, block int, data []byte, packetPayloadLen int) error {
 	startByte := asciiSOH
 	if packetPayloadLen == xmodemLongPacketLen {
 		startByte = asciiSTX
 	}
 	// send start byte and length
-	var hdr []byte
-	hdr = append(hdr, startByte, byte(uint8(block%256)), byte(uint8(255-(block%256))))
-	if _, err := c.Write(hdr); err != nil {
-		return err
-	}
-	// if _, err := c.Write([]byte{startByte}); err != nil {
-	// 	return err
-	// }
-	// if _, err := c.Write([]byte{uint8(block % 256)}); err != nil {
-	// 	return err
-	// }
-	// if _, err := c.Write([]byte{uint8(255 - (block % 256))}); err != nil {
-	// 	return err
-	// }
+	fmt.Printf("DEBUG: Sending start byte and length of %d bytes\n", block)
+	tx <- startByte
+	tx <- byte(uint8(block % 256))
+	tx <- byte(uint8(255 - (block % 256)))
 
 	//send data
 	var toSend bytes.Buffer
@@ -115,73 +107,89 @@ func sendBlock(c io.ReadWriter, block int, data []byte, packetPayloadLen int) er
 		toSend.Write([]byte{asciiEOT})
 	}
 
-	sent := 0
-	for sent < toSend.Len() {
-		n, err := c.Write(toSend.Bytes()[sent:])
-		if err != nil {
-			return err
-		}
-		sent += n
+	fmt.Printf("DEBUG: Sending block: %d\n", block)
+	for sent := 0; sent < toSend.Len(); sent++ {
+		fmt.Printf("DEBUG: Sending byte: %d of packet: %d\n", sent, block)
+
+		tx <- toSend.Bytes()[sent]
 	}
 
 	//calc CRC
+	//u16CRC := crc16Constant(data, packetPayloadLen)
 	u16CRC := crc16Constant(data, packetPayloadLen)
 
+	fmt.Println("DEBUG: Sending CRC")
 	//send CRC
-	if _, err := c.Write([]byte{uint8(u16CRC >> 8)}); err != nil {
-		return err
-	}
-	if _, err := c.Write([]byte{uint8(u16CRC & 0x0FF)}); err != nil {
-		return err
-	}
+	tx <- byte(uint8(u16CRC >> 8))
+	// if _, err := c.Write([]byte{uint8(u16CRC >> 8)}); err != nil {
+	// 	return err
+	// }
+	tx <- byte(uint8(u16CRC & 0x0FF))
+	// if _, err := c.Write([]byte{uint8(u16CRC & 0x0FF)}); err != nil {
+	// 	return err
+	// }
 
 	return nil
 }
 
-func XModemSend(c io.ReadWriter, data []byte) error {
-	return xmodemSend(c, data, xmodemShortPacketLen)
+// XmodemSendShort transmits a file via XMODEM-CRC using the short (128-byte) packet length
+func XmodemSendShort(rx chan byte, tx chan byte, f *os.File) error {
+	return xmodemSend(rx, tx, f, xmodemShortPacketLen)
 }
 
-func XModemSend1K(c io.ReadWriter, data []byte) error {
-	return xmodemSend(c, data, xmodemLongPacketLen)
+func xmodemSend1K(rx chan byte, tx chan byte, f *os.File) error {
+	return xmodemSend(rx, tx, f, xmodemLongPacketLen)
 }
 
-func xmodemSend(c io.ReadWriter, data []byte, packetPayloadLen int) error {
-	oBuffer := make([]byte, 1)
+func xmodemSend(rx chan byte, tx chan byte, f *os.File, packetPayloadLen int) error {
 
-	if _, err := c.Read(oBuffer); err != nil {
-		return err
+	data, err := ioutil.ReadAll(f)
+	if err != nil {
+		return errors.New("XMODEM Could not read file to send")
 	}
+	fmt.Printf("DEBUG: Read %d bytes from file to transmit\n", len(data))
 
-	if oBuffer[0] == xmodemPOLL {
+	// oBuffer := make([]byte, 1)
+	fmt.Println("DEBUG: Waiting for POLL")
+	if <-rx == xmodemPOLL {
+		fmt.Println("DEBUG: Got POLL")
 		var blocks = len(data) / packetPayloadLen
 		if len(data) > blocks*packetPayloadLen {
 			blocks++
 		}
-
+		fmt.Printf("DEBUG: Total blocks to send: %d\n", blocks)
 		failed := 0
 		var currentBlock = 0
 		for currentBlock < blocks && failed < 10 {
-			if int(int(currentBlock+1)*int(packetPayloadLen)) > len(data) {
-				sendBlock(c, currentBlock+1, data[currentBlock*packetPayloadLen:], packetPayloadLen)
-			} else {
-				sendBlock(c, currentBlock+1, data[currentBlock*packetPayloadLen:(currentBlock+1)*packetPayloadLen], packetPayloadLen)
-			}
-
-			if _, err := c.Read(oBuffer); err != nil {
-				return err
-			}
-
-			if oBuffer[0] == asciiACK {
+			// if int(int(currentBlock+1)*int(packetPayloadLen)) > len(data) {
+			// 	sendBlock(tx, currentBlock+1, data[currentBlock*packetPayloadLen:], packetPayloadLen)
+			// } else {
+			// 	sendBlock(tx, currentBlock+1, data[currentBlock*packetPayloadLen:(currentBlock+1)*packetPayloadLen], packetPayloadLen)
+			// }
+			sendBlock(tx, currentBlock+1, data[currentBlock*packetPayloadLen:((currentBlock+1)*packetPayloadLen)-1], packetPayloadLen)
+			fmt.Println("DEBUG: sendBlock complete, waiting for response...")
+			resp := <-rx
+			switch resp {
+			case asciiACK:
 				currentBlock++
-			} else {
+				fmt.Printf("DEBUG: Block: %d ACKed\n", currentBlock)
+				failed = 0
+			case asciiNAK:
 				failed++
+				fmt.Printf("DEBUG: Block: %d NAKed\n", currentBlock)
+			default:
+				fmt.Printf("XMODEM: Unexpected response to packet, got: 0x%x\n", resp)
+				return errors.New("XMODEM: Unexpected response to packet")
 			}
 		}
 
-		if _, err := c.Write([]byte{asciiEOT}); err != nil {
-			return err
+		if failed == 10 {
+			return errors.New("XMODEM Send failed - too many retries")
 		}
+		// if _, err := c.Write([]byte{asciiEOT}); err != nil {
+		// 	return err
+		// }
+		tx <- asciiEOT
 	}
 
 	return nil
@@ -204,12 +212,13 @@ func XModemReceive(rx chan byte, tx chan byte) ([]byte, error) {
 	done := false
 	for !done {
 		pType := <-rx
-		log.Printf("PType: 0x%x\n", pType)
+		fmt.Printf("PType: 0x%x\t", pType)
 
 		switch pType {
 		case asciiEOT:
 			tx <- asciiACK
 			done = true
+			fmt.Println("Got EOT, done.")
 			continue
 		case asciiSOH:
 			packetSize = xmodemShortPacketLen
@@ -222,11 +231,14 @@ func XModemReceive(rx chan byte, tx chan byte) ([]byte, error) {
 		}
 
 		packetCount := <-rx
-		inverseCount := <-rx
-		if packetCount > inverseCount || inverseCount+packetCount != 255 {
-			tx <- asciiNAK
-			continue
-		}
+		fmt.Printf("Block: %d, Size: %d\t", packetCount, packetSize)
+		_ = <-rx
+		// inverseCount := <-rx
+		// if packetCount > inverseCount || inverseCount+packetCount != 255 {
+		// 	tx <- asciiNAK
+		// 	fmt.Println("NAK due to count error")
+		// 	continue
+		// }
 
 		received := 0
 		var pData bytes.Buffer
@@ -243,9 +255,11 @@ func XModemReceive(rx chan byte, tx chan byte) ([]byte, error) {
 		crcCalc := crc16(pData.Bytes())
 		if crcCalc == crc {
 			data.Write(pData.Bytes())
+			fmt.Println("ACK")
 			tx <- asciiACK
 		} else {
 			tx <- asciiNAK
+			fmt.Println("NAK due to CRC error")
 		}
 	}
 	blob := data.Bytes()
