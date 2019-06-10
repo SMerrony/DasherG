@@ -212,7 +212,7 @@ func XModemReceive(rx chan byte, tx chan byte) ([]byte, error) {
 	done := false
 	for !done {
 		pType := <-rx
-		fmt.Printf("PType: 0x%x\t", pType)
+		fmt.Printf("XMODEM: Packet Type: 0x%x\t", pType)
 
 		switch pType {
 		case asciiEOT:
@@ -225,20 +225,19 @@ func XModemReceive(rx chan byte, tx chan byte) ([]byte, error) {
 		case asciiSTX:
 			packetSize = xmodemLongPacketLen
 		case asciiCAN:
-			return nil, errors.New("XMODEM Transfer asciiCancelled by Sender")
+			return nil, errors.New("XMODEM Transfer Cancelled by Sender")
 		default:
 			return nil, errors.New("XMODEM Protocol Error")
 		}
 
 		packetCount := <-rx
 		fmt.Printf("Block: %d, Size: %d\t", packetCount, packetSize)
-		_ = <-rx
-		// inverseCount := <-rx
-		// if packetCount > inverseCount || inverseCount+packetCount != 255 {
-		// 	tx <- asciiNAK
-		// 	fmt.Println("NAK due to count error")
-		// 	continue
-		// }
+		inverseCount := <-rx
+		if ^packetCount != inverseCount {
+			tx <- asciiNAK
+			fmt.Println("XMODEM: NAK due to count error")
+			continue
+		}
 
 		received := 0
 		var pData bytes.Buffer
