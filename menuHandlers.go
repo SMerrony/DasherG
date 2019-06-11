@@ -208,6 +208,7 @@ func fileXmodemReceive() {
 	res := fsd.Run()
 	if res == gtk.RESPONSE_ACCEPT {
 		fileName := fsd.GetFilename()
+		fsd.Destroy()
 		f, err := os.Create(fileName)
 		defer f.Close()
 		if err != nil {
@@ -217,12 +218,20 @@ func fileXmodemReceive() {
 			ed.Destroy()
 		} else {
 			terminal.setRawMode(true)
-			blob, _ := XModemReceive(terminal.rawChan, keyboardChan)
+			blob, err := XModemReceive(terminal.rawChan, keyboardChan)
+			if err != nil {
+				ed := gtk.NewMessageDialog(win, gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_ERROR,
+					gtk.BUTTONS_CLOSE, "DasherG - "+err.Error())
+				ed.Run()
+				ed.Destroy()
+			} else {
+				f.Write(blob)
+			}
 			terminal.setRawMode(false)
-			f.Write(blob)
 		}
+	} else {
+		fsd.Destroy()
 	}
-	fsd.Destroy()
 }
 
 func fileXmodemSend() {
@@ -230,6 +239,7 @@ func fileXmodemSend() {
 	res := fsd.Run()
 	if res == gtk.RESPONSE_ACCEPT {
 		fileName := fsd.GetFilename()
+		fsd.Destroy()
 		f, err := os.Open(fileName)
 		defer f.Close()
 		if err != nil {
@@ -248,8 +258,9 @@ func fileXmodemSend() {
 			}
 			terminal.setRawMode(false)
 		}
+	} else {
+		fsd.Destroy()
 	}
-	fsd.Destroy()
 }
 
 func fileXmodemSend1k() {
@@ -257,6 +268,7 @@ func fileXmodemSend1k() {
 	res := fsd.Run()
 	if res == gtk.RESPONSE_ACCEPT {
 		fileName := fsd.GetFilename()
+		fsd.Destroy()
 		f, err := os.Open(fileName)
 		defer f.Close()
 		if err != nil {
@@ -275,8 +287,9 @@ func fileXmodemSend1k() {
 			}
 			terminal.setRawMode(false)
 		}
+	} else {
+		fsd.Destroy()
 	}
-	fsd.Destroy()
 
 }
 
