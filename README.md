@@ -6,9 +6,10 @@ DasherG is a new free terminal emulator for Data General DASHER series character
 ## Key Features
 
 * Serial interface support at 300, 1200, 2400, 4800, 9600 & 19200 baud, 7 or 8 data bits (defaults to 9600, 8, n, 1)
+* BREAK key support for serial interface - permits use as master console
 * Network Interface (Telnet) support
-* Dasher D200, D210 ~~& D211~~ Emulation
-* 15 (plus Ctrl & Shift) Dasher Function keys, Erase Page, Erase EOL, Hold, Local Print and Break keys
+* DASHER D200, D210 ~~& D211~~ Emulation
+* 15 (plus Ctrl & Shift) DASHER Function keys, Erase Page, Erase EOL, Hold, Local Print and Break keys
 * Reverse video, blinking, dim and underlined characters
 * Various terminal widths, heights and zoom-levels available
 * Pixel-for-pixel copy of D410 character set
@@ -17,7 +18,8 @@ DasherG is a new free terminal emulator for Data General DASHER series character
 * 2000-line terminal history
 * May specify ```-host=host:port``` on command line
 * Support for mini-Expect scripts to automate some tasks [see Wiki](https://github.com/SMerrony/DasherG/wiki/DasherG-Mini-Expect-Scripts)
-* Copy and Paste - may select region with mouse (it is automatically copied to clipboard) and paste at cursor via Edit menu
+* Copy and Paste - select region with mouse (it is automatically copied to clipboard) and paste at cursor via Edit menu
+* XMODEM-CRC file receive with short (128) or long (1024) packets
 
 ## Download
 DasherG is [hosted on GitHub](https://github.com/SMerrony/DasherG).

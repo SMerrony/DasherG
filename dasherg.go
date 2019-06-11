@@ -253,15 +253,15 @@ func buildMenu() *gtk.MenuBar {
 
 	subMenu.Append(gtk.NewSeparatorMenuItem())
 
-	xmodemRcvMenuItem := gtk.NewMenuItemWithLabel("XMODEM - Receive File")
+	xmodemRcvMenuItem := gtk.NewMenuItemWithLabel("XMODEM-CRC - Receive File")
 	xmodemRcvMenuItem.Connect("activate", fileXmodemReceive)
 	subMenu.Append(xmodemRcvMenuItem)
 
-	xmodemSendMenuItem := gtk.NewMenuItemWithLabel("XMODEM - Send File")
+	xmodemSendMenuItem := gtk.NewMenuItemWithLabel("XMODEM-CRC - Send File")
 	xmodemSendMenuItem.Connect("activate", fileXmodemSend)
 	subMenu.Append(xmodemSendMenuItem)
 
-	xmodemSend1kMenuItem := gtk.NewMenuItemWithLabel("XMODEM - Send File (1k packets)")
+	xmodemSend1kMenuItem := gtk.NewMenuItemWithLabel("XMODEM-CRC - Send File (1k packets)")
 	xmodemSend1kMenuItem.Connect("activate", fileXmodemSend1k)
 	subMenu.Append(xmodemSend1kMenuItem)
 

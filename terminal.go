@@ -63,7 +63,7 @@ type terminalT struct {
 	blinkState                                   bool
 	holding, logging                             bool
 	expecting                                    bool
-	rawMode                                      bool // in rawMode all host data is passed through to rawChan with processing here
+	rawMode                                      bool // in rawMode all host data is passed straight through to rawChan
 	logFile                                      *os.File
 
 	// display is the 2D array of cells containing the terminal 'contents'

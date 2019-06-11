@@ -212,7 +212,7 @@ func fileXmodemReceive() {
 		defer f.Close()
 		if err != nil {
 			ed := gtk.NewMessageDialog(win, gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_ERROR,
-				gtk.BUTTONS_CLOSE, "Could not create file to receive")
+				gtk.BUTTONS_CLOSE, "DasherG - XMODEM Could not create file to receive")
 			ed.Run()
 			ed.Destroy()
 		} else {
@@ -226,10 +226,57 @@ func fileXmodemReceive() {
 }
 
 func fileXmodemSend() {
-
+	fsd := gtk.NewFileChooserDialog("DasherG XMODEM Send File", win, gtk.FILE_CHOOSER_ACTION_OPEN, "_Cancel", gtk.RESPONSE_CANCEL, "_Send", gtk.RESPONSE_ACCEPT)
+	res := fsd.Run()
+	if res == gtk.RESPONSE_ACCEPT {
+		fileName := fsd.GetFilename()
+		f, err := os.Open(fileName)
+		defer f.Close()
+		if err != nil {
+			ed := gtk.NewMessageDialog(win, gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_ERROR,
+				gtk.BUTTONS_CLOSE, "DasherG - XMODEM Could not open file to send - "+err.Error())
+			ed.Run()
+			ed.Destroy()
+		} else {
+			terminal.setRawMode(true)
+			err := XmodemSendShort(terminal.rawChan, keyboardChan, f)
+			if err != nil {
+				ed := gtk.NewMessageDialog(win, gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_ERROR,
+					gtk.BUTTONS_CLOSE, "DasherG - XMODEM Could not send file - "+err.Error())
+				ed.Run()
+				ed.Destroy()
+			}
+			terminal.setRawMode(false)
+		}
+	}
+	fsd.Destroy()
 }
 
 func fileXmodemSend1k() {
+	fsd := gtk.NewFileChooserDialog("DasherG XMODEM Send File", win, gtk.FILE_CHOOSER_ACTION_OPEN, "_Cancel", gtk.RESPONSE_CANCEL, "_Send", gtk.RESPONSE_ACCEPT)
+	res := fsd.Run()
+	if res == gtk.RESPONSE_ACCEPT {
+		fileName := fsd.GetFilename()
+		f, err := os.Open(fileName)
+		defer f.Close()
+		if err != nil {
+			ed := gtk.NewMessageDialog(win, gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_ERROR,
+				gtk.BUTTONS_CLOSE, "DasherG - XMODEM Could not open file to send - "+err.Error())
+			ed.Run()
+			ed.Destroy()
+		} else {
+			terminal.setRawMode(true)
+			err := XmodemSendLong(terminal.rawChan, keyboardChan, f)
+			if err != nil {
+				ed := gtk.NewMessageDialog(win, gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_ERROR,
+					gtk.BUTTONS_CLOSE, "DasherG - XMODEM Could not send file - "+err.Error())
+				ed.Run()
+				ed.Destroy()
+			}
+			terminal.setRawMode(false)
+		}
+	}
+	fsd.Destroy()
 
 }
 
