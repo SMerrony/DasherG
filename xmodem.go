@@ -44,8 +44,6 @@ const ackTimeoutSecs = 5
 const dataTimeoutSecs = 10
 const pollTimeoutSecs = 30
 
-const xmodemDebugFlag = true
-
 func crc16(data []byte) uint16 {
 	var u16CRC uint16
 
@@ -101,7 +99,7 @@ func sendBlock(tx chan byte, block int, data []byte, packetPayloadLen int) error
 		startByte = asciiSTX
 	}
 	// send start byte and length
-	if xmodemDebugFlag {
+	if *xmodemTraceFlag {
 		fmt.Printf("DEBUG: Sending start byte and length of %d bytes\n", block)
 	}
 	tx <- startByte
@@ -116,18 +114,18 @@ func sendBlock(tx chan byte, block int, data []byte, packetPayloadLen int) error
 		toSend.Write([]byte{asciiEOT})
 	}
 
-	if xmodemDebugFlag {
+	if *xmodemTraceFlag {
 		fmt.Printf("DEBUG: Sending block: %d\n", block)
 	}
 	for sent := 0; sent < packetPayloadLen; sent++ {
-		if xmodemDebugFlag {
+		if *xmodemTraceFlag {
 			fmt.Printf("DEBUG: Sending byte: %d of packet: %d\n", sent, block)
 		}
 		tx <- toSend.Bytes()[sent]
 	}
 	//calc CRC
 	u16CRC := crc16Constant(data, packetPayloadLen)
-	if xmodemDebugFlag {
+	if *xmodemTraceFlag {
 		fmt.Println("DEBUG: Sending CRC")
 	}
 	//send CRC
@@ -153,32 +151,33 @@ func xmodemSend(rx chan byte, tx chan byte, f *os.File, packetPayloadLen int) er
 	if err != nil {
 		return errors.New("XMODEM Could not read file to send")
 	}
-	if xmodemDebugFlag {
+	if *xmodemTraceFlag {
 		fmt.Printf("XMODEM: Read %d bytes from file to transmit\n", len(data))
 	}
 
 	// oBuffer := make([]byte, 1)
-	if xmodemDebugFlag {
+	if *xmodemTraceFlag {
 		fmt.Println("XMODEM: Waiting for POLL")
 	}
 	select {
 	case rb := <-rx:
-		if rb == xmodemPOLL {
-			if xmodemDebugFlag {
+		switch rb {
+		case xmodemPOLL:
+			if *xmodemTraceFlag {
 				fmt.Println("XMODEM: Got POLL")
 			}
 			var blocks = len(data) / packetPayloadLen
 			if len(data) > blocks*packetPayloadLen {
 				blocks++
 			}
-			if xmodemDebugFlag {
+			if *xmodemTraceFlag {
 				fmt.Printf("XMODEM: Total blocks to send: %d\n", blocks)
 			}
 			failed := 0
 			var currentBlock = 0
 			for currentBlock < blocks && failed < 10 {
 				sendBlock(tx, currentBlock+1, data[currentBlock*packetPayloadLen:(currentBlock+1)*packetPayloadLen], packetPayloadLen)
-				if xmodemDebugFlag {
+				if *xmodemTraceFlag {
 					fmt.Println("XMODEM: sendBlock complete, waiting for response...")
 				}
 				select {
@@ -186,13 +185,13 @@ func xmodemSend(rx chan byte, tx chan byte, f *os.File, packetPayloadLen int) er
 					switch resp {
 					case asciiACK:
 						currentBlock++
-						if xmodemDebugFlag {
+						if *xmodemTraceFlag {
 							fmt.Printf("XMODEM: Block: %d ACKed\n", currentBlock)
 						}
 						failed = 0
 					case asciiNAK:
 						failed++
-						if xmodemDebugFlag {
+						if *xmodemTraceFlag {
 							fmt.Printf("XMODEM: Block: %d NAKed\n", currentBlock)
 						}
 					default:
@@ -209,6 +208,9 @@ func xmodemSend(rx chan byte, tx chan byte, f *os.File, packetPayloadLen int) er
 			}
 
 			tx <- asciiEOT
+		default:
+			fmt.Printf("XMODEM: Got 0x%x instead of POLL character\n", rb)
+			return errors.New("XMODEM: Got unexpected response to file transfer - check settings")
 		}
 	case <-time.After(pollTimeoutSecs * time.Second):
 		return errors.New("XMODEM: Send Failed - timeout waiting for POLL")
@@ -225,7 +227,7 @@ func XModemReceive(rx chan byte, tx chan byte) ([]byte, error) {
 		packetSize int
 		crc        uint16
 	)
-	if xmodemDebugFlag {
+	if *xmodemTraceFlag {
 		fmt.Println("XMODEM: Sending POLL")
 	}
 
@@ -237,7 +239,7 @@ func XModemReceive(rx chan byte, tx chan byte) ([]byte, error) {
 	for !done {
 		select {
 		case pType := <-rx:
-			if xmodemDebugFlag {
+			if *xmodemTraceFlag {
 				fmt.Printf("XMODEM: Packet Type: 0x%x\t", pType)
 			}
 
@@ -245,7 +247,7 @@ func XModemReceive(rx chan byte, tx chan byte) ([]byte, error) {
 			case asciiEOT:
 				tx <- asciiACK
 				done = true
-				if xmodemDebugFlag {
+				if *xmodemTraceFlag {
 					fmt.Println("Got EOT, done.")
 				}
 				continue
@@ -260,13 +262,13 @@ func XModemReceive(rx chan byte, tx chan byte) ([]byte, error) {
 			}
 
 			packetCount := <-rx
-			if xmodemDebugFlag {
+			if *xmodemTraceFlag {
 				fmt.Printf("Block: %d, Size: %d\t", packetCount, packetSize)
 			}
 			inverseCount := <-rx
 			if ^packetCount != inverseCount {
 				tx <- asciiNAK
-				if xmodemDebugFlag {
+				if *xmodemTraceFlag {
 					fmt.Println("XMODEM: NAK due to count error")
 				}
 				continue
@@ -287,13 +289,13 @@ func XModemReceive(rx chan byte, tx chan byte) ([]byte, error) {
 			crcCalc := crc16(pData.Bytes())
 			if crcCalc == crc {
 				data.Write(pData.Bytes())
-				if xmodemDebugFlag {
+				if *xmodemTraceFlag {
 					fmt.Println("ACK")
 				}
 				tx <- asciiACK
 			} else {
 				tx <- asciiNAK
-				if xmodemDebugFlag {
+				if *xmodemTraceFlag {
 					fmt.Println("NAK due to CRC error")
 				}
 			}
