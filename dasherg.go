@@ -110,8 +110,9 @@ var (
 	cpuprofile      = flag.String("cpuprofile", "", "Write cpu profile to file")
 	cputrace        = flag.String("cputrace", "", "Write trace to file")
 	hostFlag        = flag.String("host", "", "Host to connect with")
-	traceExpectFlag = flag.Bool("tracescript", false, "Print trace of Mini-Expect script to STDOUT")
+	traceExpectFlag = flag.Bool("tracescript", false, "Print trace of Mini-Expect script on STDOUT")
 	versionFlag     = flag.Bool("version", false, "Display version number and exit")
+	xmodemTraceFlag = flag.Bool("xmodemtrace", false, "Show details of XMODEM file transfers on STDOUT")
 )
 
 func main() {
