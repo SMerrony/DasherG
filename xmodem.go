@@ -1,4 +1,4 @@
-// This is based on "chriszzzzz"'s fork of Omegaice's go-xmodem code
+// Copyright (c) 2019 S.Merrony - The CRC funcs are borrowed from "chriszzzzz"'s fork of Omegaice's go-xmodem code
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -103,7 +103,7 @@ func sendBlock(tx chan byte, block int, data []byte, packetPayloadLen int) error
 		fmt.Printf("DEBUG: Sending start byte and length of %d bytes\n", block)
 	}
 	tx <- startByte
-	blockNum := byte(uint8(block % 256))
+	blockNum := byte(block % 256)
 	tx <- blockNum
 	tx <- ^blockNum
 
@@ -129,8 +129,8 @@ func sendBlock(tx chan byte, block int, data []byte, packetPayloadLen int) error
 		fmt.Println("DEBUG: Sending CRC")
 	}
 	//send CRC
-	tx <- byte(uint8(u16CRC >> 8))
-	tx <- byte(uint8(u16CRC & 0x0FF))
+	tx <- byte(u16CRC >> 8)
+	tx <- byte(u16CRC & 0x0FF)
 
 	return nil
 }
