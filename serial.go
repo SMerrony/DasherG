@@ -21,8 +21,6 @@ package main
 
 import (
 	"fmt"
-	"log"
-	"strings"
 	"time"
 
 	"github.com/distributed/sers"
@@ -86,11 +84,9 @@ func serialReader(port sers.SerialPort, hostChan chan []byte) {
 			}
 		}
 		if err != nil {
-			if strings.Contains(err.Error(), "aborted") {
-				// port closed normally
-				return
-			}
-			log.Fatal("ERROR: serialReader got errror reading from port ", err.Error())
+			fmt.Printf("ERROR: Could not read from Serial Port - %s\n", err.Error())
+			stopSerialWriterChan <- true
+			return
 		}
 		hostChan <- hostBytes[:n]
 	}
@@ -110,7 +106,7 @@ func serialWriter(port sers.SerialPort, kbdChan chan byte) {
 				//fmt.Println("DEBUG: Set BREAK off")
 			}
 		case <-stopSerialWriterChan:
-			fmt.Println("serialWriter stopping")
+			fmt.Println("INFO: serialWriter stopping")
 			return
 		}
 	}
