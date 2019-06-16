@@ -1,4 +1,4 @@
-// Copyright (C) 2017  Steve Merrony
+// Copyright (C) 2017,2019 Steve Merrony
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -80,7 +80,7 @@ func bdfLoad(filename string, zoom int) {
 	scanner.Scan()
 	charCountLine := scanner.Text()
 	if !strings.HasPrefix(charCountLine, "CHARS") {
-		log.Fatal("CHARS line not found")
+		log.Fatal("bdfFont: CHARS line not found")
 	}
 	charCount, _ := strconv.Atoi(charCountLine[6:])
 
@@ -95,7 +95,7 @@ func bdfLoad(filename string, zoom int) {
 		scanner.Scan()
 		encodingLine := scanner.Text()
 		if !strings.HasPrefix(encodingLine, "ENCODING") {
-			log.Fatal("ENCODING line not found")
+			log.Fatal("bdfFont: ENCODING line not found")
 		}
 		asciiCode, _ := strconv.Atoi(encodingLine[9:])
 		// skip 2 lines
@@ -105,7 +105,7 @@ func bdfLoad(filename string, zoom int) {
 		scanner.Scan()
 		bbxLine := scanner.Text()
 		if !strings.HasPrefix(bbxLine, "BBX") {
-			log.Fatal("BBX line not found")
+			log.Fatal("bdfFont: BBX line not found")
 		}
 		bbxTokens := strings.Split(scanner.Text(), " ")
 		pixWidth, _ := strconv.Atoi(bbxTokens[1])
@@ -140,5 +140,5 @@ func bdfLoad(filename string, zoom int) {
 		bdfFont[asciiCode].reversePixbuf = tmpRevPixbuf.Flip(true).RotateSimple(180).ScaleSimple(charWidth, charHeight, 1)
 		bdfFont[asciiCode].loaded = true
 	}
-	fmt.Printf("bdfFont loaded %d characters\n", charCount)
+	fmt.Printf("INFO: bdfFont loaded %d DASHER characters\n", charCount)
 }
