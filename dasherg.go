@@ -1,6 +1,6 @@
 // dasherg.go
 
-// Copyright (C) 2017,2018  Steve Merrony
+// Copyright (C) 2017,2018,2019  Steve Merrony
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -223,7 +223,7 @@ func localListener(kbdChan <-chan byte, frmHostChan chan<- []byte) {
 			key[0] = kev
 			frmHostChan <- key
 		case <-localListenerStopChan:
-			fmt.Println("localListener stopped")
+			fmt.Println("INFO: localListener stopped")
 			return
 		}
 	}
