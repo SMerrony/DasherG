@@ -1,4 +1,4 @@
-// Copyright (C) 2017  Steve Merrony
+// Copyright (C) 2017,2019  Steve Merrony
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -103,14 +103,10 @@ func (t *terminalT) setup(fromHostChan <-chan []byte, update chan int, expectCha
 	t.blinkEnabled = true
 	t.history = make([]string, historyLines)
 	t.clearScreen()
-	// t.display[0][0].charValue = '0'
-	// t.display[1][1].charValue = '1'
-	// t.display[2][2].charValue = '2'
 	t.display[12][39].charValue = 'O'
 	t.display[12][40].charValue = 'K'
 	t.rwMutex.Unlock()
 	t.updateCrtChan <- updateCrtNormal
-	fmt.Printf("terminalT setup done\n")
 }
 
 func (t *terminalT) setRawMode(raw bool) {
@@ -386,7 +382,7 @@ func (t *terminalT) run() {
 						skipChar = true
 					}
 				default:
-					fmt.Printf("Warning: unrecognised Break-CMD code - char <%c>\n", ch)
+					fmt.Printf("WARNING: unrecognised Break-CMD code - char <%c>\n", ch)
 				}
 
 				t.inCommand = false
@@ -403,7 +399,7 @@ func (t *terminalT) run() {
 					skipChar = true
 					t.inExtendedCommand = false
 				default:
-					fmt.Printf("Warning: unrecognised extended Break-CMD F code - char <%c>\n", ch)
+					fmt.Printf("WARNING: unrecognised extended Break-CMD F code - char <%c>\n", ch)
 				}
 			}
 			if skipChar {
@@ -568,7 +564,6 @@ func (t *terminalT) run() {
 				t.expectChan <- ch
 			}
 			t.rwMutex.Unlock()
-			//t.updateCrtChan <- updateCrtNormal
 		}
 		t.updateCrtChan <- updateCrtNormal
 	}
