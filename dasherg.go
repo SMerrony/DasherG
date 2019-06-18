@@ -482,21 +482,17 @@ func handleMotionNotifyEvent(ctx *glib.CallbackContext) {
 	}
 }
 
+// updateCrt is to be run as a Goroutine, it listens for update notifications and marks
+// the terminal as needing a redraw
 func updateCrt(crt *gtk.DrawingArea, t *terminalT) {
-	//var cIx int
-
 	for {
 		updateType := <-updateCrtChan
 		t.rwMutex.Lock()
-		switch updateType {
-		case updateCrtBlink:
+		if updateType == updateCrtBlink {
 			t.blinkState = !t.blinkState
-			fallthrough
-		case updateCrtNormal:
-			terminal.terminalUpdated = true
 		}
+		terminal.terminalUpdated = true
 		t.rwMutex.Unlock()
-		//fmt.Println("updateCrt called")
 	}
 }
 
@@ -549,12 +545,6 @@ func drawCrt() {
 				col := selectionRegion.startCol
 				for row := selectionRegion.startRow; row <= selectionRegion.endRow; row++ {
 					for col < terminal.visibleCols {
-						// cIx = int(terminal.display[terminal.cursorY][terminal.cursorX].charValue)
-						// if terminal.display[row][col].reverse {
-						// 	drawable.DrawPixbuf(gc, bdfFont[cIx].pixbuf, 0, 0, col*charWidth, row*charHeight, charWidth, charHeight, 0, 0, 0)
-						// } else {
-						// 	drawable.DrawPixbuf(gc, bdfFont[cIx].reversePixbuf, 0, 0, col*charWidth, row*charHeight, charWidth, charHeight, 0, 0, 0)
-						// }
 						drawable.DrawLine(gc, col*charWidth, ((row+1)*charHeight)-1, (col+1)*charWidth-1, ((row+1)*charHeight)-1)
 						if row == selectionRegion.endRow && col == selectionRegion.endCol {
 							goto shadingDone
