@@ -1,7 +1,7 @@
 # DasherG
 DasherG is a new free terminal emulator for Data General DASHER series character-based terminals.  It is written in [Go](https://golang.org/) using the [Go-Gtk](https://github.com/mattn/go-gtk) toolkit and should run on all common platforms supported by Go.
 
-![screenshot](screenshots/alpha-selftest.png "Alpha Screenshot")
+![screenshot](screenshots/DasherG_v0_9_8.png "Windows Screenshot")
 
 ## Key Features
 
@@ -19,7 +19,7 @@ DasherG is a new free terminal emulator for Data General DASHER series character
 * May specify ```-host=host:port``` on command line
 * Support for mini-Expect scripts to automate some tasks [see Wiki](https://github.com/SMerrony/DasherG/wiki/DasherG-Mini-Expect-Scripts)
 * Copy and Paste - select region with mouse (it is automatically copied to clipboard) and paste at cursor via Edit menu
-* XMODEM-CRC file receive with short (128) or long (1024) packets
+* XMODEM-CRC file transfer with short (128) or long (1024) packets
 
 ## Download
 DasherG is [hosted on GitHub](https://github.com/SMerrony/DasherG).
