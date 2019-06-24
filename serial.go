@@ -21,6 +21,7 @@ package main
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/distributed/sers"
@@ -58,8 +59,12 @@ func openSerialPort(port string, baud int, bits int, parityStr string, stopBits 
 	go serialReader(serPort, fromHostChan)
 	go serialWriter(serPort, keyboardChan)
 	terminal.rwMutex.Lock()
-	terminal.connected = serialConnected
+	terminal.connectionType = serialConnected
 	terminal.serialPort = port
+	terminal.serialBaud = strconv.Itoa(baud)
+	terminal.serialBits = strconv.Itoa(bits)
+	terminal.serialParity = string(parityStr[0])
+	terminal.serialStopBits = strconv.Itoa(stopBits)
 	terminal.rwMutex.Unlock()
 	return true
 }
@@ -69,7 +74,7 @@ func closeSerialPort() {
 	sendSerialBreakChan = nil
 	stopSerialWriterChan <- true
 	terminal.rwMutex.Lock()
-	terminal.connected = disconnected
+	terminal.connectionType = disconnected
 	terminal.rwMutex.Unlock()
 }
 

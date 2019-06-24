@@ -53,7 +53,7 @@ const (
 	appTitle     = "DasherG"
 	appComment   = "A Data General DASHER terminal emulator"
 	appCopyright = "Copyright ©2017, 2018, 2019 S.Merrony"
-	appSemVer    = "v0.9.8" // TODO Update SemVer on each release!
+	appSemVer    = "v0.9.9" // TODO Update SemVer on each release!
 	appWebsite   = "https://github.com/SMerrony/DasherG"
 	fontFile     = "D410-b-12.bdf"
 	helpURL      = "https://github.com/SMerrony/DasherG"
@@ -596,13 +596,14 @@ func buildStatusBox() *gtk.HBox {
 // updateStatusBox to be run regularly - N.B. on the main thread!
 func updateStatusBox() {
 	terminal.rwMutex.RLock()
-	switch terminal.connected {
+	switch terminal.connectionType {
 	case disconnected:
 		onlineLabel.SetText("Local (Offline)")
 		hostLabel.SetText("")
 	case serialConnected:
 		onlineLabel.SetText("Online (Serial)")
-		hostLabel.SetText(terminal.serialPort)
+		serParms := terminal.serialPort + " @ " + terminal.serialBaud + "," + terminal.serialBits + "," + terminal.serialParity + "," + terminal.serialStopBits
+		hostLabel.SetText(serParms)
 	case telnetConnected:
 		onlineLabel.SetText("Online (Telnet)")
 		hostLabel.SetText(terminal.remoteHost + ":" + terminal.remotePort)
