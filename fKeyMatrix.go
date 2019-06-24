@@ -50,8 +50,8 @@ func buildFkeyMatrix() *gtk.Table {
 	breakBut := gtk.NewButtonWithLabel("Break")
 	breakBut.SetTooltipText("Send BREAK signal on Serial Connection")
 	breakBut.Connect("clicked", func() {
-		if sendSerialBreakChan != nil {
-			sendSerialBreakChan <- true
+		if serialSession.sendSerialBreakChan != nil {
+			serialSession.sendSerialBreakChan <- true
 		}
 	})
 	breakBut.SetCanFocus(false)
