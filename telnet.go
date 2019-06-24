@@ -83,7 +83,7 @@ func openTelnetConn(hostName string, portNum int) bool {
 	go telnetReader(conn, fromHostChan)
 	go telnetWriter(bufio.NewWriter(conn), keyboardChan)
 	terminal.rwMutex.Lock()
-	terminal.connected = telnetConnected
+	terminal.connectionType = telnetConnected
 	terminal.remoteHost = hostName
 	terminal.remotePort = strconv.Itoa(portNum)
 	terminal.rwMutex.Unlock()
@@ -94,7 +94,7 @@ func closeTelnetConn() {
 	conn.Close()
 	stopTelnetWriterChan <- true
 	terminal.rwMutex.Lock()
-	terminal.connected = disconnected
+	terminal.connectionType = disconnected
 	terminal.rwMutex.Unlock()
 }
 
