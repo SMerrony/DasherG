@@ -29,13 +29,20 @@ import (
 
 const breakMs = 110 // How many ms to hold BREAK signal
 
-var (
-	serPort              sers.SerialPort // io.ReadWriteCloser
+type serialSessionT struct {
+	serPort              sers.SerialPort
 	sendSerialBreakChan  chan bool
 	stopSerialWriterChan chan bool
-)
+}
 
-func openSerialPort(port string, baud int, bits int, parityStr string, stopBits int) bool {
+func newSerialSession() *serialSessionT {
+	ser := new(serialSessionT)
+	ser.sendSerialBreakChan = make(chan bool)
+	ser.stopSerialWriterChan = make(chan bool, 2)
+	return ser
+}
+
+func (ser *serialSessionT) openSerialPort(port string, baud int, bits int, parityStr string, stopBits int) bool {
 	var parity int
 	switch parityStr {
 	case "None":
@@ -45,19 +52,18 @@ func openSerialPort(port string, baud int, bits int, parityStr string, stopBits 
 	case "Odd":
 		parity = sers.O
 	}
-	serPort, err = sers.Open(port) // serial.Open(options)
+	ser.serPort, err = sers.Open(port) // serial.Open(options)
 	if err != nil {
 		fmt.Printf("ERROR: Could not open serial port - %s\n", err.Error())
 		return false
 	}
-	if err = serPort.SetMode(baud, bits, parity, stopBits, sers.NO_HANDSHAKE); err != nil {
+	if err = ser.serPort.SetMode(baud, bits, parity, stopBits, sers.NO_HANDSHAKE); err != nil {
 		fmt.Printf("ERROR: Could not set serial part mode as requested - %s\n", err.Error())
 		return false
 	}
-	sendSerialBreakChan = make(chan bool)
-	stopSerialWriterChan = make(chan bool)
-	go serialReader(serPort, fromHostChan)
-	go serialWriter(serPort, keyboardChan)
+
+	go ser.serialReader(fromHostChan)
+	go ser.serialWriter(keyboardChan)
 	terminal.rwMutex.Lock()
 	terminal.connectionType = serialConnected
 	terminal.serialPort = port
@@ -69,19 +75,19 @@ func openSerialPort(port string, baud int, bits int, parityStr string, stopBits 
 	return true
 }
 
-func closeSerialPort() {
-	serPort.Close()
-	sendSerialBreakChan = nil
-	stopSerialWriterChan <- true
+func (ser *serialSessionT) closeSerialPort() {
+	ser.serPort.Close()
+	//sendSerialBreakChan = nil
+	ser.stopSerialWriterChan <- true
 	terminal.rwMutex.Lock()
 	terminal.connectionType = disconnected
 	terminal.rwMutex.Unlock()
 }
 
-func serialReader(port sers.SerialPort, hostChan chan []byte) {
+func (ser *serialSessionT) serialReader(hostChan chan []byte) {
 	for {
 		hostBytes := make([]byte, hostBuffSize)
-		n, err := port.Read(hostBytes)
+		n, err := ser.serPort.Read(hostBytes)
 		if n == 0 {
 			fmt.Println("WARNING: serialReader got zero length message")
 			if err == nil {
@@ -89,28 +95,32 @@ func serialReader(port sers.SerialPort, hostChan chan []byte) {
 			}
 		}
 		if err != nil {
-			fmt.Printf("ERROR: Could not read from Serial Port - %s\n", err.Error())
-			stopSerialWriterChan <- true
+			fmt.Printf("WARNING: Could not read from Serial Port - %s\n", err.Error())
+			fmt.Println("INFO: Stopping serialReader and asking serialWtiter to stop")
+			ser.stopSerialWriterChan <- true
 			return
 		}
 		hostChan <- hostBytes[:n]
 	}
 }
 
-func serialWriter(port sers.SerialPort, kbdChan chan byte) {
+func (ser *serialSessionT) serialWriter(kbdChan chan byte) {
+	// drain stop chan in case of multiple stops queued
+	for len(ser.stopSerialWriterChan) > 0 {
+		<-ser.stopSerialWriterChan
+	}
+	// loop
 	for {
 		select {
 		case k := <-kbdChan:
-			port.Write([]byte{k})
-		case sb := <-sendSerialBreakChan:
+			ser.serPort.Write([]byte{k})
+		case sb := <-ser.sendSerialBreakChan:
 			if sb {
-				//fmt.Println("DEBUG: Setting BREAK on")
-				port.SetBreak(true)
+				ser.serPort.SetBreak(true)
 				time.Sleep(breakMs * time.Millisecond)
-				port.SetBreak(false)
-				//fmt.Println("DEBUG: Set BREAK off")
+				ser.serPort.SetBreak(false)
 			}
-		case <-stopSerialWriterChan:
+		case <-ser.stopSerialWriterChan:
 			fmt.Println("INFO: serialWriter stopping")
 			return
 		}

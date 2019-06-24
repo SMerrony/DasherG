@@ -307,7 +307,7 @@ func helpAbout() {
 }
 
 func serialClose() {
-	closeSerialPort()
+	serialSession.closeSerialPort()
 	glib.IdleAdd(func() {
 		serialDisconnectMenuItem.SetSensitive(false)
 		networkConnectMenuItem.SetSensitive(true)
@@ -372,7 +372,7 @@ func serialConnect() {
 		baud, _ := strconv.Atoi(baudCombo.GetActiveText())
 		bits, _ := strconv.Atoi(bitsCombo.GetActiveText())
 		stopBits, _ := strconv.Atoi(stopCombo.GetActiveText())
-		if openSerialPort(portEntry.GetText(), baud, bits, parityCombo.GetActiveText(), stopBits) {
+		if serialSession.openSerialPort(portEntry.GetText(), baud, bits, parityCombo.GetActiveText(), stopBits) {
 			localListenerStopChan <- true
 			serialConnectMenuItem.SetSensitive(false)
 			networkConnectMenuItem.SetSensitive(false)

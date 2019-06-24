@@ -84,6 +84,7 @@ var (
 	localListenerStopChan = make(chan bool)
 	updateCrtChan         = make(chan int, hostBuffSize)
 	expectChan            = make(chan byte, hostBuffSize)
+	serialSession         = newSerialSession()
 	traceExpect           bool
 
 	selectionRegion struct {
