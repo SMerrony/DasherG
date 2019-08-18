@@ -96,7 +96,7 @@ func (ser *serialSessionT) serialReader(hostChan chan []byte) {
 		}
 		if err != nil {
 			fmt.Printf("WARNING: Could not read from Serial Port - %s\n", err.Error())
-			fmt.Println("INFO: Stopping serialReader and asking serialWtiter to stop")
+			fmt.Println("WARNING: Stopping serialReader and requesting serialWriter stop")
 			ser.stopSerialWriterChan <- true
 			return
 		}
@@ -109,7 +109,7 @@ func (ser *serialSessionT) serialWriter(kbdChan chan byte) {
 	for len(ser.stopSerialWriterChan) > 0 {
 		<-ser.stopSerialWriterChan
 	}
-	// loop
+
 	for {
 		select {
 		case k := <-kbdChan:
