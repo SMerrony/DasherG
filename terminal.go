@@ -62,7 +62,8 @@ type terminalT struct {
 	cursorX, cursorY                                                 int
 	rollEnabled, blinkEnabled, protectionEnabled                     bool
 	blinkState                                                       bool
-	holding, logging                                                 bool
+	holding, logging, scrolledBack                                   bool
+	scrollBackTopLine                                                int
 	expecting                                                        bool
 	rawMode                                                          bool // in rawMode all host data is passed straight through to rawChan
 	logFile                                                          *os.File
@@ -183,13 +184,40 @@ func (t *terminalT) scrollUp(rows int) {
 		t.history = append(t.history, line)
 
 		// move each char up a row
-		for r := 1; r < totalLines; r++ {
+		for r := 1; r < t.visibleLines; r++ {
 			for c := 0; c < t.visibleCols; c++ {
 				t.display[r-1][c].copy(&t.display[r][c])
 			}
 		}
 		t.clearLine(t.visibleLines - 1)
 	}
+}
+
+func (t *terminalT) scrollDown(topLine string) {
+	// move every visible row down
+	for r := t.visibleLines; r > 0; r-- {
+		for c := 0; c < t.visibleCols; c++ {
+			t.display[r+1][c].copy(&t.display[r][c])
+		}
+	}
+	t.clearLine(0)
+	for c := 0; c < len(topLine); c++ {
+		t.display[0][c].set(byte(topLine[c]), false, false, false, false, false)
+	}
+}
+
+func (t *terminalT) scrollBack(rows int) {
+	// determine the starting line in the history
+	var startLine int
+	if t.scrolledBack {
+		startLine = t.scrollBackTopLine - rows
+	} else {
+		startLine = len(t.history) - rows
+	}
+	if startLine < 0 {
+		startLine = 0
+	}
+
 }
 
 func (t *terminalT) selfTest(hostChan chan []byte) {
