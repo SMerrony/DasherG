@@ -94,6 +94,7 @@ var (
 
 	gc              *gdk.GC
 	crt             *gtk.DrawingArea
+	scroller        *gtk.VScrollbar
 	zoom            = zoomNormal
 	offScreenPixmap *gdk.Pixmap
 	win             *gtk.Window
@@ -209,7 +210,11 @@ func setupWindow(win *gtk.Window) {
 		updateCrtChan <- updateCrtBlink
 		return true
 	})
-	vbox.PackStart(crt, false, false, 1)
+	scroller = buildScrollbar()
+	hbox := gtk.NewHBox(false, 1)
+	hbox.PackStart(crt, false, false, 1)
+	hbox.PackEnd(scroller, false, false, 1)
+	vbox.PackStart(hbox, false, false, 1)
 	statusBox := buildStatusBox()
 	vbox.PackEnd(statusBox, false, false, 0)
 	win.Add(vbox)
@@ -442,6 +447,13 @@ func buildCrt() *gtk.DrawingArea {
 	crt.AddEvents(int(gdk.POINTER_MOTION_MASK))
 
 	return crt
+}
+
+func buildScrollbar() (sb *gtk.VScrollbar) {
+	adj := gtk.NewAdjustment(100, 0, 100, 1, 1, 1)
+	sb = gtk.NewVScrollbar(adj)
+
+	return sb
 }
 
 // getSelection returns a DG-ASCII string containing the mouse-selected portion of the screen
