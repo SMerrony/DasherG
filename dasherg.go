@@ -450,10 +450,9 @@ func buildCrt() *gtk.DrawingArea {
 }
 
 func buildScrollbar() (sb *gtk.VScrollbar) {
-	adj := gtk.NewAdjustment(100, 0, 100, 1, 1, 1)
+	adj := gtk.NewAdjustment(historyLines, 0.0, historyLines, 1.0, 1.0, 1.0)
 	sb = gtk.NewVScrollbar(adj)
 	sb.Connect("value-changed", handleScrollbarChangedEvent)
-
 	return sb
 }
 
@@ -509,7 +508,7 @@ func updateCrt(crt *gtk.DrawingArea, t *terminalT) {
 		if updateType == updateCrtBlink {
 			t.blinkState = !t.blinkState
 		}
-		terminal.terminalUpdated = true
+		t.terminalUpdated = true
 		t.rwMutex.Unlock()
 	}
 }
