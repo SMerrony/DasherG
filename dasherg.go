@@ -452,8 +452,13 @@ func buildCrt() *gtk.DrawingArea {
 func buildScrollbar() (sb *gtk.VScrollbar) {
 	adj := gtk.NewAdjustment(100, 0, 100, 1, 1, 1)
 	sb = gtk.NewVScrollbar(adj)
+	sb.Connect("value-changed", handleScrollbarChangedEvent)
 
 	return sb
+}
+
+func handleScrollbarChangedEvent(ctx *glib.CallbackContext) {
+	fmt.Printf("Scrollbar event: Value: %f\n", scroller.GetValue())
 }
 
 // getSelection returns a DG-ASCII string containing the mouse-selected portion of the screen
