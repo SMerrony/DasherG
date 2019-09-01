@@ -30,7 +30,7 @@ const (
 	defaultLines, defaultCols       = 24, 80
 	maxVisibleLines, maxVisibleCols = 66, 135
 	totalLines, totalCols           = 96, 208
-	historyLines                    = 2000
+	historyLines                    = 1000 // N.B. c.f. scrollback parameters
 	holdPauseMs                     = 500
 )
 
@@ -69,8 +69,9 @@ type terminalT struct {
 	logFile                                                          *os.File
 
 	// display is the 2D array of cells containing the terminal 'contents'
-	display [totalLines][totalCols]cell
-	history []string
+	display      [totalLines][totalCols]cell
+	savedDisplay [totalLines][totalCols]cell // used when scrolling back over history
+	history      []string
 
 	updateCrtChan chan int
 	// terminalUpdated indicates that a visual refresh is required
@@ -209,60 +210,70 @@ func (t *terminalT) scrollDown(topLine string) {
 func (t *terminalT) scrollBack(rows int) {
 	// determine the starting line in the history
 	var startLine int
-	if t.scrolledBack {
+	if t.scrolledBack { // aready scrolled back
 		startLine = t.scrollBackTopLine - rows
-	} else {
+	} else { // new scrollback
 		startLine = len(t.history) - rows
+		// save live screen
+		t.savedDisplay = t.display
 	}
 	if startLine < 0 {
 		startLine = 0
 	}
+	t.scrollBackTopLine = startLine
+}
 
+// cancelScrollBack restores the 'live' screen after scrollbacks (may) have happened
+func (t *terminalT) cancelScrollBack() {
+	t.rwMutex.Lock()
+	t.display = t.savedDisplay
+	t.scrolledBack = false
+	t.terminalUpdated = true
+	t.rwMutex.Unlock()
 }
 
 func (t *terminalT) selfTest(hostChan chan []byte) {
-	var (
+	const (
 		testLineHRule1 = "123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012245"
 		testLineHRule2 = "         1         2         3         4         5         6         7         8         9         10        11        12        13    "
-		testLine1      = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567489!\"$%^."
+		testLineChars  = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567489!\"$%^."
 		testLineN      = "3 Normal : "
 		testLineD      = "4 Dim    : "
 		testLineB      = "5 Blink  : "
 		testLineR      = "6 Reverse: "
 		testLineU      = "7 Under  : "
-		ba             []byte
 	)
-	ba = []byte{dasherErasePage}
-	hostChan <- ba
+
+	hostChan <- []byte{dasherErasePage}
 	hostChan <- []byte(testLineHRule1[:t.visibleCols])
 	hostChan <- []byte(testLineHRule2[:t.visibleCols])
 	hostChan <- []byte(testLineN)
-	hostChan <- []byte(testLine1)
+	hostChan <- []byte(testLineChars)
 	hostChan <- []byte("\n")
 
 	hostChan <- []byte(testLineD)
 	hostChan <- []byte{dasherDimOn}
-	hostChan <- []byte(testLine1)
+	hostChan <- []byte(testLineChars)
 	hostChan <- []byte{dasherDimOff}
 	hostChan <- []byte("\n")
 
 	hostChan <- []byte(testLineB)
 	hostChan <- []byte{dasherBlinkOn}
-	hostChan <- []byte(testLine1)
+	hostChan <- []byte(testLineChars)
 	hostChan <- []byte{dasherBlinkOff}
 	hostChan <- []byte("\n")
 
 	hostChan <- []byte(testLineR)
 	hostChan <- []byte{dasherCmd}
 	hostChan <- []byte("D")
-	hostChan <- []byte(testLine1)
+	hostChan <- []byte(testLineChars)
 	hostChan <- []byte{dasherCmd}
 	hostChan <- []byte("E")
 	hostChan <- []byte("\n")
 
 	hostChan <- []byte(testLineU)
 	hostChan <- []byte{dasherUnderline}
-	hostChan <- []byte(testLine1)
+	hostChan <- []byte(testLineChars)
 	hostChan <- []byte{dasherNormal}
 
 	for i := 8; i <= t.visibleLines; i++ {
