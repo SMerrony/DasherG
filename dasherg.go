@@ -457,7 +457,11 @@ func buildScrollbar() (sb *gtk.VScrollbar) {
 }
 
 func handleScrollbarChangedEvent(ctx *glib.CallbackContext) {
-	fmt.Printf("Scrollbar event: Value: %f\n", scroller.GetValue())
+	posn := int(scroller.GetValue())
+	fmt.Printf("Scrollbar event: Value: %d\n", posn)
+	if posn >= historyLines-1 {
+		terminal.cancelScrollBack()
+	}
 }
 
 // getSelection returns a DG-ASCII string containing the mouse-selected portion of the screen
@@ -545,6 +549,9 @@ func drawCrt() {
 		// draw the cursor - if on-screen
 		if terminal.cursorX < terminal.visibleCols && terminal.cursorY < terminal.visibleLines {
 			cIx := int(terminal.display[terminal.cursorY][terminal.cursorX].charValue)
+			if cIx == 0 {
+				cIx = 32
+			}
 			if terminal.display[terminal.cursorY][terminal.cursorX].reverse {
 				drawable.DrawPixbuf(gc, bdfFont[cIx].pixbuf, 0, 0, terminal.cursorX*charWidth, terminal.cursorY*charHeight, charWidth, charHeight, 0, 0, 0)
 			} else {
