@@ -1,4 +1,4 @@
-// Copyright (C) 2017  Steve Merrony
+// Copyright (C) 2017,2019  Steve Merrony
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -22,7 +22,6 @@ package main
 type cell struct {
 	charValue                                byte
 	blink, dim, reverse, underscore, protect bool
-	dirty                                    bool
 }
 
 func (cell *cell) set(cv byte, bl, dm, rev, under, prot bool) {
@@ -32,7 +31,6 @@ func (cell *cell) set(cv byte, bl, dm, rev, under, prot bool) {
 	cell.reverse = rev
 	cell.underscore = under
 	cell.protect = prot
-	cell.dirty = true
 }
 
 func (cell *cell) clearToSpace() {
@@ -42,21 +40,10 @@ func (cell *cell) clearToSpace() {
 	cell.reverse = false
 	cell.underscore = false
 	cell.protect = false
-	cell.dirty = true
 }
 
 func (cell *cell) clearToSpaceIfUnprotected() {
 	if !cell.protect {
 		cell.clearToSpace()
 	}
-}
-
-func (cell *cell) copy(fromcell *cell) {
-	cell.charValue = fromcell.charValue
-	cell.blink = fromcell.blink
-	cell.dim = fromcell.dim
-	cell.reverse = fromcell.reverse
-	cell.underscore = fromcell.underscore
-	cell.protect = fromcell.protect
-	cell.dirty = true
 }

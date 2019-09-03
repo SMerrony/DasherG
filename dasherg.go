@@ -290,17 +290,6 @@ func buildMenu() *gtk.MenuBar {
 	pasteItem.Connect("activate", editPaste)
 	subMenu.Append(pasteItem)
 
-	viewMenuItem := gtk.NewMenuItemWithLabel("View")
-	menuBar.Append(viewMenuItem)
-	subMenu = gtk.NewMenu()
-	viewMenuItem.SetSubmenu(subMenu)
-	viewHistoryItem := gtk.NewMenuItemWithLabel("History")
-	viewHistoryItem.Connect("activate", func() { viewHistory(terminal) })
-	subMenu.Append(viewHistoryItem)
-	loadTemplateMenuItem := gtk.NewMenuItemWithLabel("Load Func. Key Template")
-	loadTemplateMenuItem.Connect("activate", loadFKeyTemplate)
-	subMenu.Append(loadTemplateMenuItem)
-
 	emulationMenuItem := gtk.NewMenuItemWithLabel("Emulation")
 	menuBar.Append(emulationMenuItem)
 	subMenu = gtk.NewMenu()
@@ -332,6 +321,9 @@ func buildMenu() *gtk.MenuBar {
 	selfTestMenuItem := gtk.NewMenuItemWithLabel("Self-Test")
 	subMenu.Append(selfTestMenuItem)
 	selfTestMenuItem.Connect("activate", func() { terminal.selfTest(fromHostChan) })
+	loadTemplateMenuItem := gtk.NewMenuItemWithLabel("Load Func. Key Template")
+	loadTemplateMenuItem.Connect("activate", loadFKeyTemplate)
+	subMenu.Append(loadTemplateMenuItem)
 
 	serialMenuItem := gtk.NewMenuItemWithLabel("Serial")
 	menuBar.Append(serialMenuItem)
@@ -477,7 +469,7 @@ func getSelection() string {
 		for row := selectionRegion.startRow; row <= selectionRegion.endRow; row++ {
 			for col < terminal.visibleCols {
 				selection += string(terminal.display[row][col].charValue)
-				terminal.display[row][col].dirty = true
+				terminal.displayDirty[row][col] = true
 				if row == selectionRegion.endRow && col == selectionRegion.endCol {
 					return selection
 				}
@@ -526,7 +518,7 @@ func drawCrt() {
 		drawable := offScreenPixmap.GetDrawable()
 		for line := 0; line < terminal.visibleLines; line++ {
 			for col := 0; col < terminal.visibleCols; col++ {
-				if terminal.display[line][col].dirty || (terminal.blinkEnabled && terminal.display[line][col].blink) {
+				if terminal.displayDirty[line][col] || (terminal.blinkEnabled && terminal.display[line][col].blink) {
 					cIx = int(terminal.display[line][col].charValue)
 					if cIx > 31 && cIx < 128 {
 						switch {
@@ -544,7 +536,7 @@ func drawCrt() {
 					if terminal.display[line][col].underscore {
 						drawable.DrawLine(gc, col*charWidth, ((line+1)*charHeight)-1, (col+1)*charWidth-1, ((line+1)*charHeight)-1)
 					}
-					terminal.display[line][col].dirty = false
+					terminal.displayDirty[line][col] = false
 				}
 			} // end for col
 		} // end for line
@@ -560,7 +552,7 @@ func drawCrt() {
 				//fmt.Printf("Drawing cursor at %d,%d\n", terminal.cursorX*charWidth, terminal.cursorY*charHeight)
 				drawable.DrawPixbuf(gc, bdfFont[cIx].reversePixbuf, 0, 0, terminal.cursorX*charWidth, terminal.cursorY*charHeight, charWidth, charHeight, 0, 0, 0)
 			}
-			terminal.display[terminal.cursorY][terminal.cursorX].dirty = true // this ensures that the old cursor pos is redrawn on the next refresh
+			terminal.displayDirty[terminal.cursorY][terminal.cursorX] = true // this ensures that the old cursor pos is redrawn on the next refresh
 		}
 		// shade any selected area
 		if selectionRegion.isActive {
