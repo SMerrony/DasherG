@@ -449,28 +449,28 @@ func telnetOpen() {
 }
 
 func viewHistory(t *terminalT) {
-	hd := gtk.NewDialog()
-	hd.SetTitle("DasherG - Terminal History")
-	hd.SetIcon(iconPixbuf)
-	ca := hd.GetVBox()
-	scrolledWindow := gtk.NewScrolledWindow(nil, nil)
-	tv := gtk.NewTextView()
-	tv.ModifyFontEasy("monospace")
-	scrolledWindow.Add(tv)
-	tb := tv.GetBuffer()
-	var iter gtk.TextIter
-	tb.GetStartIter(&iter)
-	for _, line := range t.history {
-		if len(line) > 0 {
-			tb.Insert(&iter, line+"\n")
-		}
-	}
-	tv.SetEditable(false)
-	tv.SetSizeRequest(t.visibleCols*charWidth, t.visibleLines*charHeight)
-	ca.PackStart(scrolledWindow, true, true, 1)
-	hd.AddButton("OK", gtk.RESPONSE_OK)
-	hd.SetDefaultResponse(gtk.RESPONSE_OK)
-	hd.ShowAll()
-	hd.Run()
-	hd.Destroy()
+	// hd := gtk.NewDialog()
+	// hd.SetTitle("DasherG - Terminal History")
+	// hd.SetIcon(iconPixbuf)
+	// ca := hd.GetVBox()
+	// scrolledWindow := gtk.NewScrolledWindow(nil, nil)
+	// tv := gtk.NewTextView()
+	// tv.ModifyFontEasy("monospace")
+	// scrolledWindow.Add(tv)
+	// tb := tv.GetBuffer()
+	// var iter gtk.TextIter
+	// tb.GetStartIter(&iter)
+	// for _, line := range t.history {
+	// 	if len(line) > 0 {
+	// 		tb.Insert(&iter, line+"\n")
+	// 	}
+	// }
+	// tv.SetEditable(false)
+	// tv.SetSizeRequest(t.visibleCols*charWidth, t.visibleLines*charHeight)
+	// ca.PackStart(scrolledWindow, true, true, 1)
+	// hd.AddButton("OK", gtk.RESPONSE_OK)
+	// hd.SetDefaultResponse(gtk.RESPONSE_OK)
+	// hd.ShowAll()
+	// hd.Run()
+	// hd.Destroy()
 }

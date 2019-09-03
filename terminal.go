@@ -69,9 +69,9 @@ type terminalT struct {
 	logFile                                                          *os.File
 
 	// display is the 2D array of cells containing the terminal 'contents'
-	display      [totalLines][totalCols]cell
-	savedDisplay [totalLines][totalCols]cell // used when scrolling back over history
-	history      []string
+	display        [totalLines][totalCols]cell
+	savedDisplay   [totalLines][totalCols]cell // used when scrolling back over history
+	displayHistory [historyLines][totalCols]cell
 
 	updateCrtChan chan int
 	// terminalUpdated indicates that a visual refresh is required
@@ -104,7 +104,7 @@ func (t *terminalT) setup(fromHostChan <-chan []byte, update chan int, expectCha
 	}
 	t.rollEnabled = true
 	t.blinkEnabled = true
-	t.history = make([]string, historyLines)
+	// t.history = make([]string, historyLines)
 	t.clearScreen()
 	t.display[12][39].charValue = 'O'
 	t.display[12][40].charValue = 'K'
@@ -130,20 +130,7 @@ func (t *terminalT) clearLine(line int) {
 }
 
 func (t *terminalT) clearScreen() {
-	var line string
-	for row := 0; row < t.visibleLines; row++ {
-		// store in history
-		line = ""
-		for c := 0; c < t.visibleCols; c++ {
-			line += string(t.display[row][c].charValue)
-		}
-		if len(t.history) >= historyLines {
-			t.history = t.history[1:]
-		}
-		t.history = append(t.history, line)
-		// clear the line
-		t.display[row] = t.emptyLine
-	}
+	t.scrollUp(t.visibleLines)
 	t.inCommand = false
 	t.readingWindowAddressX = false
 	t.readingWindowAddressY = false
@@ -174,20 +161,23 @@ func (t *terminalT) eraseUnprotectedToEndOfScreen() {
 
 func (t *terminalT) scrollUp(rows int) {
 	for times := 0; times < rows; times++ {
-		// store top line in history
-		var line string
-		for c := 0; c < t.visibleCols; c++ {
-			line += string(t.display[0][c].charValue)
+
+		for l := 1; l < historyLines; l++ {
+			// fmt.Printf("Moving history line %d up to %d\n", l, l-1)
+			for c := 0; c < t.visibleCols; c++ {
+				t.displayHistory[l-1][c].copy(&t.displayHistory[l][c])
+			}
 		}
-		if len(t.history) >= historyLines {
-			t.history = t.history[1:]
-		}
-		t.history = append(t.history, line)
 
 		// move each char up a row
-		for r := 1; r < t.visibleLines; r++ {
+		for r := 0; r < t.visibleLines; r++ {
 			for c := 0; c < t.visibleCols; c++ {
-				t.display[r-1][c].copy(&t.display[r][c])
+				if r == 0 {
+					t.displayHistory[historyLines-1][c].copy(&t.display[r][c])
+					// fmt.Printf("Hist<-%c ", t.display[r][c].charValue)
+				} else {
+					t.display[r-1][c].copy(&t.display[r][c])
+				}
 			}
 		}
 		t.clearLine(t.visibleLines - 1)
@@ -207,24 +197,51 @@ func (t *terminalT) scrollDown(topLine string) {
 	}
 }
 
-func (t *terminalT) scrollBack(rows int) {
-	// determine the starting line in the history
-	var startLine int
-	if t.scrolledBack { // aready scrolled back
-		startLine = t.scrollBackTopLine - rows
-	} else { // new scrollback
-		startLine = len(t.history) - rows
+func (t *terminalT) scrollBack(startLine int) {
+	t.rwMutex.Lock()
+	// var startLine int
+	if !t.scrolledBack { // new scrollback
 		// save live screen
 		t.savedDisplay = t.display
+		t.scrolledBack = true
 	}
-	if startLine < 0 {
-		startLine = 0
-	}
+
 	t.scrollBackTopLine = startLine
+
+	// there are two cases: we are already scrolled back beyond the 'live' screen, or we are partially showing it
+	if historyLines-startLine < t.visibleLines {
+		// the partial case
+		onScreenLine := 0
+		for l := startLine; l < historyLines; l++ {
+			for c := 0; c < len(t.displayHistory[l]); c++ {
+				t.display[onScreenLine][c].copy(&t.displayHistory[l][c])
+			}
+			onScreenLine++
+		}
+		for onScreenLine < t.visibleLines {
+			for c := 0; c < t.visibleCols; c++ {
+				t.display[onScreenLine][c].copy(&t.savedDisplay[onScreenLine+(historyLines-startLine)][c])
+			}
+			onScreenLine++
+		}
+
+	} else {
+		// all 'history' - we can cheat
+		t.clearScreen()
+		for l := 0; l < t.visibleLines; l++ {
+			histLine := l + startLine
+			for c := 0; c < len(t.displayHistory[histLine]); c++ {
+				t.display[l][c].copy(&t.displayHistory[histLine][c])
+			}
+		}
+	}
+	t.terminalUpdated = true
+	t.rwMutex.Unlock()
 }
 
 // cancelScrollBack restores the 'live' screen after scrollbacks (may) have happened
 func (t *terminalT) cancelScrollBack() {
+	fmt.Println("cancelScrollBack called")
 	t.rwMutex.Lock()
 	t.display = t.savedDisplay
 	t.scrolledBack = false
