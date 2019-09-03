@@ -70,6 +70,7 @@ type terminalT struct {
 
 	// display is the 2D array of cells containing the terminal 'contents'
 	display        [totalLines][totalCols]cell
+	displayDirty   [totalLines][totalCols]bool
 	savedDisplay   [totalLines][totalCols]cell // used when scrolling back over history
 	displayHistory [historyLines][totalCols]cell
 
@@ -130,7 +131,7 @@ func (t *terminalT) clearLine(line int) {
 }
 
 func (t *terminalT) clearScreen() {
-	t.scrollUp(t.visibleLines)
+	t.scrollUp(t.visibleLines + 1)
 	t.inCommand = false
 	t.readingWindowAddressX = false
 	t.readingWindowAddressY = false
@@ -150,11 +151,13 @@ func (t *terminalT) eraseUnprotectedToEndOfScreen() {
 	// clear remainder of line
 	for x := t.cursorX; x < t.visibleCols; x++ {
 		t.display[t.cursorY][x].clearToSpaceIfUnprotected()
+		t.displayDirty[t.cursorY][x] = true
 	}
 	// clear all lines below
 	for y := t.cursorY + 1; y < t.visibleLines; y++ {
 		for x := 0; x < t.visibleCols; x++ {
 			t.display[y][x].clearToSpaceIfUnprotected()
+			t.displayDirty[y][x] = true
 		}
 	}
 }
@@ -165,7 +168,7 @@ func (t *terminalT) scrollUp(rows int) {
 		for l := 1; l < historyLines; l++ {
 			// fmt.Printf("Moving history line %d up to %d\n", l, l-1)
 			for c := 0; c < t.visibleCols; c++ {
-				t.displayHistory[l-1][c].copy(&t.displayHistory[l][c])
+				t.displayHistory[l-1][c] = t.displayHistory[l][c]
 			}
 		}
 
@@ -173,10 +176,11 @@ func (t *terminalT) scrollUp(rows int) {
 		for r := 0; r < t.visibleLines; r++ {
 			for c := 0; c < t.visibleCols; c++ {
 				if r == 0 {
-					t.displayHistory[historyLines-1][c].copy(&t.display[r][c])
+					t.displayHistory[historyLines-1][c] = t.display[r][c]
 					// fmt.Printf("Hist<-%c ", t.display[r][c].charValue)
 				} else {
-					t.display[r-1][c].copy(&t.display[r][c])
+					t.display[r-1][c] = t.display[r][c]
+					t.displayDirty[r-1][c] = true
 				}
 			}
 		}
@@ -188,12 +192,14 @@ func (t *terminalT) scrollDown(topLine string) {
 	// move every visible row down
 	for r := t.visibleLines; r > 0; r-- {
 		for c := 0; c < t.visibleCols; c++ {
-			t.display[r+1][c].copy(&t.display[r][c])
+			t.display[r+1][c] = t.display[r][c]
+			t.displayDirty[r+1][c] = true
 		}
 	}
 	t.clearLine(0)
 	for c := 0; c < len(topLine); c++ {
 		t.display[0][c].set(byte(topLine[c]), false, false, false, false, false)
+		t.displayDirty[0][c] = true
 	}
 }
 
@@ -214,13 +220,15 @@ func (t *terminalT) scrollBack(startLine int) {
 		onScreenLine := 0
 		for l := startLine; l < historyLines; l++ {
 			for c := 0; c < len(t.displayHistory[l]); c++ {
-				t.display[onScreenLine][c].copy(&t.displayHistory[l][c])
+				t.display[onScreenLine][c] = t.displayHistory[l][c]
+				t.displayDirty[onScreenLine][c] = true
 			}
 			onScreenLine++
 		}
 		for onScreenLine < t.visibleLines {
 			for c := 0; c < t.visibleCols; c++ {
-				t.display[onScreenLine][c].copy(&t.savedDisplay[onScreenLine+(historyLines-startLine)][c])
+				t.display[onScreenLine][c] = t.savedDisplay[onScreenLine+(historyLines-startLine)][c]
+				t.displayDirty[onScreenLine][c] = true
 			}
 			onScreenLine++
 		}
@@ -231,7 +239,8 @@ func (t *terminalT) scrollBack(startLine int) {
 		for l := 0; l < t.visibleLines; l++ {
 			histLine := l + startLine
 			for c := 0; c < len(t.displayHistory[histLine]); c++ {
-				t.display[l][c].copy(&t.displayHistory[histLine][c])
+				t.display[l][c] = t.displayHistory[histLine][c]
+				t.displayDirty[l][c] = true
 			}
 		}
 	}
@@ -300,8 +309,8 @@ func (t *terminalT) selfTest(hostChan chan []byte) {
 
 func (t *terminalT) run() {
 	var (
-		skipChar bool
-		ch       byte
+		skipChar, sb bool
+		ch           byte
 	)
 	for hostData := range t.fromHostChan {
 		// pause if we are HOLDing
@@ -311,7 +320,12 @@ func (t *terminalT) run() {
 			time.Sleep(holdPauseMs * time.Millisecond)
 			t.rwMutex.RLock()
 		}
+		sb = t.scrolledBack
 		t.rwMutex.RUnlock()
+
+		if sb {
+			t.cancelScrollBack()
+		}
 
 		for _, ch = range hostData {
 
@@ -615,7 +629,7 @@ func (t *terminalT) run() {
 			} else {
 				t.display[t.cursorY][t.cursorX].set(127, t.blinking, t.dimmed, t.reversedVideo, t.underscored, t.protectd)
 			}
-			t.display[t.cursorY][t.cursorX].dirty = true
+			t.displayDirty[t.cursorY][t.cursorX] = true
 			t.cursorX++
 			if t.expecting {
 				t.expectChan <- ch
