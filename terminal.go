@@ -78,9 +78,10 @@ type terminalT struct {
 	// terminalUpdated indicates that a visual refresh is required
 	terminalUpdated bool
 
-	// some empty structures for efficiency
+	// some pre-filled structures for efficiency
 	emptyCell cell
 	emptyLine [totalCols]cell
+	dirtyLine [totalCols]bool
 
 	inCommand, inExtendedCommand,
 	readingWindowAddressX, readingWindowAddressY,
@@ -103,9 +104,11 @@ func (t *terminalT) setup(fromHostChan <-chan []byte, update chan int, expectCha
 	for c := range t.emptyLine {
 		t.emptyLine[c] = t.emptyCell
 	}
+	for c := range t.dirtyLine {
+		t.dirtyLine[c] = true
+	}
 	t.rollEnabled = true
 	t.blinkEnabled = true
-	// t.history = make([]string, historyLines)
 	t.clearScreen()
 	t.display[12][39].charValue = 'O'
 	t.display[12][40].charValue = 'K'
@@ -121,6 +124,7 @@ func (t *terminalT) setRawMode(raw bool) {
 
 func (t *terminalT) clearLine(line int) {
 	t.display[line] = t.emptyLine
+	t.displayDirty[line] = t.dirtyLine
 	t.inCommand = false
 	t.readingWindowAddressX = false
 	t.readingWindowAddressY = false
@@ -166,22 +170,17 @@ func (t *terminalT) scrollUp(rows int) {
 	for times := 0; times < rows; times++ {
 
 		for l := 1; l < historyLines; l++ {
-			// fmt.Printf("Moving history line %d up to %d\n", l, l-1)
-			for c := 0; c < t.visibleCols; c++ {
-				t.displayHistory[l-1][c] = t.displayHistory[l][c]
-			}
+			t.displayHistory[l-1] = t.displayHistory[l]
 		}
 
 		// move each char up a row
 		for r := 0; r < t.visibleLines; r++ {
-			for c := 0; c < t.visibleCols; c++ {
-				if r == 0 {
-					t.displayHistory[historyLines-1][c] = t.display[r][c]
-					// fmt.Printf("Hist<-%c ", t.display[r][c].charValue)
-				} else {
-					t.display[r-1][c] = t.display[r][c]
-					t.displayDirty[r-1][c] = true
-				}
+			if r == 0 {
+				t.displayHistory[historyLines-1] = t.display[r]
+				// fmt.Printf("Hist<-%c ", t.display[r][c].charValue)
+			} else {
+				t.display[r-1] = t.display[r]
+				t.displayDirty[r-1] = t.dirtyLine
 			}
 		}
 		t.clearLine(t.visibleLines - 1)
@@ -191,10 +190,8 @@ func (t *terminalT) scrollUp(rows int) {
 func (t *terminalT) scrollDown(topLine string) {
 	// move every visible row down
 	for r := t.visibleLines; r > 0; r-- {
-		for c := 0; c < t.visibleCols; c++ {
-			t.display[r+1][c] = t.display[r][c]
-			t.displayDirty[r+1][c] = true
-		}
+		t.display[r+1] = t.display[r]
+		t.displayDirty[r+1] = t.dirtyLine
 	}
 	t.clearLine(0)
 	for c := 0; c < len(topLine); c++ {
@@ -219,17 +216,13 @@ func (t *terminalT) scrollBack(startLine int) {
 		// the partial case
 		onScreenLine := 0
 		for l := startLine; l < historyLines; l++ {
-			for c := 0; c < len(t.displayHistory[l]); c++ {
-				t.display[onScreenLine][c] = t.displayHistory[l][c]
-				t.displayDirty[onScreenLine][c] = true
-			}
+			t.display[onScreenLine] = t.displayHistory[l]
+			t.displayDirty[onScreenLine] = t.dirtyLine
 			onScreenLine++
 		}
 		for onScreenLine < t.visibleLines {
-			for c := 0; c < t.visibleCols; c++ {
-				t.display[onScreenLine][c] = t.savedDisplay[onScreenLine+(historyLines-startLine)][c]
-				t.displayDirty[onScreenLine][c] = true
-			}
+			t.display[onScreenLine] = t.savedDisplay[onScreenLine+(historyLines-startLine)]
+			t.displayDirty[onScreenLine] = t.dirtyLine
 			onScreenLine++
 		}
 
@@ -238,10 +231,8 @@ func (t *terminalT) scrollBack(startLine int) {
 		t.clearScreen()
 		for l := 0; l < t.visibleLines; l++ {
 			histLine := l + startLine
-			for c := 0; c < len(t.displayHistory[histLine]); c++ {
-				t.display[l][c] = t.displayHistory[histLine][c]
-				t.displayDirty[l][c] = true
-			}
+			t.display[l] = t.displayHistory[histLine]
+			t.displayDirty[l] = t.dirtyLine
 		}
 	}
 	t.terminalUpdated = true
