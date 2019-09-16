@@ -454,7 +454,7 @@ func handleScrollbarChangedEvent(ctx *glib.CallbackContext) {
 	if posn >= historyLines-1 {
 		terminal.cancelScrollBack()
 	} else {
-		terminal.scrollBack(posn)
+		terminal.scrollBack(historyLines - posn)
 	}
 }
 
