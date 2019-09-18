@@ -187,7 +187,7 @@ func (t *terminalT) addToHistory(screenLine [totalCols]cell) {
 		}
 	}
 	t.displayHistory[t.historyEnd] = screenLine
-	fmt.Printf("addToHistory added real index: %d [start: %d]\n", t.historyEnd, t.historyStart)
+	// fmt.Printf("addToHistory added real index: %d [start: %d]\n", t.historyEnd, t.historyStart)
 }
 
 // getNthHistoryLine returns a line of cells from the history
@@ -202,7 +202,7 @@ func (t *terminalT) getNthHistoryLine(n int) (screenLine [totalCols]cell) {
 		}
 		screenLine = t.displayHistory[hline]
 	}
-	fmt.Printf("getNthHistoryLine called with %d, returning history ix: %d\n", n, hline)
+	// fmt.Printf("getNthHistoryLine called with %d, returning history ix: %d\n", n, hline)
 	return screenLine
 }
 
@@ -233,7 +233,7 @@ func (t *terminalT) scrollDown(topLine string) {
 
 func (t *terminalT) scrollBack(startLine int) {
 	t.rwMutex.Lock()
-	fmt.Printf("scrollBack - startLine: %d\n", startLine)
+	// fmt.Printf("scrollBack - startLine: %d\n", startLine)
 	if !t.scrolledBack { // new scrollback
 		// save live screen
 		t.savedDisplay = t.display
@@ -243,18 +243,19 @@ func (t *terminalT) scrollBack(startLine int) {
 	// there are two cases: we are already scrolled back beyond the 'live' screen, or we are partially showing it
 	if startLine < t.visibleLines {
 		// the partial case
-		// onScreenLine := 0
-		// for l := startLine; l < historyLines; l++ {
-		// 	t.display[onScreenLine] = t.displayHistory[l]
-		// 	t.displayDirty[onScreenLine] = t.dirtyLine
-		// 	onScreenLine++
-		// }
-		// for onScreenLine < t.visibleLines {
-		// 	t.display[onScreenLine] = t.savedDisplay[onScreenLine+(historyLines-startLine)]
-		// 	t.displayDirty[onScreenLine] = t.dirtyLine
-		// 	onScreenLine++
-		// }
-
+		onScreenLine := 0
+		for hl := startLine; hl >= 0; hl-- {
+			t.display[onScreenLine] = t.getNthHistoryLine(hl)
+			t.displayDirty[onScreenLine] = t.dirtyLine
+			onScreenLine++
+		}
+		liveLine := 0
+		for onScreenLine < t.visibleLines {
+			t.display[onScreenLine] = t.savedDisplay[liveLine]
+			t.displayDirty[onScreenLine] = t.dirtyLine
+			liveLine++
+			onScreenLine++
+		}
 	} else {
 		// all 'history' - we can cheat
 		for l := 0; l < t.visibleLines; l++ {
@@ -269,7 +270,7 @@ func (t *terminalT) scrollBack(startLine int) {
 
 // cancelScrollBack restores the 'live' screen after scrollbacks (may) have happened
 func (t *terminalT) cancelScrollBack() {
-	fmt.Println("cancelScrollBack called")
+	// fmt.Println("cancelScrollBack called")
 	t.rwMutex.Lock()
 	t.display = t.savedDisplay
 	for l := 0; l < t.visibleLines; l++ {
