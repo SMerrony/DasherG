@@ -50,22 +50,21 @@ const (
 // The display[][] matrix represents the currently-displayed state of the
 // terminal (which is actually displayed elsewhere)
 type terminalT struct {
-	rwMutex                                                          sync.RWMutex
-	fromHostChan                                                     <-chan []byte
-	expectChan                                                       chan<- byte
-	rawChan                                                          chan byte
-	emulation                                                        emulType
-	connectionType                                                   int
-	serialPort, serialBaud, serialBits, serialParity, serialStopBits string
-	remoteHost, remotePort                                           string
-	visibleLines, visibleCols                                        int
-	cursorX, cursorY                                                 int
-	rollEnabled, blinkEnabled, protectionEnabled                     bool
-	blinkState                                                       bool
-	holding, logging, scrolledBack                                   bool
-	expecting                                                        bool
-	rawMode                                                          bool // in rawMode all host data is passed straight through to rawChan
-	logFile                                                          *os.File
+	rwMutex                                      sync.RWMutex
+	fromHostChan                                 <-chan []byte
+	expectChan                                   chan<- byte
+	rawChan                                      chan byte
+	emulation                                    emulType
+	connectionType                               int
+	remoteHost, remotePort, serialPort           string
+	visibleLines, visibleCols                    int
+	cursorX, cursorY                             int
+	rollEnabled, blinkEnabled, protectionEnabled bool
+	blinkState                                   bool
+	holding, logging, scrolledBack               bool
+	expecting                                    bool
+	rawMode                                      bool // in rawMode all host data is passed straight through to rawChan
+	logFile                                      *os.File
 
 	// display is the 2D array of cells containing the terminal 'contents'
 	display                  [totalLines][totalCols]cell

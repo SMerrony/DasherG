@@ -21,7 +21,6 @@ package main
 
 import (
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/distributed/sers"
@@ -67,12 +66,13 @@ func (ser *serialSessionT) openSerialPort(port string, baud int, bits int, parit
 	terminal.rwMutex.Lock()
 	terminal.connectionType = serialConnected
 	terminal.serialPort = port
-	terminal.serialBaud = strconv.Itoa(baud)
-	terminal.serialBits = strconv.Itoa(bits)
-	terminal.serialParity = string(parityStr[0])
-	terminal.serialStopBits = strconv.Itoa(stopBits)
 	terminal.rwMutex.Unlock()
 	return true
+}
+
+func (ser *serialSessionT) getParms() string {
+	intMode, _ := ser.serPort.GetMode()
+	return intMode.String()
 }
 
 func (ser *serialSessionT) closeSerialPort() {

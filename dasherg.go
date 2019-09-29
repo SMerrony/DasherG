@@ -620,7 +620,7 @@ func updateStatusBox() {
 		hostLabel.SetText("")
 	case serialConnected:
 		onlineLabel.SetText("Online (Serial)")
-		serParms := terminal.serialPort + " @ " + terminal.serialBaud + "," + terminal.serialBits + "," + terminal.serialParity + "," + terminal.serialStopBits
+		serParms := terminal.serialPort + " @ " + serialSession.getParms()
 		hostLabel.SetText(serParms)
 	case telnetConnected:
 		onlineLabel.SetText("Online (Telnet)")
