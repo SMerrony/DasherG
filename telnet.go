@@ -1,4 +1,4 @@
-// Copyright (C) 2017  Steve Merrony
+// Copyright (C) 2017,2019  Steve Merrony
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -64,24 +64,26 @@ const (
 	dialTimeout = time.Second * 10
 )
 
-var (
+type telnetSessionT struct {
 	conn                 net.Conn
-	err                  error
-	stopTelnetWriterChan = make(chan bool)
-	lastHost             string
-	lastPort             int
-)
+	stopTelnetWriterChan chan bool
+}
 
-func openTelnetConn(hostName string, portNum int) bool {
+func newTelnetSession() *telnetSessionT {
+	sess := new(telnetSessionT)
+	sess.stopTelnetWriterChan = make(chan bool)
+	return sess
+}
+
+func (sess *telnetSessionT) openTelnetConn(hostName string, portNum int) bool {
+	var err error
 	hostString := hostName + ":" + strconv.Itoa(portNum)
-	conn, err = net.DialTimeout("tcp", hostString, dialTimeout)
+	sess.conn, err = net.DialTimeout("tcp", hostString, dialTimeout)
 	if err != nil {
 		return false
 	}
-	lastHost = hostName
-	lastPort = portNum
-	go telnetReader(conn, fromHostChan)
-	go telnetWriter(bufio.NewWriter(conn), keyboardChan)
+	go sess.telnetReader(fromHostChan)
+	go sess.telnetWriter(keyboardChan)
 	terminal.rwMutex.Lock()
 	terminal.connectionType = telnetConnected
 	terminal.remoteHost = hostName
@@ -90,10 +92,10 @@ func openTelnetConn(hostName string, portNum int) bool {
 	return true
 }
 
-func closeTelnetConn() {
-	conn.Close()
+func (sess *telnetSessionT) closeTelnetConn() {
+	sess.conn.Close()
 	select {
-	case stopTelnetWriterChan <- true:
+	case sess.stopTelnetWriterChan <- true:
 	default:
 	}
 	terminal.rwMutex.Lock()
@@ -101,10 +103,10 @@ func closeTelnetConn() {
 	terminal.rwMutex.Unlock()
 }
 
-func telnetReader(con net.Conn, hostChan chan<- []byte) {
+func (sess *telnetSessionT) telnetReader(hostChan chan<- []byte) {
 	for {
 		hostBytes := make([]byte, hostBuffSize)
-		n, err := con.Read(hostBytes)
+		n, err := sess.conn.Read(hostBytes)
 		if n == 0 {
 			//log.Fatalf("telnet got zero-byte message from host")
 			fmt.Println("telnetReader got zero length message, stopping")
@@ -119,14 +121,15 @@ func telnetReader(con net.Conn, hostChan chan<- []byte) {
 	}
 }
 
-func telnetWriter(writer *bufio.Writer, kbdChan <-chan byte) {
+func (sess *telnetSessionT) telnetWriter(kbdChan <-chan byte) {
+	writer := bufio.NewWriter(sess.conn)
 	for {
 		select {
 		case k := <-kbdChan:
 			writer.Write([]byte{k})
 			writer.Flush()
 			//fmt.Printf("Wrote <%d> to host\n", k)
-		case <-stopTelnetWriterChan:
+		case <-sess.stopTelnetWriterChan:
 			fmt.Println("telnetWriter stopping")
 			return
 		}

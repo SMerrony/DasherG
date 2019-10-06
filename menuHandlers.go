@@ -171,6 +171,7 @@ func fileLogging() {
 		res := fd.Run()
 		if res == gtk.RESPONSE_ACCEPT {
 			filename := fd.GetFilename()
+			var err error
 			terminal.logFile, err = os.Create(filename)
 			if err != nil {
 				log.Printf("WARNING: Could not open log file %s\n", filename)
@@ -388,7 +389,7 @@ func serialConnect() {
 }
 
 func telnetClose() {
-	closeTelnetConn()
+	telnetSession.closeTelnetConn()
 	glib.IdleAdd(func() {
 		networkDisconnectMenuItem.SetSensitive(false)
 		serialConnectMenuItem.SetSensitive(true)
@@ -405,14 +406,14 @@ func telnetOpen() {
 	hostLab := gtk.NewLabel("Host:")
 	ca.PackStart(hostLab, true, true, 5)
 	hostEntry := gtk.NewEntry()
-	hostEntry.SetText(lastHost)
+	hostEntry.SetText(lastTelnetHost)
 	ca.PackStart(hostEntry, true, true, 5)
 	portLab := gtk.NewLabel("Port:")
 	ca.PackStart(portLab, true, true, 5)
 	portEntry := gtk.NewEntry()
 	portEntry.SetActivatesDefault(true) // hitting ENTER will cause default (OK) response
-	if lastPort != 0 {
-		portEntry.SetText(strconv.Itoa(lastPort))
+	if lastTelnetPort != 0 {
+		portEntry.SetText(strconv.Itoa(lastTelnetPort))
 	}
 	ca.PackStart(portEntry, true, true, 5)
 
@@ -431,11 +432,13 @@ func telnetOpen() {
 			ed.Run()
 			ed.Destroy()
 		} else {
-			if openTelnetConn(host, port) {
+			if telnetSession.openTelnetConn(host, port) {
 				localListenerStopChan <- true
 				networkConnectMenuItem.SetSensitive(false)
 				serialConnectMenuItem.SetSensitive(false)
 				networkDisconnectMenuItem.SetSensitive(true)
+				lastTelnetHost = host
+				lastTelnetPort = port
 			} else {
 				ed := gtk.NewMessageDialog(win, gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_ERROR,
 					gtk.BUTTONS_CLOSE, "Could not connect to remote host")
