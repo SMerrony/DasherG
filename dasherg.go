@@ -85,7 +85,10 @@ var (
 	localListenerStopChan = make(chan bool)
 	updateCrtChan         = make(chan int, hostBuffSize)
 	expectChan            = make(chan byte, hostBuffSize)
+	telnetSession         = newTelnetSession()
 	serialSession         = newSerialSession()
+	lastTelnetHost        string
+	lastTelnetPort        int
 	traceExpect           bool
 
 	selectionRegion struct {
@@ -177,11 +180,13 @@ func main() {
 		if err != nil || hostPort < 0 {
 			log.Fatalf("port must be a positive integer on -host flag, you passed %s", hostParts[1])
 		}
-		if openTelnetConn(hostParts[0], hostPort) {
+		if telnetSession.openTelnetConn(hostParts[0], hostPort) {
 			localListenerStopChan <- true
 			networkConnectMenuItem.SetSensitive(false)
 			serialConnectMenuItem.SetSensitive(false)
 			networkDisconnectMenuItem.SetSensitive(true)
+			lastTelnetHost = hostParts[0]
+			lastTelnetPort = hostPort
 		}
 	}
 	go updateCrt(crt, terminal)

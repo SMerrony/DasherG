@@ -43,6 +43,7 @@ func newSerialSession() *serialSessionT {
 
 func (ser *serialSessionT) openSerialPort(port string, baud int, bits int, parityStr string, stopBits int) bool {
 	var parity int
+	var err error
 	switch parityStr {
 	case "None":
 		parity = sers.N
