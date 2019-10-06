@@ -92,7 +92,10 @@ func openTelnetConn(hostName string, portNum int) bool {
 
 func closeTelnetConn() {
 	conn.Close()
-	stopTelnetWriterChan <- true
+	select {
+	case stopTelnetWriterChan <- true:
+	default:
+	}
 	terminal.rwMutex.Lock()
 	terminal.connectionType = disconnected
 	terminal.rwMutex.Unlock()

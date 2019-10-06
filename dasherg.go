@@ -32,7 +32,8 @@ import (
 	"os/exec"
 	"runtime"
 
-	// _ "net/http/pprof"
+	// _ "net/http/pprof" // debugging
+
 	"os"
 	"runtime/pprof"
 	"runtime/trace"
@@ -125,6 +126,12 @@ func main() {
 		os.Exit(0)
 	}
 
+	// debugging...
+	// runtime.SetMutexProfileFraction(1)
+	// go func() {
+	// 	log.Println(http.ListenAndServe("localhost:6060", nil))
+	// }()
+
 	if *cpuprofile != "" {
 		f, err := os.Create(*cpuprofile)
 		if err != nil {
@@ -172,6 +179,9 @@ func main() {
 		}
 		if openTelnetConn(hostParts[0], hostPort) {
 			localListenerStopChan <- true
+			networkConnectMenuItem.SetSensitive(false)
+			serialConnectMenuItem.SetSensitive(false)
+			networkDisconnectMenuItem.SetSensitive(true)
 		}
 	}
 	go updateCrt(crt, terminal)
