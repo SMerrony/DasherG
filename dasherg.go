@@ -85,10 +85,11 @@ var (
 	localListenerStopChan = make(chan bool)
 	updateCrtChan         = make(chan int, hostBuffSize)
 	expectChan            = make(chan byte, hostBuffSize)
-	telnetSession         = newTelnetSession()
+	telnetSession         *telnetSessionT
 	serialSession         = newSerialSession()
 	lastTelnetHost        string
 	lastTelnetPort        int
+	telnetClosing         bool
 	traceExpect           bool
 
 	selectionRegion struct {
@@ -180,6 +181,7 @@ func main() {
 		if err != nil || hostPort < 0 {
 			log.Fatalf("port must be a positive integer on -host flag, you passed %s", hostParts[1])
 		}
+		telnetSession = newTelnetSession()
 		if telnetSession.openTelnetConn(hostParts[0], hostPort) {
 			localListenerStopChan <- true
 			networkConnectMenuItem.SetSensitive(false)
@@ -237,6 +239,7 @@ func setupWindow(win *gtk.Window) {
 }
 
 func localListener(kbdChan <-chan byte, frmHostChan chan<- []byte) {
+	fmt.Println("INFO: localListener starting")
 	for {
 		key := make([]byte, 2)
 		select {
