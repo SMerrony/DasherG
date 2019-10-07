@@ -389,6 +389,11 @@ func serialConnect() {
 }
 
 func telnetClose() {
+	if telnetClosing {
+		return
+	} else {
+		telnetClosing = true
+	}
 	telnetSession.closeTelnetConn()
 	glib.IdleAdd(func() {
 		networkDisconnectMenuItem.SetSensitive(false)
@@ -396,6 +401,7 @@ func telnetClose() {
 		networkConnectMenuItem.SetSensitive(true)
 	})
 	go localListener(keyboardChan, fromHostChan)
+	telnetClosing = false
 }
 
 func telnetOpen() {
@@ -432,6 +438,7 @@ func telnetOpen() {
 			ed.Run()
 			ed.Destroy()
 		} else {
+			telnetSession = newTelnetSession()
 			if telnetSession.openTelnetConn(host, port) {
 				localListenerStopChan <- true
 				networkConnectMenuItem.SetSensitive(false)

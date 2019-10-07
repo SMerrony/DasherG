@@ -104,12 +104,13 @@ func (sess *telnetSessionT) closeTelnetConn() {
 }
 
 func (sess *telnetSessionT) telnetReader(hostChan chan<- []byte) {
+	fmt.Println("INFO: telnetReader starting")
 	for {
 		hostBytes := make([]byte, hostBuffSize)
 		n, err := sess.conn.Read(hostBytes)
 		if n == 0 {
 			//log.Fatalf("telnet got zero-byte message from host")
-			fmt.Println("telnetReader got zero length message, stopping")
+			fmt.Println("INFO: telnetReader got zero length message, stopping")
 			telnetClose()
 			return
 		}
@@ -122,6 +123,7 @@ func (sess *telnetSessionT) telnetReader(hostChan chan<- []byte) {
 }
 
 func (sess *telnetSessionT) telnetWriter(kbdChan <-chan byte) {
+	fmt.Println("INFO: telnetWriter starting")
 	writer := bufio.NewWriter(sess.conn)
 	for {
 		select {
@@ -130,7 +132,7 @@ func (sess *telnetSessionT) telnetWriter(kbdChan <-chan byte) {
 			writer.Flush()
 			//fmt.Printf("Wrote <%d> to host\n", k)
 		case <-sess.stopTelnetWriterChan:
-			fmt.Println("telnetWriter stopping")
+			fmt.Println("INFO: telnetWriter stopping")
 			return
 		}
 	}
