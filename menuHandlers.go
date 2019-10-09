@@ -391,9 +391,8 @@ func serialConnect() {
 func telnetClose() {
 	if telnetClosing {
 		return
-	} else {
-		telnetClosing = true
 	}
+	telnetClosing = true
 	telnetSession.closeTelnetConn()
 	glib.IdleAdd(func() {
 		networkDisconnectMenuItem.SetSensitive(false)
