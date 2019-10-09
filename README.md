@@ -1,5 +1,5 @@
 # DasherG
-DasherG is a new free terminal emulator for Data General DASHER series character-based terminals.  It is written in [Go](https://golang.org/) using the [Go-Gtk](https://github.com/mattn/go-gtk) toolkit and should run on all common platforms supported by Go.
+DasherG is a free terminal emulator for Data General DASHER series character-based terminals.  It is written in [Go](https://golang.org/) using the [Go-Gtk](https://github.com/mattn/go-gtk) toolkit and should run on all common platforms supported by Go.
 
 ![screenshot](screenshots/DasherG_v0_9_8.png "Windows Screenshot")
 
@@ -44,11 +44,15 @@ or, if you prefer
 ## Running DasherG
 From the build or install directory simply type
 
-```./dasherg```
+```./DasherG```
 
 Optionally, you may add the ```-host=host:port``` argument to connect to a running host via telnet. Eg. 
 
-```./dasherg -host=localhost:23```
+```./DasherG -host=localhost:23```
+
+For a full list of all available DasherG options type
+
+```./DasherG -h```
 
 ### Function Keys
 You may have to use the keys simulated on the toolbar in DasherG as your OS might interfere with the physical function keys on your keyboard.  The Shift and Control keys can be used in conjunction with the simulated F-keys just like a real Dasher.
@@ -60,6 +64,11 @@ The "Brk" button sends a Command-Break signal to the host when connected via the
 ### Bell Sound
 
 For the system bell to operate, DasherG must have been started from a terminal which supports the bell.
+
+### Copy and Paste
+To copy text from the terminal simply swipe over it with the left mouse button pressed.  The selected text will be temporarilly underlined and when you release the mouse button it will be automatically copied to the system clipboard.
+
+Pasting always occurs at the current cursor position and is triggered from the Edit | Paste menu.
 
 ### Emulation Details
 [See here](https://github.com/SMerrony/DasherG/blob/master/implementationChart.md)
