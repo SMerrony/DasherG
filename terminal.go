@@ -284,7 +284,7 @@ func (t *terminalT) selfTest(hostChan chan []byte) {
 	const (
 		testLineHRule1 = "123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012245"
 		testLineHRule2 = "         1         2         3         4         5         6         7         8         9         10        11        12        13    "
-		testLineChars  = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567489!\"$%^."
+		testLineChars  = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!\"$%^.&"
 		testLineN      = "3 Normal : "
 		testLineD      = "4 Dim    : "
 		testLineB      = "5 Blink  : "
