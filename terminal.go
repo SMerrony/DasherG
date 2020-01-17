@@ -566,6 +566,7 @@ func (t *terminalT) run() {
 				for col := t.cursorX; col < t.visibleCols; col++ {
 					//t.display[t.cursorY][col].clearToSpace()
 					t.display[t.cursorY][col] = t.emptyCell
+					t.displayDirty[t.cursorY][col] = true
 				}
 				skipChar = true
 			case dasherErasePage:
