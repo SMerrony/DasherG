@@ -1,6 +1,6 @@
 // dasherg.go
 
-// Copyright (C) 2017,2018,2019  Steve Merrony
+// Copyright (C) 2017-2020  Steve Merrony
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -53,8 +53,8 @@ const (
 	appID        = "uk.co.merrony.dasherg"
 	appTitle     = "DasherG"
 	appComment   = "A Data General DASHER terminal emulator"
-	appCopyright = "Copyright ©2017,2018,2019 S.Merrony"
-	appSemVer    = "v0.10.1" // TODO Update SemVer on each release!
+	appCopyright = "Copyright ©2017-2020 S.Merrony"
+	appSemVer    = "v0.10.2" // TODO Update SemVer on each release!
 	appWebsite   = "https://github.com/SMerrony/DasherG"
 	fontFile     = "D410-b-12.bdf"
 	helpURL      = "https://github.com/SMerrony/DasherG"
@@ -197,8 +197,9 @@ func main() {
 		return true
 	})
 
-	// testing... I don't know why doing this in terminal.setup above is being lost
-	terminal.emulation = d210
+	// possibly due to a bug in go-gtk, one of the menu-handlers appears to get fired on startup
+	// so we need to reset emulation type here
+	terminal.setEmulation(d210)
 
 	gtk.Main()
 }
@@ -313,24 +314,29 @@ func buildMenu() *gtk.MenuBar {
 	subMenu = gtk.NewMenu()
 	var emuGroup *glib.SList
 	emulationMenuItem.SetSubmenu(subMenu)
-	d200MenuItem := gtk.NewRadioMenuItemWithLabel(emuGroup, "D200") //gtk.NewCheckMenuItemWithLabel("D200")
-	d200MenuItem.Connect("activate", func() { terminal.emulation = d200 })
+
+	d200MenuItem := gtk.NewRadioMenuItemWithLabel(emuGroup, "D200")
 	emuGroup = d200MenuItem.GetGroup()
+	if terminal.emulation == d200 {
+		d200MenuItem.SetActive(true)
+	}
+	d200MenuItem.Connect("activate", func() { terminal.setEmulation(d200) })
 	subMenu.Append(d200MenuItem)
-	d210MenuItem := gtk.NewRadioMenuItemWithLabel(emuGroup, "D210") //gtk.NewCheckMenuItemWithLabel("D210")
+
+	d210MenuItem := gtk.NewRadioMenuItemWithLabel(emuGroup, "D210")
 	if terminal.emulation == d210 {
 		d210MenuItem.SetActive(true)
 	}
-	d210MenuItem.Connect("activate", func() { terminal.emulation = d210 })
-	emuGroup = d210MenuItem.GetGroup()
+	d210MenuItem.Connect("activate", func() { terminal.setEmulation(d210) })
 	subMenu.Append(d210MenuItem)
-	d211MenuItem := gtk.NewRadioMenuItemWithLabel(emuGroup, "D211") //gtk.NewCheckMenuItemWithLabel("D211")
+
+	d211MenuItem := gtk.NewRadioMenuItemWithLabel(emuGroup, "D211")
 	if terminal.emulation == d211 {
 		d211MenuItem.SetActive(true)
 	}
-	d211MenuItem.Connect("activate", func() { terminal.emulation = d211 })
-	emuGroup = d211MenuItem.GetGroup()
+	d211MenuItem.Connect("activate", func() { terminal.setEmulation(d211) })
 	subMenu.Append(d211MenuItem)
+
 	subMenu.Append(gtk.NewSeparatorMenuItem())
 	resizeMenuItem := gtk.NewMenuItemWithLabel("Resize")
 	resizeMenuItem.Connect("activate", emulationResize)

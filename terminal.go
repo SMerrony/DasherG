@@ -1,4 +1,4 @@
-// Copyright (C) 2017,2019  Steve Merrony
+// Copyright (C) 2017-2020  Steve Merrony
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -116,6 +116,13 @@ func (t *terminalT) setup(fromHostChan <-chan []byte, update chan int, expectCha
 	t.display[12][40].charValue = 'K'
 	t.rwMutex.Unlock()
 	t.updateCrtChan <- updateCrtNormal
+}
+
+func (t *terminalT) setEmulation(e emulType) {
+	// fmt.Printf("DEBUG: setEmuiation() called, old: %v, new: %v", t.emulation, e)
+	t.rwMutex.Lock()
+	t.emulation = e
+	t.rwMutex.Unlock()
 }
 
 func (t *terminalT) setRawMode(raw bool) {
