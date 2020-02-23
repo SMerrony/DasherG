@@ -43,14 +43,14 @@ const (
 
 	d200 emulType = 200
 	d210 emulType = 210
-	d211 emulType = 211
+	// d211 emulType = 211
 )
 
 // terminalT encapsulates most of the emulation bevahiour itself.
 // The display[][] matrix represents the currently-displayed state of the
 // terminal (which is actually displayed elsewhere)
 type terminalT struct {
-	rwMutex                                      sync.RWMutex
+	rwMutex                                      sync.RWMutex // deadlock.RWMutex //sync.RWMutex
 	fromHostChan                                 <-chan []byte
 	expectChan                                   chan<- byte
 	rawChan                                      chan byte
@@ -686,13 +686,13 @@ func (t *terminalT) sendModelID() {
 		keyboardChan <- 050  // D210                 (="(")
 		keyboardChan <- 0121 // 0b01010001 See p.3-9 of D210/D211 User Manual
 		keyboardChan <- 0132 // firmware code
-	case d211:
-		keyboardChan <- 036  // Header 1
-		keyboardChan <- 0157 // Header 2             (="o")
-		keyboardChan <- 043  // model report follows (="#")
-		keyboardChan <- 050  // D210                 (="(")
-		keyboardChan <- 0131 // 0b01010001 See p.3-9 of D210/D211 User Manual
-		keyboardChan <- 0172 // firmware code
+		// case d211:
+		// 	keyboardChan <- 036  // Header 1
+		// 	keyboardChan <- 0157 // Header 2             (="o")
+		// 	keyboardChan <- 043  // model report follows (="#")
+		// 	keyboardChan <- 050  // D210                 (="(")
+		// 	keyboardChan <- 0131 // 0b01010001 See p.3-9 of D210/D211 User Manual
+		// 	keyboardChan <- 0172 // firmware code
 
 		//    case 410:  // This is from p.3-17 of the D410 User Manual
 		//        keyboardChan <- 036  // Header 1
