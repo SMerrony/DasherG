@@ -197,10 +197,6 @@ func main() {
 		return true
 	})
 
-	// possibly due to a bug in go-gtk, one of the menu-handlers appears to get fired on startup
-	// so we need to reset emulation type here
-	terminal.setEmulation(d210)
-
 	gtk.Main()
 }
 
@@ -320,22 +316,17 @@ func buildMenu() *gtk.MenuBar {
 	if terminal.emulation == d200 {
 		d200MenuItem.SetActive(true)
 	}
-	d200MenuItem.Connect("activate", func() { terminal.setEmulation(d200) })
 	subMenu.Append(d200MenuItem)
 
 	d210MenuItem := gtk.NewRadioMenuItemWithLabel(emuGroup, "D210")
 	if terminal.emulation == d210 {
 		d210MenuItem.SetActive(true)
 	}
-	d210MenuItem.Connect("activate", func() { terminal.setEmulation(d210) })
 	subMenu.Append(d210MenuItem)
 
-	d211MenuItem := gtk.NewRadioMenuItemWithLabel(emuGroup, "D211")
-	if terminal.emulation == d211 {
-		d211MenuItem.SetActive(true)
-	}
-	d211MenuItem.Connect("activate", func() { terminal.setEmulation(d211) })
-	subMenu.Append(d211MenuItem)
+	// for some reason, the 1st of these gets triggered at startup...
+	d210MenuItem.Connect("activate", func() { terminal.setEmulation(d210) })
+	d200MenuItem.Connect("activate", func() { terminal.setEmulation(d200) })
 
 	subMenu.Append(gtk.NewSeparatorMenuItem())
 	resizeMenuItem := gtk.NewMenuItemWithLabel("Resize")
