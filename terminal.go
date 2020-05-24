@@ -1,4 +1,4 @@
-// Copyright (C) 2017-2020  Steve Merrony
+// Copyright © 2017-2020  Steve Merrony
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -611,6 +611,16 @@ func (t *terminalT) run() {
 				skipChar = true
 			case dasherNormal:
 				t.underscored = false
+				skipChar = true
+			case dasherTab:
+				t.cursorX++
+				for (t.cursorX+1)%8 != 0 {
+					if t.cursorX >= t.visibleCols-1 {
+						t.cursorX = 0
+					} else {
+						t.cursorX++
+					}
+				}
 				skipChar = true
 			case dasherWriteWindowAddr:
 				t.readingWindowAddressX = true
