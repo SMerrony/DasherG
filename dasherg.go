@@ -31,6 +31,14 @@ import (
 	"log"
 	"os/exec"
 	"runtime"
+	"time"
+
+	"fyne.io/fyne/layout"
+	"fyne.io/fyne/widget"
+
+	"fyne.io/fyne/canvas"
+
+	"fyne.io/fyne"
 
 	// _ "net/http/pprof" // debugging
 
@@ -40,6 +48,8 @@ import (
 	"strconv"
 	"strings"
 	"unsafe"
+
+	"fyne.io/fyne/app"
 
 	"github.com/mattn/go-gtk/gdk"
 	"github.com/mattn/go-gtk/gdkpixbuf"
@@ -106,11 +116,15 @@ var (
 	gdkWin          *gdk.Window
 	iconPixbuf      *gdkpixbuf.Pixbuf
 
+	w      fyne.Window
+	crtImg *canvas.Image
+
 	// widgets needing global access
-	serialConnectMenuItem, serialDisconnectMenuItem      *gtk.MenuItem
-	networkConnectMenuItem, networkDisconnectMenuItem    *gtk.MenuItem
-	onlineLabel, hostLabel, loggingLabel, emuStatusLabel *gtk.Label
-	expectDialog                                         *gtk.FileChooserDialog
+	serialConnectMenuItem, serialDisconnectMenuItem          *gtk.MenuItem
+	networkConnectMenuItem, networkDisconnectMenuItem        *gtk.MenuItem
+	onlineLabel, hostLabel, loggingLabel, emuStatusLabel     *gtk.Label
+	onlineLabel2, hostLabel2, loggingLabel2, emuStatusLabel2 *widget.Label
+	expectDialog                                             *gtk.FileChooserDialog
 )
 
 var (
@@ -158,6 +172,7 @@ func main() {
 		traceExpect = true
 	}
 
+	a := app.New()
 	gtk.Init(nil)
 
 	// get the application and dialog icon
@@ -167,8 +182,11 @@ func main() {
 	go localListener(keyboardChan, fromHostChan)
 	terminal = new(terminalT)
 	terminal.setup(fromHostChan, updateCrtChan, expectChan)
+	w = a.NewWindow(appTitle)
 	win = gtk.NewWindow(gtk.WINDOW_TOPLEVEL)
 	setupWindow(win)
+	setupWindow2(w)
+
 	win.ShowAll()
 	gdkWin = crt.GetWindow()
 
@@ -197,6 +215,7 @@ func main() {
 		return true
 	})
 
+	w.ShowAndRun()
 	gtk.Main()
 }
 
@@ -233,6 +252,17 @@ func setupWindow(win *gtk.Window) {
 	vbox.PackEnd(statusBox, false, false, 0)
 	win.Add(vbox)
 	win.SetIcon(iconPixbuf)
+}
+
+func setupWindow2(w fyne.Window) {
+	w.SetIcon(resourceDGlogoOrangePng)
+	w.SetMainMenu(buildMenu2())
+	// TODO set up keyboard stuff
+	crtImg = buildCrt2()
+	statusBox := buildStatusBox2()
+	content := fyne.NewContainerWithLayout(layout.NewVBoxLayout(),
+		crtImg, statusBox)
+	w.SetContent(content)
 }
 
 func localListener(kbdChan <-chan byte, frmHostChan chan<- []byte) {
@@ -379,6 +409,63 @@ func buildMenu() *gtk.MenuBar {
 	return menuBar
 }
 
+func buildMenu2() (mainMenu *fyne.MainMenu) {
+
+	// file
+	loggingItem := fyne.NewMenuItem("Logging", nil)
+	expectItem := fyne.NewMenuItem("Run mini-Expect Sctipt", nil)
+	sendFileItem := fyne.NewMenuItem("Send (Text) File", nil)
+	xmodemRcvItem := fyne.NewMenuItem("XMODEM-CRC - Receive File", nil)
+	xmodemSendItem := fyne.NewMenuItem("XMODEM-CRC - Send File", nil)
+	xmodemSend1kItem := fyne.NewMenuItem("XMODEM-CRC - Send File (1kB packets)", nil)
+	fileMenu := fyne.NewMenu("File",
+		loggingItem, fyne.NewMenuItemSeparator(),
+		expectItem, fyne.NewMenuItemSeparator(),
+		sendFileItem, fyne.NewMenuItemSeparator(),
+		xmodemRcvItem, xmodemSendItem, xmodemSend1kItem)
+
+	// edit
+	pasteItem := fyne.NewMenuItem("Paste", nil)
+	editMenu := fyne.NewMenu("Edit", pasteItem)
+
+	// emulation
+	d200Item := fyne.NewMenuItem("D200", nil)
+	d210Item := fyne.NewMenuItem("D210", nil)
+	resizeItem := fyne.NewMenuItem("Resize", nil)
+	selfTestItem := fyne.NewMenuItem("Self-Test", nil)
+	loadTemplateItem := fyne.NewMenuItem("Load Func. Key Template", nil)
+	emulationMenu := fyne.NewMenu("Emulation",
+		d200Item, d210Item, fyne.NewMenuItemSeparator(),
+		resizeItem, fyne.NewMenuItemSeparator(),
+		selfTestItem, loadTemplateItem,
+	)
+
+	// serial
+	serialConnectItem := fyne.NewMenuItem("Connect", nil)
+	serialDisconnectItem := fyne.NewMenuItem("Disconnect", nil)
+	serialMenu := fyne.NewMenu("Serial", serialConnectItem, serialDisconnectItem)
+
+	// network
+	networkConnectItem := fyne.NewMenuItem("Connect", nil)
+	networkDisconnectItem := fyne.NewMenuItem("Disconnect", nil)
+	networkMenu := fyne.NewMenu("Network", networkConnectItem, networkDisconnectItem)
+
+	// help
+	onlineHelpItem := fyne.NewMenuItem("Online Help", nil)
+	aboutItem := fyne.NewMenuItem("About", helpAbout2)
+	helpMenu := fyne.NewMenu("Help", onlineHelpItem, fyne.NewMenuItemSeparator(), aboutItem)
+
+	mainMenu = fyne.NewMainMenu(
+		fileMenu,
+		editMenu,
+		emulationMenu,
+		serialMenu,
+		networkMenu,
+		helpMenu,
+	)
+	return mainMenu
+}
+
 func openBrowser(url string) {
 	var err error
 
@@ -454,6 +541,13 @@ func buildCrt() *gtk.DrawingArea {
 	crt.AddEvents(int(gdk.POINTER_MOTION_MASK))
 
 	return crt
+}
+
+func buildCrt2() (crtImage *canvas.Image) {
+	backingImage := image.NewNRGBA(image.Rect(0, 0, terminal.visibleCols*charWidth, terminal.visibleLines*charHeight))
+	crtImage = canvas.NewImageFromImage(backingImage)
+	crtImage.SetMinSize(fyne.Size{terminal.visibleCols * charWidth, terminal.visibleLines * charHeight})
+	return crtImage
 }
 
 func buildScrollbar() (sb *gtk.VScrollbar) {
@@ -626,6 +720,31 @@ func buildStatusBox() *gtk.HBox {
 	return statusBox
 }
 
+func buildStatusBox2() (statBox fyne.CanvasObject) {
+
+	onlineLabel2 = widget.NewLabel("")
+	hostLabel2 = widget.NewLabel("")
+	loggingLabel2 = widget.NewLabel("")
+	emuStatusLabel2 = widget.NewLabel("")
+
+	statBox = fyne.NewContainerWithLayout(layout.NewHBoxLayout(),
+		onlineLabel2,
+		layout.NewSpacer(),
+		hostLabel2,
+		layout.NewSpacer(),
+		loggingLabel2,
+		layout.NewSpacer(),
+		emuStatusLabel2,
+	)
+
+	go func() {
+		updateStatusBox2()
+		time.Sleep(statusUpdatePeriodMs * time.Millisecond)
+	}()
+
+	return statBox
+}
+
 // updateStatusBox to be run regularly - N.B. on the main thread!
 func updateStatusBox() {
 	terminal.rwMutex.RLock()
@@ -653,6 +772,34 @@ func updateStatusBox() {
 	}
 	terminal.rwMutex.RUnlock()
 	emuStatusLabel.SetText(emuStat)
+}
+
+func updateStatusBox2() {
+	terminal.rwMutex.RLock()
+	switch terminal.connectionType {
+	case disconnected:
+		onlineLabel2.SetText("Local (Offline)")
+		hostLabel2.SetText("")
+	case serialConnected:
+		onlineLabel2.SetText("Online (Serial)")
+		serParms := terminal.serialPort + " @ " + serialSession.getParms()
+		hostLabel2.SetText(serParms)
+	case telnetConnected:
+		onlineLabel2.SetText("Online (Telnet)")
+		hostLabel2.SetText(terminal.remoteHost + ":" + terminal.remotePort)
+	}
+	if terminal.logging {
+		loggingLabel2.SetText("Logging")
+	} else {
+		loggingLabel2.SetText("")
+	}
+	emuStat := "D" + strconv.Itoa(int(terminal.emulation)) + " (" +
+		strconv.Itoa(terminal.visibleLines) + "x" + strconv.Itoa(terminal.visibleCols) + ")"
+	if terminal.holding {
+		emuStat += " (Hold)"
+	}
+	terminal.rwMutex.RUnlock()
+	emuStatusLabel2.SetText(emuStat)
 }
 
 func localPrint() {

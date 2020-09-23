@@ -1,6 +1,6 @@
 // menuHandlers.go - part of DasherG
 
-// Copyright (C) 2019  Steve Merrony
+// Copyright ©2019,2020  Steve Merrony
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -22,10 +22,13 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 	"strconv"
+
+	"fyne.io/fyne/dialog"
 
 	"github.com/mattn/go-gtk/gdk"
 	"github.com/mattn/go-gtk/glib"
@@ -305,6 +308,11 @@ func helpAbout() {
 	ad.SetWebsite(appWebsite)
 	ad.Run()
 	ad.Destroy()
+}
+
+func helpAbout2() {
+	info := fmt.Sprintf("%s - %s\n\n%s", appTitle, appSemVer, appCopyright)
+	dialog.ShowInformation("About", info, w)
 }
 
 func serialClose() {

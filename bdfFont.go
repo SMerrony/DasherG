@@ -1,4 +1,4 @@
-// Copyright (C) 2017,2019 Steve Merrony
+// Copyright ©2017,2019,2020 Steve Merrony
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -23,6 +23,8 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"image"
+	"image/color"
 	"log"
 	"strconv"
 	"strings"
@@ -42,6 +44,7 @@ const (
 type bdfChar struct {
 	loaded                           bool
 	pixbuf, dimPixbuf, reversePixbuf *gdkpixbuf.Pixbuf
+	plainImg, dimImg, revImg         *image.NRGBA
 	pixels                           [fontWidth][fontHeight]bool
 }
 
@@ -88,6 +91,9 @@ func bdfLoad(filename string, zoom int) {
 		tmpPixbuf := gdkpixbuf.NewPixbuf(gdkpixbuf.GDK_COLORSPACE_RGB, false, bpp, fontWidth, fontHeight)
 		tmpDimPixbuf := gdkpixbuf.NewPixbuf(gdkpixbuf.GDK_COLORSPACE_RGB, false, bpp, fontWidth, fontHeight)
 		tmpRevPixbuf := gdkpixbuf.NewPixbuf(gdkpixbuf.GDK_COLORSPACE_RGB, false, bpp, fontWidth, fontHeight)
+		tmpPlainImg := image.NewNRGBA(image.Rect(0, 0, fontWidth, fontHeight))
+		tmpDimImg := image.NewNRGBA(image.Rect(0, 0, fontWidth, fontHeight))
+		tmpRevImg := image.NewNRGBA(image.Rect(0, 0, fontWidth, fontHeight))
 
 		for !strings.HasPrefix(scanner.Text(), "STARTCHAR") {
 			scanner.Scan()
@@ -127,9 +133,16 @@ func bdfLoad(filename string, zoom int) {
 				if pix {
 					nChannels := tmpPixbuf.GetNChannels()
 					rowStride := tmpPixbuf.GetRowstride()
+
 					tmpPixbuf.GetPixels()[((yOffset+bitMapLine)*rowStride)+((xOffset+i)*nChannels)+1] = 255
+					tmpPlainImg.Set(xOffset+i, yOffset+bitMapLine, color.White)
+
 					tmpDimPixbuf.GetPixels()[((yOffset+bitMapLine)*rowStride)+((xOffset+i)*nChannels)+1] = 128
+					tmpDimImg.Set(xOffset+i, yOffset+bitMapLine, color.Gray16{0x8000})
+
 					tmpRevPixbuf.GetPixels()[((yOffset+bitMapLine)*rowStride)+((xOffset+i)*nChannels)+1] = 0
+					tmpRevImg.Set(xOffset+i, yOffset+bitMapLine, color.Black)
+
 					bdfFont[asciiCode].pixels[xOffset+i][yOffset+bitMapLine] = true
 				}
 				lineByte <<= 1
@@ -138,6 +151,9 @@ func bdfLoad(filename string, zoom int) {
 		bdfFont[asciiCode].pixbuf = tmpPixbuf.Flip(true).RotateSimple(180).ScaleSimple(charWidth, charHeight, 1)
 		bdfFont[asciiCode].dimPixbuf = tmpDimPixbuf.Flip(true).RotateSimple(180).ScaleSimple(charWidth, charHeight, 1)
 		bdfFont[asciiCode].reversePixbuf = tmpRevPixbuf.Flip(true).RotateSimple(180).ScaleSimple(charWidth, charHeight, 1)
+		bdfFont[asciiCode].plainImg = tmpPlainImg
+		bdfFont[asciiCode].dimImg = tmpDimImg
+		bdfFont[asciiCode].revImg = tmpRevImg
 		bdfFont[asciiCode].loaded = true
 	}
 	fmt.Printf("INFO: bdfFont loaded %d DASHER characters\n", charCount)
