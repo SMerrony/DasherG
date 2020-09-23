@@ -33,6 +33,7 @@ import (
 	"runtime"
 	"time"
 
+	"fyne.io/fyne/driver/desktop"
 	"fyne.io/fyne/layout"
 	"fyne.io/fyne/widget"
 
@@ -257,7 +258,17 @@ func setupWindow(win *gtk.Window) {
 func setupWindow2(w fyne.Window) {
 	w.SetIcon(resourceDGlogoOrangePng)
 	w.SetMainMenu(buildMenu2())
-	// TODO set up keyboard stuff
+
+	go keyEventHandler2(keyboardChan)
+	if deskCanvas, ok := w.Canvas().(desktop.Canvas); ok {
+		deskCanvas.SetOnKeyDown(func(ev *fyne.KeyEvent) {
+			keyDownEventChan <- ev
+		})
+		deskCanvas.SetOnKeyUp(func(ev *fyne.KeyEvent) {
+			keyUpEventChan <- ev
+		})
+	}
+
 	crtImg = buildCrt2()
 	statusBox := buildStatusBox2()
 	content := fyne.NewContainerWithLayout(layout.NewVBoxLayout(),
