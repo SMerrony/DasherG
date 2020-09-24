@@ -33,13 +33,12 @@ import (
 	"runtime"
 	"time"
 
+	"fyne.io/fyne"
+	"fyne.io/fyne/app"
+	"fyne.io/fyne/canvas"
 	"fyne.io/fyne/driver/desktop"
 	"fyne.io/fyne/layout"
 	"fyne.io/fyne/widget"
-
-	"fyne.io/fyne/canvas"
-
-	"fyne.io/fyne"
 
 	// _ "net/http/pprof" // debugging
 
@@ -49,8 +48,6 @@ import (
 	"strconv"
 	"strings"
 	"unsafe"
-
-	"fyne.io/fyne/app"
 
 	"github.com/mattn/go-gtk/gdk"
 	"github.com/mattn/go-gtk/gdkpixbuf"
@@ -117,8 +114,9 @@ var (
 	gdkWin          *gdk.Window
 	iconPixbuf      *gdkpixbuf.Pixbuf
 
-	w      fyne.Window
-	crtImg *canvas.Image
+	w          fyne.Window
+	crtImg     *canvas.Image
+	backingImg *image.NRGBA
 
 	// widgets needing global access
 	serialConnectMenuItem, serialDisconnectMenuItem          *gtk.MenuItem
@@ -210,14 +208,20 @@ func main() {
 			lastTelnetPort = hostPort
 		}
 	}
-	go updateCrt(crt, terminal)
-	glib.TimeoutAdd(crtRefreshMs, func() bool {
-		drawCrt()
-		return true
-	})
+	// go updateCrt(crt, terminal) // Gtk
+	go updateTerminal(terminal) // Fyne
+	// glib.TimeoutAdd(crtRefreshMs, func() bool {
+	// 	drawCrt()
+	// 	return true
+	// })
+
+	go func() {
+		drawCrt2()
+		time.Sleep(crtRefreshMs * time.Millisecond)
+	}()
 
 	w.ShowAndRun()
-	gtk.Main()
+	//gtk.Main()
 }
 
 func setupWindow(win *gtk.Window) {
@@ -269,7 +273,9 @@ func setupWindow2(w fyne.Window) {
 		})
 	}
 
-	crtImg = buildCrt2()
+	crtImg, backingImg = buildCrt2()
+	go terminal.run()
+
 	statusBox := buildStatusBox2()
 	content := fyne.NewContainerWithLayout(layout.NewVBoxLayout(),
 		crtImg, statusBox)
@@ -443,7 +449,7 @@ func buildMenu2() (mainMenu *fyne.MainMenu) {
 	d200Item := fyne.NewMenuItem("D200", nil)
 	d210Item := fyne.NewMenuItem("D210", nil)
 	resizeItem := fyne.NewMenuItem("Resize", nil)
-	selfTestItem := fyne.NewMenuItem("Self-Test", nil)
+	selfTestItem := fyne.NewMenuItem("Self-Test", func() { terminal.selfTest(fromHostChan) })
 	loadTemplateItem := fyne.NewMenuItem("Load Func. Key Template", nil)
 	emulationMenu := fyne.NewMenu("Emulation",
 		d200Item, d210Item, fyne.NewMenuItemSeparator(),
@@ -554,13 +560,6 @@ func buildCrt() *gtk.DrawingArea {
 	return crt
 }
 
-func buildCrt2() (crtImage *canvas.Image) {
-	backingImage := image.NewNRGBA(image.Rect(0, 0, terminal.visibleCols*charWidth, terminal.visibleLines*charHeight))
-	crtImage = canvas.NewImageFromImage(backingImage)
-	crtImage.SetMinSize(fyne.Size{terminal.visibleCols * charWidth, terminal.visibleLines * charHeight})
-	return crtImage
-}
-
 func buildScrollbar() (sb *gtk.VScrollbar) {
 	adj := gtk.NewAdjustment(historyLines, 0.0, historyLines, 1.0, 1.0, 1.0)
 	sb = gtk.NewVScrollbar(adj)
@@ -620,6 +619,20 @@ func handleMotionNotifyEvent(ctx *glib.CallbackContext) {
 // updateCrt is to be run as a Goroutine, it listens for update notifications and marks
 // the terminal as needing a redraw
 func updateCrt(crt *gtk.DrawingArea, t *terminalT) {
+	for {
+		updateType := <-updateCrtChan
+		t.rwMutex.Lock()
+		if updateType == updateCrtBlink {
+			t.blinkState = !t.blinkState
+		}
+		t.terminalUpdated = true
+		t.rwMutex.Unlock()
+	}
+}
+
+// updateTerminal is to be run as a Goroutine, it listens for update notifications and marks
+// the terminal as needing a redraw
+func updateTerminal(t *terminalT) {
 	for {
 		updateType := <-updateCrtChan
 		t.rwMutex.Lock()
