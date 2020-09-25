@@ -137,7 +137,7 @@ func emulationResize() {
 		case "Tiny":
 			zoom = zoomTiny
 		}
-		bdfLoad(fontFile, zoom)
+		bdfLoad(fontFile, zoom, green, dimGreen)
 
 		crt.SetSizeRequest(terminal.visibleCols*charWidth, terminal.visibleLines*charHeight)
 		terminal.rwMutex.Unlock()

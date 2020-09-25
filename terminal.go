@@ -342,6 +342,7 @@ func (t *terminalT) run() {
 		ch           byte
 	)
 	for hostData := range t.fromHostChan {
+		fmt.Printf("DEBUG: Terminal got %v from Host channel\n", hostData)
 		// pause if we are HOLDing
 		t.rwMutex.RLock()
 		for t.holding {
@@ -665,6 +666,7 @@ func (t *terminalT) run() {
 
 			// finally, put the char in the displayable char matrix
 			if ch > 0 && int(ch) < len(bdfFont) && bdfFont[ch].loaded {
+				fmt.Printf("DEBUG: Terminal inserting %c\n", ch)
 				t.display[t.cursorY][t.cursorX].set(ch, t.blinking, t.dimmed, t.reversedVideo, t.underscored, t.protectd)
 			} else {
 				t.display[t.cursorY][t.cursorX].set(127, t.blinking, t.dimmed, t.reversedVideo, t.underscored, t.protectd)
