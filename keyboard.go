@@ -141,8 +141,10 @@ func keyEventHandler2(kbdChan chan<- byte) {
 			switch keyPressEvent.Name {
 			case "LeftControl", "RightControl":
 				ctrlPressed = true
-			case "LeftShift", "RightShift", "CapsLock":
+			case "LeftShift", "RightShift":
 				shiftPressed = true
+			case "CapsLock":
+				shiftPressed = !shiftPressed
 			}
 
 		case keyReleaseEvent := <-keyUpEventChan:
@@ -150,7 +152,7 @@ func keyEventHandler2(kbdChan chan<- byte) {
 			switch keyReleaseEvent.Name {
 			case "LeftControl", "RightControl":
 				ctrlPressed = false
-			case "LeftShift", "RightShift", "CapsLock":
+			case "LeftShift", "RightShift":
 				shiftPressed = false
 
 			case "Escape":
@@ -222,6 +224,16 @@ func keyEventHandler2(kbdChan chan<- byte) {
 
 			default:
 				keyByte := byte(keyReleaseEvent.Name[0])
+				if keyByte >= 'A' && keyByte <= 'Z' {
+					if !shiftPressed {
+						keyByte += 32
+					}
+				}
+				if keyByte >= '0' && keyByte <= '9' {
+					if shiftPressed {
+						keyByte -= 16
+					}
+				}
 				if ctrlPressed {
 					keyByte &= 31 //mask off lower 5 bits
 					//fmt.Printf("Keystroke modified to <%d>\n", keyByte)

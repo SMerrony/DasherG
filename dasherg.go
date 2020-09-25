@@ -115,8 +115,10 @@ var (
 	iconPixbuf      *gdkpixbuf.Pixbuf
 
 	w          fyne.Window
-	crtImg     *canvas.Image
+	crtImg     *canvas.Raster
 	backingImg *image.NRGBA
+	green      = color.RGBA{0x00, 0xff, 0x00, 0xff}
+	dimGreen   = color.RGBA{0x00, 0x80, 0x00, 0xff}
 
 	// widgets needing global access
 	serialConnectMenuItem, serialDisconnectMenuItem          *gtk.MenuItem
@@ -177,17 +179,17 @@ func main() {
 	// get the application and dialog icon
 	iconPixbuf = gdkpixbuf.NewPixbufFromData(iconPNG)
 
-	bdfLoad(fontFile, zoomNormal)
+	bdfLoad(fontFile, zoomNormal, green, dimGreen)
 	go localListener(keyboardChan, fromHostChan)
 	terminal = new(terminalT)
 	terminal.setup(fromHostChan, updateCrtChan, expectChan)
 	w = a.NewWindow(appTitle)
-	win = gtk.NewWindow(gtk.WINDOW_TOPLEVEL)
-	setupWindow(win)
+	// win = gtk.NewWindow(gtk.WINDOW_TOPLEVEL)
+	// setupWindow(win)
 	setupWindow2(w)
 
-	win.ShowAll()
-	gdkWin = crt.GetWindow()
+	// win.ShowAll()
+	// gdkWin = crt.GetWindow()
 
 	if *hostFlag != "" {
 		hostParts := strings.Split(*hostFlag, ":")
@@ -210,14 +212,17 @@ func main() {
 	}
 	// go updateCrt(crt, terminal) // Gtk
 	go updateTerminal(terminal) // Fyne
+
 	// glib.TimeoutAdd(crtRefreshMs, func() bool {
 	// 	drawCrt()
 	// 	return true
 	// })
 
 	go func() {
-		drawCrt2()
-		time.Sleep(crtRefreshMs * time.Millisecond)
+		for {
+			drawCrt2()
+			time.Sleep(crtRefreshMs * time.Millisecond)
+		}
 	}()
 
 	w.ShowAndRun()
@@ -243,11 +248,11 @@ func setupWindow(win *gtk.Window) {
 	vbox.PackStart(buildMenu(), false, false, 0)
 	vbox.PackStart(buildFkeyMatrix(), false, false, 0)
 	crt = buildCrt()
-	go terminal.run()
-	glib.TimeoutAdd(blinkPeriodMs, func() bool {
-		updateCrtChan <- updateCrtBlink
-		return true
-	})
+	// go terminal.run()
+	// glib.TimeoutAdd(blinkPeriodMs, func() bool {
+	// 	updateCrtChan <- updateCrtBlink
+	// 	return true
+	// })
 	scroller = buildScrollbar()
 	hbox := gtk.NewHBox(false, 1)
 	hbox.PackStart(crt, false, false, 1)
@@ -276,6 +281,13 @@ func setupWindow2(w fyne.Window) {
 	crtImg, backingImg = buildCrt2()
 	go terminal.run()
 
+	go func() {
+		for {
+			updateCrtChan <- updateCrtBlink
+			time.Sleep(blinkPeriodMs * time.Millisecond)
+		}
+	}()
+
 	statusBox := buildStatusBox2()
 	content := fyne.NewContainerWithLayout(layout.NewVBoxLayout(),
 		crtImg, statusBox)
@@ -289,6 +301,7 @@ func localListener(kbdChan <-chan byte, frmHostChan chan<- []byte) {
 		select {
 		case kev := <-kbdChan:
 			key[0] = kev
+			fmt.Printf("DEBUG: localListener sending <%c>\n", kev)
 			frmHostChan <- key
 		case <-localListenerStopChan:
 			fmt.Println("INFO: localListener stopped")
@@ -644,75 +657,6 @@ func updateTerminal(t *terminalT) {
 	}
 }
 
-func drawCrt() {
-	terminal.rwMutex.Lock()
-	if terminal.terminalUpdated {
-		var cIx int
-		drawable := offScreenPixmap.GetDrawable()
-		for line := 0; line < terminal.visibleLines; line++ {
-			for col := 0; col < terminal.visibleCols; col++ {
-				if terminal.displayDirty[line][col] || (terminal.blinkEnabled && terminal.display[line][col].blink) {
-					cIx = int(terminal.display[line][col].charValue)
-					if cIx > 31 && cIx < 128 {
-						switch {
-						case terminal.blinkEnabled && terminal.blinkState && terminal.display[line][col].blink:
-							drawable.DrawPixbuf(gc, bdfFont[32].pixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
-						case terminal.display[line][col].reverse:
-							drawable.DrawPixbuf(gc, bdfFont[cIx].reversePixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
-						case terminal.display[line][col].dim:
-							drawable.DrawPixbuf(gc, bdfFont[cIx].dimPixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
-						default:
-							drawable.DrawPixbuf(gc, bdfFont[cIx].pixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
-						}
-					}
-					// underscore?
-					if terminal.display[line][col].underscore {
-						drawable.DrawLine(gc, col*charWidth, ((line+1)*charHeight)-1, (col+1)*charWidth-1, ((line+1)*charHeight)-1)
-					}
-					terminal.displayDirty[line][col] = false
-				}
-			} // end for col
-		} // end for line
-		// draw the cursor - if on-screen
-		if terminal.cursorX < terminal.visibleCols && terminal.cursorY < terminal.visibleLines {
-			cIx := int(terminal.display[terminal.cursorY][terminal.cursorX].charValue)
-			if cIx == 0 {
-				cIx = 32
-			}
-			if terminal.display[terminal.cursorY][terminal.cursorX].reverse {
-				drawable.DrawPixbuf(gc, bdfFont[cIx].pixbuf, 0, 0, terminal.cursorX*charWidth, terminal.cursorY*charHeight, charWidth, charHeight, 0, 0, 0)
-			} else {
-				//fmt.Printf("Drawing cursor at %d,%d\n", terminal.cursorX*charWidth, terminal.cursorY*charHeight)
-				drawable.DrawPixbuf(gc, bdfFont[cIx].reversePixbuf, 0, 0, terminal.cursorX*charWidth, terminal.cursorY*charHeight, charWidth, charHeight, 0, 0, 0)
-			}
-			terminal.displayDirty[terminal.cursorY][terminal.cursorX] = true // this ensures that the old cursor pos is redrawn on the next refresh
-		}
-		// shade any selected area
-		if selectionRegion.isActive {
-			startCharPosn := selectionRegion.startCol + selectionRegion.startRow*terminal.visibleCols
-			endCharPosn := selectionRegion.endCol + selectionRegion.endRow*terminal.visibleCols
-			if startCharPosn <= endCharPosn {
-				// normal (forward) selection
-				col := selectionRegion.startCol
-				for row := selectionRegion.startRow; row <= selectionRegion.endRow; row++ {
-					for col < terminal.visibleCols {
-						drawable.DrawLine(gc, col*charWidth, ((row+1)*charHeight)-1, (col+1)*charWidth-1, ((row+1)*charHeight)-1)
-						if row == selectionRegion.endRow && col == selectionRegion.endCol {
-							goto shadingDone
-						}
-						col++
-					}
-					col = 0
-				}
-			}
-		}
-	shadingDone:
-		terminal.terminalUpdated = false
-		gdkWin.Invalidate(nil, false)
-	}
-	terminal.rwMutex.Unlock()
-}
-
 func buildStatusBox() *gtk.HBox {
 	statusBox := gtk.NewHBox(true, 2)
 
@@ -762,8 +706,10 @@ func buildStatusBox2() (statBox fyne.CanvasObject) {
 	)
 
 	go func() {
-		updateStatusBox2()
-		time.Sleep(statusUpdatePeriodMs * time.Millisecond)
+		for {
+			updateStatusBox2()
+			time.Sleep(statusUpdatePeriodMs * time.Millisecond)
+		}
 	}()
 
 	return statBox

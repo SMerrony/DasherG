@@ -24,23 +24,24 @@ package main
 import (
 	"fmt"
 	"image"
-	"image/color"
 	"image/draw"
 
 	"fyne.io/fyne"
 	"fyne.io/fyne/canvas"
 )
 
-func buildCrt2() (crtImage *canvas.Image, backingImage *image.NRGBA) {
+func buildCrt2() (crtImage *canvas.Raster, backingImage *image.NRGBA) {
 	backingImage = image.NewNRGBA(image.Rect(0, 0, terminal.visibleCols*charWidth, terminal.visibleLines*charHeight))
-	crtImage = canvas.NewImageFromImage(backingImage)
+	crtImage = canvas.NewRasterFromImage(backingImage) // canvas.NewImageFromImage(backingImage)
 	crtImage.SetMinSize(fyne.Size{terminal.visibleCols * charWidth, terminal.visibleLines * charHeight})
+	//crtImage.FillMode = canvas.ImageFillOriginal
 	return crtImage, backingImage
 }
 
 func drawCrt2() {
 	terminal.rwMutex.Lock()
 	if terminal.terminalUpdated {
+		fmt.Println("DEBUG: drawCrt2 running update...")
 		var cIx int
 
 		for line := 0; line < terminal.visibleLines; line++ {
@@ -48,6 +49,7 @@ func drawCrt2() {
 				if terminal.displayDirty[line][col] || (terminal.blinkEnabled && terminal.display[line][col].blink) {
 					cIx = int(terminal.display[line][col].charValue)
 					if cIx > 31 && cIx < 128 {
+						// fmt.Printf("DEBUG: drawCrt found updatable char <%c>\n", terminal.display[line][col].charValue)
 						cellRect := image.Rect(col*charWidth, line*charHeight, col*charWidth+charWidth, line*charHeight+charHeight)
 						switch {
 						case terminal.blinkEnabled && terminal.blinkState && terminal.display[line][col].blink:
@@ -63,7 +65,7 @@ func drawCrt2() {
 					// underscore?
 					if terminal.display[line][col].underscore {
 						for x := 0; x < charWidth; x++ {
-							backingImg.Set(col*charWidth+x, (line+1)*charHeight, color.White) // FIXME - colour
+							backingImg.Set(col*charWidth+x, ((line+1)*charHeight)-1, green)
 						}
 					}
 					terminal.displayDirty[line][col] = false
@@ -106,8 +108,7 @@ func drawCrt2() {
 		}
 	shadingDone:
 		terminal.terminalUpdated = false
+		w.Canvas().Refresh(crtImg)
 	}
 	terminal.rwMutex.Unlock()
-	crtImg = canvas.NewImageFromImage(backingImg)
-	crtImg.Refresh()
 }
