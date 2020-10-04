@@ -62,7 +62,7 @@ const (
 	appTitle     = "DasherG"
 	appComment   = "A Data General DASHER terminal emulator"
 	appCopyright = "Copyright ©2017-2020 S.Merrony"
-	appSemVer    = "v0.10.3" // TODO Update SemVer on each release!
+	appSemVer    = "v0.11.0" // TODO Update SemVer on each release!
 	appWebsite   = "https://github.com/SMerrony/DasherG"
 	fontFile     = "D410-b-12.bdf"
 	helpURL      = "https://github.com/SMerrony/DasherG"
@@ -174,10 +174,9 @@ func main() {
 	}
 
 	a := app.New()
-	gtk.Init(nil)
 
 	// get the application and dialog icon
-	iconPixbuf = gdkpixbuf.NewPixbufFromData(iconPNG)
+	// iconPixbuf = gdkpixbuf.NewPixbufFromData(iconPNG)
 
 	bdfLoad(fontFile, zoomNormal, green, dimGreen)
 	go localListener(keyboardChan, fromHostChan)
@@ -210,66 +209,61 @@ func main() {
 			lastTelnetPort = hostPort
 		}
 	}
-	// go updateCrt(crt, terminal) // Gtk
-	go updateTerminal(terminal) // Fyne
 
-	// glib.TimeoutAdd(crtRefreshMs, func() bool {
-	// 	drawCrt()
-	// 	return true
-	// })
+	go updateTerminal(terminal)
 
 	go func() {
 		for {
-			drawCrt2()
+			drawCrt()
 			time.Sleep(crtRefreshMs * time.Millisecond)
 		}
 	}()
 
 	w.ShowAndRun()
-	//gtk.Main()
 }
 
 func setupWindow(win *gtk.Window) {
-	win.SetTitle(appTitle)
-	win.Connect("destroy", func() {
-		gtk.MainQuit()
-	})
-	//win.SetDefaultSize(800, 600)
-	go keyEventHandler(keyboardChan)
-	win.Connect("key-press-event", func(ctx *glib.CallbackContext) {
-		arg := ctx.Args(0)
-		keyPressEventChan <- *(**gdk.EventKey)(unsafe.Pointer(&arg))
-	})
-	win.Connect("key-release-event", func(ctx *glib.CallbackContext) {
-		arg := ctx.Args(0)
-		keyReleaseEventChan <- *(**gdk.EventKey)(unsafe.Pointer(&arg))
-	})
-	vbox := gtk.NewVBox(false, 1)
-	vbox.PackStart(buildMenu(), false, false, 0)
-	vbox.PackStart(buildFkeyMatrix(), false, false, 0)
-	crt = buildCrt()
-	// go terminal.run()
-	// glib.TimeoutAdd(blinkPeriodMs, func() bool {
-	// 	updateCrtChan <- updateCrtBlink
-	// 	return true
+	// win.SetTitle(appTitle)
+	// win.Connect("destroy", func() {
+	// 	gtk.MainQuit()
 	// })
-	scroller = buildScrollbar()
-	hbox := gtk.NewHBox(false, 1)
-	hbox.PackStart(crt, false, false, 1)
-	hbox.PackEnd(scroller, false, false, 1)
-	vbox.PackStart(hbox, false, false, 1)
-	statusBox := buildStatusBox()
-	vbox.PackEnd(statusBox, false, false, 0)
-	win.Add(vbox)
-	win.SetIcon(iconPixbuf)
+	// //win.SetDefaultSize(800, 600)
+	// go keyEventHandler(keyboardChan)
+	// win.Connect("key-press-event", func(ctx *glib.CallbackContext) {
+	// 	arg := ctx.Args(0)
+	// 	keyPressEventChan <- *(**gdk.EventKey)(unsafe.Pointer(&arg))
+	// })
+	// win.Connect("key-release-event", func(ctx *glib.CallbackContext) {
+	// 	arg := ctx.Args(0)
+	// 	keyReleaseEventChan <- *(**gdk.EventKey)(unsafe.Pointer(&arg))
+	// })
+	// vbox := gtk.NewVBox(false, 1)
+	// vbox.PackStart(buildMenu(), false, false, 0)
+	// vbox.PackStart(buildFkeyMatrix(), false, false, 0)
+	// crt = buildCrt()
+	// // go terminal.run()
+	// // glib.TimeoutAdd(blinkPeriodMs, func() bool {
+	// // 	updateCrtChan <- updateCrtBlink
+	// // 	return true
+	// // })
+	// scroller = buildScrollbar()
+	// hbox := gtk.NewHBox(false, 1)
+	// hbox.PackStart(crt, false, false, 1)
+	// hbox.PackEnd(scroller, false, false, 1)
+	// vbox.PackStart(hbox, false, false, 1)
+	// statusBox := buildStatusBox()
+	// vbox.PackEnd(statusBox, false, false, 0)
+	// win.Add(vbox)
+	// win.SetIcon(iconPixbuf)
 }
 
 func setupWindow2(w fyne.Window) {
 	w.SetIcon(resourceDGlogoOrangePng)
 	w.SetMainMenu(buildMenu2())
 
-	go keyEventHandler2(keyboardChan)
+	go keyEventHandler(keyboardChan)
 	if deskCanvas, ok := w.Canvas().(desktop.Canvas); ok {
+		
 		deskCanvas.SetOnKeyDown(func(ev *fyne.KeyEvent) {
 			keyDownEventChan <- ev
 		})
@@ -310,134 +304,134 @@ func localListener(kbdChan <-chan byte, frmHostChan chan<- []byte) {
 	}
 }
 
-func buildMenu() *gtk.MenuBar {
-	menuBar := gtk.NewMenuBar()
+// func buildMenu() *gtk.MenuBar {
+// 	menuBar := gtk.NewMenuBar()
 
-	fileMenuItem := gtk.NewMenuItemWithLabel("File")
-	menuBar.Append(fileMenuItem)
-	subMenu := gtk.NewMenu()
-	fileMenuItem.SetSubmenu(subMenu)
-	loggingMenuItem := gtk.NewMenuItemWithLabel("Logging")
-	loggingMenuItem.Connect("activate", fileLogging)
-	subMenu.Append(loggingMenuItem)
+// 	fileMenuItem := gtk.NewMenuItemWithLabel("File")
+// 	menuBar.Append(fileMenuItem)
+// 	subMenu := gtk.NewMenu()
+// 	fileMenuItem.SetSubmenu(subMenu)
+// 	loggingMenuItem := gtk.NewMenuItemWithLabel("Logging")
+// 	loggingMenuItem.Connect("activate", fileLogging)
+// 	subMenu.Append(loggingMenuItem)
 
-	subMenu.Append(gtk.NewSeparatorMenuItem())
+// 	subMenu.Append(gtk.NewSeparatorMenuItem())
 
-	expectFileMenuItem := gtk.NewMenuItemWithLabel("Run mini-Expect Script")
-	expectFileMenuItem.Connect("activate", fileChooseExpectScript)
-	subMenu.Append(expectFileMenuItem)
+// 	expectFileMenuItem := gtk.NewMenuItemWithLabel("Run mini-Expect Script")
+// 	expectFileMenuItem.Connect("activate", fileChooseExpectScript)
+// 	subMenu.Append(expectFileMenuItem)
 
-	subMenu.Append(gtk.NewSeparatorMenuItem())
+// 	subMenu.Append(gtk.NewSeparatorMenuItem())
 
-	sendFileMenuItem := gtk.NewMenuItemWithLabel("Send (Text) File")
-	sendFileMenuItem.Connect("activate", fileSendText)
-	subMenu.Append(sendFileMenuItem)
+// 	sendFileMenuItem := gtk.NewMenuItemWithLabel("Send (Text) File")
+// 	sendFileMenuItem.Connect("activate", fileSendText)
+// 	subMenu.Append(sendFileMenuItem)
 
-	subMenu.Append(gtk.NewSeparatorMenuItem())
+// 	subMenu.Append(gtk.NewSeparatorMenuItem())
 
-	xmodemRcvMenuItem := gtk.NewMenuItemWithLabel("XMODEM-CRC - Receive File")
-	xmodemRcvMenuItem.Connect("activate", fileXmodemReceive)
-	subMenu.Append(xmodemRcvMenuItem)
+// 	xmodemRcvMenuItem := gtk.NewMenuItemWithLabel("XMODEM-CRC - Receive File")
+// 	xmodemRcvMenuItem.Connect("activate", fileXmodemReceive)
+// 	subMenu.Append(xmodemRcvMenuItem)
 
-	xmodemSendMenuItem := gtk.NewMenuItemWithLabel("XMODEM-CRC - Send File")
-	xmodemSendMenuItem.Connect("activate", fileXmodemSend)
-	subMenu.Append(xmodemSendMenuItem)
+// 	xmodemSendMenuItem := gtk.NewMenuItemWithLabel("XMODEM-CRC - Send File")
+// 	xmodemSendMenuItem.Connect("activate", fileXmodemSend)
+// 	subMenu.Append(xmodemSendMenuItem)
 
-	xmodemSend1kMenuItem := gtk.NewMenuItemWithLabel("XMODEM-CRC - Send File (1k packets)")
-	xmodemSend1kMenuItem.Connect("activate", fileXmodemSend1k)
-	subMenu.Append(xmodemSend1kMenuItem)
+// 	xmodemSend1kMenuItem := gtk.NewMenuItemWithLabel("XMODEM-CRC - Send File (1k packets)")
+// 	xmodemSend1kMenuItem.Connect("activate", fileXmodemSend1k)
+// 	subMenu.Append(xmodemSend1kMenuItem)
 
-	subMenu.Append(gtk.NewSeparatorMenuItem())
+// 	subMenu.Append(gtk.NewSeparatorMenuItem())
 
-	quitMenuItem := gtk.NewMenuItemWithLabel("Quit")
-	subMenu.Append(quitMenuItem)
-	quitMenuItem.Connect("activate", func() {
-		pprof.StopCPUProfile()
-		gtk.MainQuit()
-		//os.Exit(0)
-	})
+// 	quitMenuItem := gtk.NewMenuItemWithLabel("Quit")
+// 	subMenu.Append(quitMenuItem)
+// 	quitMenuItem.Connect("activate", func() {
+// 		pprof.StopCPUProfile()
+// 		gtk.MainQuit()
+// 		//os.Exit(0)
+// 	})
 
-	editMenuItem := gtk.NewMenuItemWithLabel("Edit")
-	menuBar.Append(editMenuItem)
-	subMenu = gtk.NewMenu()
-	editMenuItem.SetSubmenu(subMenu)
-	pasteItem := gtk.NewMenuItemWithLabel("Paste")
-	pasteItem.Connect("activate", editPaste)
-	subMenu.Append(pasteItem)
+// 	editMenuItem := gtk.NewMenuItemWithLabel("Edit")
+// 	menuBar.Append(editMenuItem)
+// 	subMenu = gtk.NewMenu()
+// 	editMenuItem.SetSubmenu(subMenu)
+// 	pasteItem := gtk.NewMenuItemWithLabel("Paste")
+// 	pasteItem.Connect("activate", editPaste)
+// 	subMenu.Append(pasteItem)
 
-	emulationMenuItem := gtk.NewMenuItemWithLabel("Emulation")
-	menuBar.Append(emulationMenuItem)
-	subMenu = gtk.NewMenu()
-	var emuGroup *glib.SList
-	emulationMenuItem.SetSubmenu(subMenu)
+// 	emulationMenuItem := gtk.NewMenuItemWithLabel("Emulation")
+// 	menuBar.Append(emulationMenuItem)
+// 	subMenu = gtk.NewMenu()
+// 	var emuGroup *glib.SList
+// 	emulationMenuItem.SetSubmenu(subMenu)
 
-	d200MenuItem := gtk.NewRadioMenuItemWithLabel(emuGroup, "D200")
-	emuGroup = d200MenuItem.GetGroup()
-	if terminal.emulation == d200 {
-		d200MenuItem.SetActive(true)
-	}
-	subMenu.Append(d200MenuItem)
+// 	d200MenuItem := gtk.NewRadioMenuItemWithLabel(emuGroup, "D200")
+// 	emuGroup = d200MenuItem.GetGroup()
+// 	if terminal.emulation == d200 {
+// 		d200MenuItem.SetActive(true)
+// 	}
+// 	subMenu.Append(d200MenuItem)
 
-	d210MenuItem := gtk.NewRadioMenuItemWithLabel(emuGroup, "D210")
-	if terminal.emulation == d210 {
-		d210MenuItem.SetActive(true)
-	}
-	subMenu.Append(d210MenuItem)
+// 	d210MenuItem := gtk.NewRadioMenuItemWithLabel(emuGroup, "D210")
+// 	if terminal.emulation == d210 {
+// 		d210MenuItem.SetActive(true)
+// 	}
+// 	subMenu.Append(d210MenuItem)
 
-	// for some reason, the 1st of these gets triggered at startup...
-	d210MenuItem.Connect("activate", func() { terminal.setEmulation(d210) })
-	d200MenuItem.Connect("activate", func() { terminal.setEmulation(d200) })
+// 	// for some reason, the 1st of these gets triggered at startup...
+// 	d210MenuItem.Connect("activate", func() { terminal.setEmulation(d210) })
+// 	d200MenuItem.Connect("activate", func() { terminal.setEmulation(d200) })
 
-	subMenu.Append(gtk.NewSeparatorMenuItem())
-	resizeMenuItem := gtk.NewMenuItemWithLabel("Resize")
-	resizeMenuItem.Connect("activate", emulationResize)
-	subMenu.Append(resizeMenuItem)
-	subMenu.Append(gtk.NewSeparatorMenuItem())
-	selfTestMenuItem := gtk.NewMenuItemWithLabel("Self-Test")
-	subMenu.Append(selfTestMenuItem)
-	selfTestMenuItem.Connect("activate", func() { terminal.selfTest(fromHostChan) })
-	loadTemplateMenuItem := gtk.NewMenuItemWithLabel("Load Func. Key Template")
-	loadTemplateMenuItem.Connect("activate", loadFKeyTemplate)
-	subMenu.Append(loadTemplateMenuItem)
+// 	subMenu.Append(gtk.NewSeparatorMenuItem())
+// 	resizeMenuItem := gtk.NewMenuItemWithLabel("Resize")
+// 	resizeMenuItem.Connect("activate", emulationResize)
+// 	subMenu.Append(resizeMenuItem)
+// 	subMenu.Append(gtk.NewSeparatorMenuItem())
+// 	selfTestMenuItem := gtk.NewMenuItemWithLabel("Self-Test")
+// 	subMenu.Append(selfTestMenuItem)
+// 	selfTestMenuItem.Connect("activate", func() { terminal.selfTest(fromHostChan) })
+// 	loadTemplateMenuItem := gtk.NewMenuItemWithLabel("Load Func. Key Template")
+// 	loadTemplateMenuItem.Connect("activate", loadFKeyTemplate)
+// 	subMenu.Append(loadTemplateMenuItem)
 
-	serialMenuItem := gtk.NewMenuItemWithLabel("Serial")
-	menuBar.Append(serialMenuItem)
-	subMenu = gtk.NewMenu()
-	serialMenuItem.SetSubmenu(subMenu)
-	serialConnectMenuItem = gtk.NewMenuItemWithLabel("Connect")
-	serialConnectMenuItem.Connect("activate", serialConnect)
-	subMenu.Append(serialConnectMenuItem)
-	serialDisconnectMenuItem = gtk.NewMenuItemWithLabel("Disconnect")
-	serialDisconnectMenuItem.Connect("activate", serialClose)
-	subMenu.Append(serialDisconnectMenuItem)
-	serialDisconnectMenuItem.SetSensitive(false)
+// 	serialMenuItem := gtk.NewMenuItemWithLabel("Serial")
+// 	menuBar.Append(serialMenuItem)
+// 	subMenu = gtk.NewMenu()
+// 	serialMenuItem.SetSubmenu(subMenu)
+// 	serialConnectMenuItem = gtk.NewMenuItemWithLabel("Connect")
+// 	serialConnectMenuItem.Connect("activate", serialConnect)
+// 	subMenu.Append(serialConnectMenuItem)
+// 	serialDisconnectMenuItem = gtk.NewMenuItemWithLabel("Disconnect")
+// 	serialDisconnectMenuItem.Connect("activate", serialClose)
+// 	subMenu.Append(serialDisconnectMenuItem)
+// 	serialDisconnectMenuItem.SetSensitive(false)
 
-	networkMenuItem := gtk.NewMenuItemWithLabel("Network")
-	menuBar.Append(networkMenuItem)
-	subMenu = gtk.NewMenu()
-	networkMenuItem.SetSubmenu(subMenu)
-	networkConnectMenuItem = gtk.NewMenuItemWithLabel("Connect")
-	subMenu.Append(networkConnectMenuItem)
-	networkConnectMenuItem.Connect("activate", telnetOpen)
-	networkDisconnectMenuItem = gtk.NewMenuItemWithLabel("Disconnect")
-	subMenu.Append(networkDisconnectMenuItem)
-	networkDisconnectMenuItem.Connect("activate", telnetClose)
-	networkDisconnectMenuItem.SetSensitive(false)
+// 	networkMenuItem := gtk.NewMenuItemWithLabel("Network")
+// 	menuBar.Append(networkMenuItem)
+// 	subMenu = gtk.NewMenu()
+// 	networkMenuItem.SetSubmenu(subMenu)
+// 	networkConnectMenuItem = gtk.NewMenuItemWithLabel("Connect")
+// 	subMenu.Append(networkConnectMenuItem)
+// 	networkConnectMenuItem.Connect("activate", telnetOpen)
+// 	networkDisconnectMenuItem = gtk.NewMenuItemWithLabel("Disconnect")
+// 	subMenu.Append(networkDisconnectMenuItem)
+// 	networkDisconnectMenuItem.Connect("activate", telnetClose)
+// 	networkDisconnectMenuItem.SetSensitive(false)
 
-	helpMenuItem := gtk.NewMenuItemWithLabel("Help")
-	menuBar.Append(helpMenuItem)
-	subMenu = gtk.NewMenu()
-	helpMenuItem.SetSubmenu(subMenu)
-	onlineHelpMenuItem := gtk.NewMenuItemWithLabel("Online Help")
-	onlineHelpMenuItem.Connect("activate", func() { openBrowser(helpURL) })
-	subMenu.Append(onlineHelpMenuItem)
-	subMenu.Append(gtk.NewSeparatorMenuItem())
-	aboutMenuItem := gtk.NewMenuItemWithLabel("About")
-	subMenu.Append(aboutMenuItem)
-	aboutMenuItem.Connect("activate", helpAbout)
+// 	helpMenuItem := gtk.NewMenuItemWithLabel("Help")
+// 	menuBar.Append(helpMenuItem)
+// 	subMenu = gtk.NewMenu()
+// 	helpMenuItem.SetSubmenu(subMenu)
+// 	onlineHelpMenuItem := gtk.NewMenuItemWithLabel("Online Help")
+// 	onlineHelpMenuItem.Connect("activate", func() { openBrowser(helpURL) })
+// 	subMenu.Append(onlineHelpMenuItem)
+// 	subMenu.Append(gtk.NewSeparatorMenuItem())
+// 	aboutMenuItem := gtk.NewMenuItemWithLabel("About")
+// 	subMenu.Append(aboutMenuItem)
+// 	aboutMenuItem.Connect("activate", helpAbout)
 
-	return menuBar
-}
+// 	return menuBar
+// }
 
 func buildMenu2() (mainMenu *fyne.MainMenu) {
 
@@ -515,63 +509,63 @@ func openBrowser(url string) {
 
 }
 
-func buildCrt() *gtk.DrawingArea {
-	var mne int
-	crt = gtk.NewDrawingArea()
-	terminal.rwMutex.RLock()
-	crt.SetSizeRequest(terminal.visibleCols*charWidth, terminal.visibleLines*charHeight)
-	terminal.rwMutex.RUnlock()
+// func buildCrt() *gtk.DrawingArea {
+// 	var mne int
+// 	crt = gtk.NewDrawingArea()
+// 	terminal.rwMutex.RLock()
+// 	crt.SetSizeRequest(terminal.visibleCols*charWidth, terminal.visibleLines*charHeight)
+// 	terminal.rwMutex.RUnlock()
 
-	crt.Connect("configure-event", func() {
-		if offScreenPixmap != nil {
-			offScreenPixmap.Unref()
-		}
-		//allocation := crt.GetAllocation()
-		terminal.rwMutex.RLock()
-		offScreenPixmap = gdk.NewPixmap(crt.GetWindow().GetDrawable(),
-			terminal.visibleCols*charWidth, terminal.visibleLines*charHeight*charHeight, 24)
-		terminal.rwMutex.RUnlock()
-		gc = gdk.NewGC(offScreenPixmap.GetDrawable())
-		offScreenPixmap.GetDrawable().DrawRectangle(gc, true, 0, 0, -1, -1)
-		gc.SetForeground(gc.GetColormap().AllocColorRGB(0, 65535, 0))
-	})
+// 	crt.Connect("configure-event", func() {
+// 		if offScreenPixmap != nil {
+// 			offScreenPixmap.Unref()
+// 		}
+// 		//allocation := crt.GetAllocation()
+// 		terminal.rwMutex.RLock()
+// 		offScreenPixmap = gdk.NewPixmap(crt.GetWindow().GetDrawable(),
+// 			terminal.visibleCols*charWidth, terminal.visibleLines*charHeight*charHeight, 24)
+// 		terminal.rwMutex.RUnlock()
+// 		gc = gdk.NewGC(offScreenPixmap.GetDrawable())
+// 		offScreenPixmap.GetDrawable().DrawRectangle(gc, true, 0, 0, -1, -1)
+// 		gc.SetForeground(gc.GetColormap().AllocColorRGB(0, 65535, 0))
+// 	})
 
-	crt.Connect("expose-event", func() {
-		gdkWin.GetDrawable().DrawDrawable(gc, offScreenPixmap.GetDrawable(), 0, 0, 0, 0, -1, -1)
-		//fmt.Println("expose-event handled")
-	})
+// 	crt.Connect("expose-event", func() {
+// 		gdkWin.GetDrawable().DrawDrawable(gc, offScreenPixmap.GetDrawable(), 0, 0, 0, 0, -1, -1)
+// 		//fmt.Println("expose-event handled")
+// 	})
 
-	crt.SetCanFocus(true)
-	crt.AddEvents(int(gdk.BUTTON_PRESS_MASK))
-	crt.Connect("button-press-event", func(ctx *glib.CallbackContext) {
-		arg := ctx.Args(0)
-		btnPressEvent := *(**gdk.EventButton)(unsafe.Pointer(&arg))
-		//fmt.Printf("DEBUG: Mouse clicked at %d, %d\t", btnPressEvent.X, btnPressEvent.Y)
-		selectionRegion.startRow = int(btnPressEvent.Y) / charHeight
-		selectionRegion.startCol = int(btnPressEvent.X) / charWidth
-		selectionRegion.endRow = selectionRegion.startRow
-		selectionRegion.endCol = selectionRegion.startCol
-		selectionRegion.isActive = true
-		mne = crt.Connect("motion-notify-event", handleMotionNotifyEvent)
-	})
-	crt.AddEvents(int(gdk.BUTTON_RELEASE_MASK))
-	crt.Connect("button-release-event", func(ctx *glib.CallbackContext) {
-		arg := ctx.Args(0)
-		btnPressEvent := *(**gdk.EventButton)(unsafe.Pointer(&arg))
-		//fmt.Printf("DEBUG: Mouse released at %d, %d\t", btnPressEvent.X, btnPressEvent.Y)
-		selectionRegion.endRow = int(btnPressEvent.Y) / charHeight
-		selectionRegion.endCol = int(btnPressEvent.X) / charWidth
-		sel := getSelection()
-		selectionRegion.isActive = false
-		//fmt.Printf("DEBUG: Copied selection: <%s>\n", sel)
-		clipboard := gtk.NewClipboardGetForDisplay(gdk.DisplayGetDefault(), gdk.SELECTION_CLIPBOARD)
-		clipboard.SetText(sel)
-		crt.HandlerDisconnect(mne)
-	})
-	crt.AddEvents(int(gdk.POINTER_MOTION_MASK))
+// 	crt.SetCanFocus(true)
+// 	crt.AddEvents(int(gdk.BUTTON_PRESS_MASK))
+// 	crt.Connect("button-press-event", func(ctx *glib.CallbackContext) {
+// 		arg := ctx.Args(0)
+// 		btnPressEvent := *(**gdk.EventButton)(unsafe.Pointer(&arg))
+// 		//fmt.Printf("DEBUG: Mouse clicked at %d, %d\t", btnPressEvent.X, btnPressEvent.Y)
+// 		selectionRegion.startRow = int(btnPressEvent.Y) / charHeight
+// 		selectionRegion.startCol = int(btnPressEvent.X) / charWidth
+// 		selectionRegion.endRow = selectionRegion.startRow
+// 		selectionRegion.endCol = selectionRegion.startCol
+// 		selectionRegion.isActive = true
+// 		mne = crt.Connect("motion-notify-event", handleMotionNotifyEvent)
+// 	})
+// 	crt.AddEvents(int(gdk.BUTTON_RELEASE_MASK))
+// 	crt.Connect("button-release-event", func(ctx *glib.CallbackContext) {
+// 		arg := ctx.Args(0)
+// 		btnPressEvent := *(**gdk.EventButton)(unsafe.Pointer(&arg))
+// 		//fmt.Printf("DEBUG: Mouse released at %d, %d\t", btnPressEvent.X, btnPressEvent.Y)
+// 		selectionRegion.endRow = int(btnPressEvent.Y) / charHeight
+// 		selectionRegion.endCol = int(btnPressEvent.X) / charWidth
+// 		sel := getSelection()
+// 		selectionRegion.isActive = false
+// 		//fmt.Printf("DEBUG: Copied selection: <%s>\n", sel)
+// 		clipboard := gtk.NewClipboardGetForDisplay(gdk.DisplayGetDefault(), gdk.SELECTION_CLIPBOARD)
+// 		clipboard.SetText(sel)
+// 		crt.HandlerDisconnect(mne)
+// 	})
+// 	crt.AddEvents(int(gdk.POINTER_MOTION_MASK))
 
-	return crt
-}
+// 	return crt
+// }
 
 func buildScrollbar() (sb *gtk.VScrollbar) {
 	adj := gtk.NewAdjustment(historyLines, 0.0, historyLines, 1.0, 1.0, 1.0)
@@ -629,20 +623,6 @@ func handleMotionNotifyEvent(ctx *glib.CallbackContext) {
 	}
 }
 
-// updateCrt is to be run as a Goroutine, it listens for update notifications and marks
-// the terminal as needing a redraw
-func updateCrt(crt *gtk.DrawingArea, t *terminalT) {
-	for {
-		updateType := <-updateCrtChan
-		t.rwMutex.Lock()
-		if updateType == updateCrtBlink {
-			t.blinkState = !t.blinkState
-		}
-		t.terminalUpdated = true
-		t.rwMutex.Unlock()
-	}
-}
-
 // updateTerminal is to be run as a Goroutine, it listens for update notifications and marks
 // the terminal as needing a redraw
 func updateTerminal(t *terminalT) {
@@ -655,37 +635,6 @@ func updateTerminal(t *terminalT) {
 		t.terminalUpdated = true
 		t.rwMutex.Unlock()
 	}
-}
-
-func buildStatusBox() *gtk.HBox {
-	statusBox := gtk.NewHBox(true, 2)
-
-	onlineLabel = gtk.NewLabel("")
-	olf := gtk.NewFrame("")
-	olf.Add(onlineLabel)
-	statusBox.Add(olf)
-
-	hostLabel = gtk.NewLabel("")
-	hlf := gtk.NewFrame("")
-	hlf.Add(hostLabel)
-	statusBox.Add(hlf)
-
-	loggingLabel = gtk.NewLabel("")
-	lf := gtk.NewFrame("")
-	lf.Add(loggingLabel)
-	statusBox.Add(lf)
-
-	emuStatusLabel = gtk.NewLabel("")
-	esf := gtk.NewFrame("")
-	esf.Add(emuStatusLabel)
-	statusBox.Add(esf)
-
-	glib.TimeoutAdd(statusUpdatePeriodMs, func() bool {
-		updateStatusBox()
-		return true
-	})
-
-	return statusBox
 }
 
 func buildStatusBox2() (statBox fyne.CanvasObject) {
@@ -707,7 +656,7 @@ func buildStatusBox2() (statBox fyne.CanvasObject) {
 
 	go func() {
 		for {
-			updateStatusBox2()
+			updateStatusBox()
 			time.Sleep(statusUpdatePeriodMs * time.Millisecond)
 		}
 	}()
@@ -715,36 +664,7 @@ func buildStatusBox2() (statBox fyne.CanvasObject) {
 	return statBox
 }
 
-// updateStatusBox to be run regularly - N.B. on the main thread!
 func updateStatusBox() {
-	terminal.rwMutex.RLock()
-	switch terminal.connectionType {
-	case disconnected:
-		onlineLabel.SetText("Local (Offline)")
-		hostLabel.SetText("")
-	case serialConnected:
-		onlineLabel.SetText("Online (Serial)")
-		serParms := terminal.serialPort + " @ " + serialSession.getParms()
-		hostLabel.SetText(serParms)
-	case telnetConnected:
-		onlineLabel.SetText("Online (Telnet)")
-		hostLabel.SetText(terminal.remoteHost + ":" + terminal.remotePort)
-	}
-	if terminal.logging {
-		loggingLabel.SetText("Logging")
-	} else {
-		loggingLabel.SetText("")
-	}
-	emuStat := "D" + strconv.Itoa(int(terminal.emulation)) + " (" +
-		strconv.Itoa(terminal.visibleLines) + "x" + strconv.Itoa(terminal.visibleCols) + ")"
-	if terminal.holding {
-		emuStat += " (Hold)"
-	}
-	terminal.rwMutex.RUnlock()
-	emuStatusLabel.SetText(emuStat)
-}
-
-func updateStatusBox2() {
 	terminal.rwMutex.RLock()
 	switch terminal.connectionType {
 	case disconnected:
