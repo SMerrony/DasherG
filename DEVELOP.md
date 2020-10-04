@@ -1,7 +1,8 @@
 # Reminders for developing DasherG
 
 ## Files containing any GUI toolkit references
-* bdfFont.go - ready to remove once images are used in main program
+* bdfFont.go 
+* crt.go
 * dasherg.go
 * fKeyMatrix.go
 * icon.gen.go !

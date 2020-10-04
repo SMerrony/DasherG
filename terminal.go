@@ -1,4 +1,4 @@
-// Copyright © 2017-2020  Steve Merrony
+// Copyright ©2017-2020  Steve Merrony
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -46,7 +46,7 @@ const (
 	// d211 emulType = 211
 )
 
-// terminalT encapsulates most of the emulation bevahiour itself.
+// terminalT encapsulates most of the emulation behaviour itself.
 // The display[][] matrix represents the currently-displayed state of the
 // terminal (which is actually displayed elsewhere)
 type terminalT struct {
@@ -116,6 +116,20 @@ func (t *terminalT) setup(fromHostChan <-chan []byte, update chan int, expectCha
 	t.display[12][40].charValue = 'K'
 	t.rwMutex.Unlock()
 	t.updateCrtChan <- updateCrtNormal
+}
+
+// updateListener is to be run as a Goroutine, it listens for update notifications and marks
+// the terminal as needing a redraw
+func (t *terminalT) updateListener() {
+	for {
+		updateType := <-updateCrtChan
+		t.rwMutex.Lock()
+		if updateType == updateCrtBlink {
+			t.blinkState = !t.blinkState
+		}
+		t.terminalUpdated = true
+		t.rwMutex.Unlock()
+	}
 }
 
 func (t *terminalT) setEmulation(e emulType) {
