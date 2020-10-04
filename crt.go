@@ -61,11 +61,13 @@ func buildCrt() *gtk.DrawingArea {
 		arg := ctx.Args(0)
 		btnPressEvent := *(**gdk.EventButton)(unsafe.Pointer(&arg))
 		//fmt.Printf("DEBUG: Mouse clicked at %d, %d\t", btnPressEvent.X, btnPressEvent.Y)
-		selectionRegion.startRow = int(btnPressEvent.Y) / charHeight
-		selectionRegion.startCol = int(btnPressEvent.X) / charWidth
-		selectionRegion.endRow = selectionRegion.startRow
-		selectionRegion.endCol = selectionRegion.startCol
-		selectionRegion.isActive = true
+		terminal.rwMutex.Lock()
+		terminal.selectionRegion.startRow = int(btnPressEvent.Y) / charHeight
+		terminal.selectionRegion.startCol = int(btnPressEvent.X) / charWidth
+		terminal.selectionRegion.endRow = terminal.selectionRegion.startRow
+		terminal.selectionRegion.endCol = terminal.selectionRegion.startCol
+		terminal.selectionRegion.isActive = true
+		terminal.rwMutex.Unlock()
 		mne = crt.Connect("motion-notify-event", handleMotionNotifyEvent)
 	})
 	crt.AddEvents(int(gdk.BUTTON_RELEASE_MASK))
@@ -73,10 +75,12 @@ func buildCrt() *gtk.DrawingArea {
 		arg := ctx.Args(0)
 		btnPressEvent := *(**gdk.EventButton)(unsafe.Pointer(&arg))
 		//fmt.Printf("DEBUG: Mouse released at %d, %d\t", btnPressEvent.X, btnPressEvent.Y)
-		selectionRegion.endRow = int(btnPressEvent.Y) / charHeight
-		selectionRegion.endCol = int(btnPressEvent.X) / charWidth
-		sel := getSelection()
-		selectionRegion.isActive = false
+		terminal.rwMutex.Lock()
+		terminal.selectionRegion.endRow = int(btnPressEvent.Y) / charHeight
+		terminal.selectionRegion.endCol = int(btnPressEvent.X) / charWidth
+		sel := terminal.getSelection()
+		terminal.selectionRegion.isActive = false
+		terminal.rwMutex.Unlock()
 		//fmt.Printf("DEBUG: Copied selection: <%s>\n", sel)
 		clipboard := gtk.NewClipboardGetForDisplay(gdk.DisplayGetDefault(), gdk.SELECTION_CLIPBOARD)
 		clipboard.SetText(sel)
@@ -94,11 +98,13 @@ func handleMotionNotifyEvent(ctx *glib.CallbackContext) {
 	btnPressEvent := *(**gdk.EventMotion)(unsafe.Pointer(&arg))
 	row := int(btnPressEvent.Y) / charHeight
 	col := int(btnPressEvent.X) / charWidth
-	if row != selectionRegion.endRow || col != selectionRegion.endCol {
+	if row != terminal.selectionRegion.endRow || col != terminal.selectionRegion.endCol {
 		// moved at least 1 cell...
+		terminal.rwMutex.Lock()
 		// fmt.Printf("DEBUG: Row: %d, Col: %d, Character: %c\n", row, col, terminal.display[row][col].charValue)
-		selectionRegion.endCol = col
-		selectionRegion.endRow = row
+		terminal.selectionRegion.endCol = col
+		terminal.selectionRegion.endRow = row
+		terminal.rwMutex.Unlock()
 	}
 }
 
@@ -146,16 +152,16 @@ func drawCrt() {
 			terminal.displayDirty[terminal.cursorY][terminal.cursorX] = true // this ensures that the old cursor pos is redrawn on the next refresh
 		}
 		// shade any selected area
-		if selectionRegion.isActive {
-			startCharPosn := selectionRegion.startCol + selectionRegion.startRow*terminal.visibleCols
-			endCharPosn := selectionRegion.endCol + selectionRegion.endRow*terminal.visibleCols
+		if terminal.selectionRegion.isActive {
+			startCharPosn := terminal.selectionRegion.startCol + terminal.selectionRegion.startRow*terminal.visibleCols
+			endCharPosn := terminal.selectionRegion.endCol + terminal.selectionRegion.endRow*terminal.visibleCols
 			if startCharPosn <= endCharPosn {
 				// normal (forward) selection
-				col := selectionRegion.startCol
-				for row := selectionRegion.startRow; row <= selectionRegion.endRow; row++ {
+				col := terminal.selectionRegion.startCol
+				for row := terminal.selectionRegion.startRow; row <= terminal.selectionRegion.endRow; row++ {
 					for col < terminal.visibleCols {
 						drawable.DrawLine(gc, col*charWidth, ((row+1)*charHeight)-1, (col+1)*charWidth-1, ((row+1)*charHeight)-1)
-						if row == selectionRegion.endRow && col == selectionRegion.endCol {
+						if row == terminal.selectionRegion.endRow && col == terminal.selectionRegion.endCol {
 							goto shadingDone
 						}
 						col++

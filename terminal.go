@@ -64,6 +64,7 @@ type terminalT struct {
 	holding, logging, scrolledBack               bool
 	expecting                                    bool
 	rawMode                                      bool // in rawMode all host data is passed straight through to rawChan
+	selectionRegion                              selectionRegionT
 	logFile                                      *os.File
 
 	// display is the 2D array of cells containing the terminal 'contents'
@@ -88,6 +89,11 @@ type terminalT struct {
 	newXaddress, newYaddress                    int
 	inTelnetCommand, gotTelnetDo, gotTelnetWill bool
 	telnetCmd, doAction, willAction             byte
+}
+
+type selectionRegionT struct {
+	isActive                           bool
+	startRow, startCol, endRow, endCol int
 }
 
 func (t *terminalT) setup(fromHostChan <-chan []byte, update chan int, expectChan chan<- byte) {
@@ -130,6 +136,29 @@ func (t *terminalT) updateListener() {
 		t.terminalUpdated = true
 		t.rwMutex.Unlock()
 	}
+}
+
+func (t *terminalT) getSelection() string {
+	startCharPosn := t.selectionRegion.startCol + t.selectionRegion.startRow*terminal.visibleCols
+	endCharPosn := t.selectionRegion.endCol + t.selectionRegion.endRow*terminal.visibleCols
+	selection := ""
+	if startCharPosn <= endCharPosn {
+		// normal (forward) selection
+		col := t.selectionRegion.startCol
+		for row := t.selectionRegion.startRow; row <= t.selectionRegion.endRow; row++ {
+			for col < terminal.visibleCols {
+				selection += string(terminal.display[row][col].charValue)
+				terminal.displayDirty[row][col] = true
+				if row == t.selectionRegion.endRow && col == t.selectionRegion.endCol {
+					return selection
+				}
+				col++
+			}
+			selection += string(rune(dasherNewLine))
+			col = 0
+		}
+	}
+	return selection
 }
 
 func (t *terminalT) setEmulation(e emulType) {

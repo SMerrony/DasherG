@@ -92,11 +92,6 @@ var (
 	telnetClosing         bool
 	traceExpect           bool
 
-	selectionRegion struct { // TODO Move this into terminalT
-		isActive                           bool
-		startRow, startCol, endRow, endCol int
-	}
-
 	gc              *gdk.GC
 	crt             *gtk.DrawingArea
 	scroller        *gtk.VScrollbar
@@ -415,30 +410,6 @@ func handleScrollbarChangedEvent(ctx *glib.CallbackContext) {
 	} else {
 		terminal.scrollBack(historyLines - posn)
 	}
-}
-
-// getSelection returns a DG-ASCII string containing the mouse-selected portion of the screen
-func getSelection() string {
-	startCharPosn := selectionRegion.startCol + selectionRegion.startRow*terminal.visibleCols
-	endCharPosn := selectionRegion.endCol + selectionRegion.endRow*terminal.visibleCols
-	selection := ""
-	if startCharPosn <= endCharPosn {
-		// normal (forward) selection
-		col := selectionRegion.startCol
-		for row := selectionRegion.startRow; row <= selectionRegion.endRow; row++ {
-			for col < terminal.visibleCols {
-				selection += string(terminal.display[row][col].charValue)
-				terminal.displayDirty[row][col] = true
-				if row == selectionRegion.endRow && col == selectionRegion.endCol {
-					return selection
-				}
-				col++
-			}
-			selection += string(rune(dasherNewLine))
-			col = 0
-		}
-	}
-	return selection
 }
 
 func buildStatusBox() *gtk.HBox {
