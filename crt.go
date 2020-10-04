@@ -22,7 +22,6 @@
 package main
 
 import (
-	"fmt"
 	"image"
 	"image/draw"
 
@@ -38,10 +37,10 @@ func buildCrt2() (crtImage *canvas.Raster, backingImage *image.NRGBA) {
 	return crtImage, backingImage
 }
 
-func drawCrt2() {
+func drawCrt() {
 	terminal.rwMutex.Lock()
 	if terminal.terminalUpdated {
-		fmt.Println("DEBUG: drawCrt2 running update...")
+		// fmt.Println("DEBUG: drawCrt2 running update...")
 		var cIx int
 
 		for line := 0; line < terminal.visibleLines; line++ {
@@ -82,7 +81,7 @@ func drawCrt2() {
 			if terminal.display[terminal.cursorY][terminal.cursorX].reverse {
 				draw.Draw(backingImg, cellRect, bdfFont[cIx].plainImg, image.ZP, draw.Src)
 			} else {
-				fmt.Printf("Drawing cursor at %d,%d\n", terminal.cursorX*charWidth, terminal.cursorY*charHeight)
+				// fmt.Printf("Drawing cursor at %d,%d\n", terminal.cursorX*charWidth, terminal.cursorY*charHeight)
 				draw.Draw(backingImg, cellRect, bdfFont[cIx].revImg, image.ZP, draw.Src)
 			}
 			terminal.displayDirty[terminal.cursorY][terminal.cursorX] = true // this ensures that the old cursor pos is redrawn on the next refresh
