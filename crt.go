@@ -33,7 +33,7 @@ func buildCrt() *gtk.DrawingArea {
 	var mne int
 	crt = gtk.NewDrawingArea()
 	terminal.rwMutex.RLock()
-	crt.SetSizeRequest(terminal.visibleCols*charWidth, terminal.visibleLines*charHeight)
+	crt.SetSizeRequest(terminal.display.visibleCols*charWidth, terminal.display.visibleLines*charHeight)
 	terminal.rwMutex.RUnlock()
 
 	crt.Connect("configure-event", func() {
@@ -43,7 +43,7 @@ func buildCrt() *gtk.DrawingArea {
 		//allocation := crt.GetAllocation()
 		terminal.rwMutex.RLock()
 		offScreenPixmap = gdk.NewPixmap(crt.GetWindow().GetDrawable(),
-			terminal.visibleCols*charWidth, terminal.visibleLines*charHeight*charHeight, 24)
+			terminal.display.visibleCols*charWidth, terminal.display.visibleLines*charHeight*charHeight, 24)
 		terminal.rwMutex.RUnlock()
 		gc = gdk.NewGC(offScreenPixmap.GetDrawable())
 		offScreenPixmap.GetDrawable().DrawRectangle(gc, true, 0, 0, -1, -1)
@@ -101,7 +101,7 @@ func handleMotionNotifyEvent(ctx *glib.CallbackContext) {
 	if row != terminal.selectionRegion.endRow || col != terminal.selectionRegion.endCol {
 		// moved at least 1 cell...
 		terminal.rwMutex.Lock()
-		// fmt.Printf("DEBUG: Row: %d, Col: %d, Character: %c\n", row, col, terminal.display[row][col].charValue)
+		// fmt.Printf("DEBUG: Row: %d, Col: %d, Character: %c\n", row, col, terminal.display.cells[row][col].charValue)
 		terminal.selectionRegion.endCol = col
 		terminal.selectionRegion.endRow = row
 		terminal.rwMutex.Unlock()
@@ -113,24 +113,24 @@ func drawCrt() {
 	if terminal.terminalUpdated {
 		var cIx int
 		drawable := offScreenPixmap.GetDrawable()
-		for line := 0; line < terminal.visibleLines; line++ {
-			for col := 0; col < terminal.visibleCols; col++ {
-				if terminal.displayDirty[line][col] || (terminal.blinkEnabled && terminal.display[line][col].blink) {
-					cIx = int(terminal.display[line][col].charValue)
+		for line := 0; line < terminal.display.visibleLines; line++ {
+			for col := 0; col < terminal.display.visibleCols; col++ {
+				if terminal.displayDirty[line][col] || (terminal.blinkEnabled && terminal.display.cells[line][col].blink) {
+					cIx = int(terminal.display.cells[line][col].charValue)
 					if cIx > 31 && cIx < 128 {
 						switch {
-						case terminal.blinkEnabled && terminal.blinkState && terminal.display[line][col].blink:
+						case terminal.blinkEnabled && terminal.blinkState && terminal.display.cells[line][col].blink:
 							drawable.DrawPixbuf(gc, bdfFont[32].pixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
-						case terminal.display[line][col].reverse:
+						case terminal.display.cells[line][col].reverse:
 							drawable.DrawPixbuf(gc, bdfFont[cIx].reversePixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
-						case terminal.display[line][col].dim:
+						case terminal.display.cells[line][col].dim:
 							drawable.DrawPixbuf(gc, bdfFont[cIx].dimPixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
 						default:
 							drawable.DrawPixbuf(gc, bdfFont[cIx].pixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
 						}
 					}
 					// underscore?
-					if terminal.display[line][col].underscore {
+					if terminal.display.cells[line][col].underscore {
 						drawable.DrawLine(gc, col*charWidth, ((line+1)*charHeight)-1, (col+1)*charWidth-1, ((line+1)*charHeight)-1)
 					}
 					terminal.displayDirty[line][col] = false
@@ -138,12 +138,12 @@ func drawCrt() {
 			} // end for col
 		} // end for line
 		// draw the cursor - if on-screen
-		if terminal.cursorX < terminal.visibleCols && terminal.cursorY < terminal.visibleLines {
-			cIx := int(terminal.display[terminal.cursorY][terminal.cursorX].charValue)
+		if terminal.cursorX < terminal.display.visibleCols && terminal.cursorY < terminal.display.visibleLines {
+			cIx := int(terminal.display.cells[terminal.cursorY][terminal.cursorX].charValue)
 			if cIx == 0 {
 				cIx = 32
 			}
-			if terminal.display[terminal.cursorY][terminal.cursorX].reverse {
+			if terminal.display.cells[terminal.cursorY][terminal.cursorX].reverse {
 				drawable.DrawPixbuf(gc, bdfFont[cIx].pixbuf, 0, 0, terminal.cursorX*charWidth, terminal.cursorY*charHeight, charWidth, charHeight, 0, 0, 0)
 			} else {
 				//fmt.Printf("Drawing cursor at %d,%d\n", terminal.cursorX*charWidth, terminal.cursorY*charHeight)
@@ -153,13 +153,13 @@ func drawCrt() {
 		}
 		// shade any selected area
 		if terminal.selectionRegion.isActive {
-			startCharPosn := terminal.selectionRegion.startCol + terminal.selectionRegion.startRow*terminal.visibleCols
-			endCharPosn := terminal.selectionRegion.endCol + terminal.selectionRegion.endRow*terminal.visibleCols
+			startCharPosn := terminal.selectionRegion.startCol + terminal.selectionRegion.startRow*terminal.display.visibleCols
+			endCharPosn := terminal.selectionRegion.endCol + terminal.selectionRegion.endRow*terminal.display.visibleCols
 			if startCharPosn <= endCharPosn {
 				// normal (forward) selection
 				col := terminal.selectionRegion.startCol
 				for row := terminal.selectionRegion.startRow; row <= terminal.selectionRegion.endRow; row++ {
-					for col < terminal.visibleCols {
+					for col < terminal.display.visibleCols {
 						drawable.DrawLine(gc, col*charWidth, ((row+1)*charHeight)-1, (col+1)*charWidth-1, ((row+1)*charHeight)-1)
 						if row == terminal.selectionRegion.endRow && col == terminal.selectionRegion.endCol {
 							goto shadingDone

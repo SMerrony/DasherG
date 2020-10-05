@@ -60,7 +60,7 @@ func emulationResize() {
 	colsCombo.AppendText("120")
 	colsCombo.AppendText("132")
 	colsCombo.AppendText("135")
-	switch terminal.visibleCols {
+	switch terminal.display.visibleCols {
 	case 80:
 		colsCombo.SetActive(0)
 	case 81:
@@ -82,7 +82,7 @@ func emulationResize() {
 	linesCombo.AppendText("48")
 	linesCombo.AppendText("66")
 	terminal.rwMutex.RLock()
-	switch terminal.visibleLines {
+	switch terminal.display.visibleLines {
 	case 24:
 		linesCombo.SetActive(0)
 	case 25:
@@ -122,8 +122,8 @@ func emulationResize() {
 	response := rd.Run()
 	if response == gtk.RESPONSE_OK {
 		terminal.rwMutex.Lock()
-		terminal.visibleCols, _ = strconv.Atoi(colsCombo.GetActiveText())
-		terminal.visibleLines, _ = strconv.Atoi(linesCombo.GetActiveText())
+		terminal.display.visibleCols, _ = strconv.Atoi(colsCombo.GetActiveText())
+		terminal.display.visibleLines, _ = strconv.Atoi(linesCombo.GetActiveText())
 		switch zoomCombo.GetActiveText() {
 		case "Large":
 			zoom = zoomLarge
@@ -136,7 +136,7 @@ func emulationResize() {
 		}
 		bdfLoad(fontFile, zoom)
 
-		crt.SetSizeRequest(terminal.visibleCols*charWidth, terminal.visibleLines*charHeight)
+		crt.SetSizeRequest(terminal.display.visibleCols*charWidth, terminal.display.visibleLines*charHeight)
 		terminal.rwMutex.Unlock()
 		terminal.resize()
 		win.Resize(800, 600) // this is effectively a minimum size, user can override

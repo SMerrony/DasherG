@@ -404,8 +404,8 @@ func buildScrollbar() (sb *gtk.VScrollbar) {
 
 func handleScrollbarChangedEvent(ctx *glib.CallbackContext) {
 	posn := int(scroller.GetValue())
-	// fmt.Printf("Scrollbar event: Value: %d\n", posn)
-	if posn >= historyLines-1 {
+	//fmt.Printf("Scrollbar event: Value: %d\n", posn)
+	if posn == historyLines-1 {
 		terminal.cancelScrollBack()
 	} else {
 		terminal.scrollBack(historyLines - posn)
@@ -464,7 +464,7 @@ func updateStatusBox() {
 		loggingLabel.SetText("")
 	}
 	emuStat := "D" + strconv.Itoa(int(terminal.emulation)) + " (" +
-		strconv.Itoa(terminal.visibleLines) + "x" + strconv.Itoa(terminal.visibleCols) + ")"
+		strconv.Itoa(terminal.display.visibleLines) + "x" + strconv.Itoa(terminal.display.visibleCols) + ")"
 	if terminal.holding {
 		emuStat += " (Hold)"
 	}
@@ -484,32 +484,32 @@ func localPrint() {
 			fmt.Printf("ERROR: Could not create file <%s> for screen-dump\n", filename)
 		} else {
 			defer dumpFile.Close()
-			img := image.NewNRGBA(image.Rect(0, 0, (terminal.visibleCols+1)*fontWidth, (terminal.visibleLines+1)*fontHeight))
+			img := image.NewNRGBA(image.Rect(0, 0, (terminal.display.visibleCols+1)*fontWidth, (terminal.display.visibleLines+1)*fontHeight))
 			bg := image.NewUniform(color.RGBA{255, 255, 255, 255})   // prepare white for background
 			grey := image.NewUniform(color.RGBA{128, 128, 128, 255}) // prepare grey for foreground
 			blk := image.NewUniform(color.RGBA{0, 0, 0, 255})        // prepare black for foreground
 			draw.Draw(img, img.Bounds(), bg, image.ZP, draw.Src)     // fill the background
-			for line := 0; line < terminal.visibleLines; line++ {
-				for col := 0; col < terminal.visibleCols; col++ {
+			for line := 0; line < terminal.display.visibleLines; line++ {
+				for col := 0; col < terminal.display.visibleCols; col++ {
 					for x := 0; x < fontWidth; x++ {
 						for y := 0; y < fontHeight; y++ {
 							switch {
-							case terminal.display[line][col].dim:
-								if bdfFont[terminal.display[line][col].charValue].pixels[x][y] {
+							case terminal.display.cells[line][col].dim:
+								if bdfFont[terminal.display.cells[line][col].charValue].pixels[x][y] {
 									img.Set(col*fontWidth+x, (line+1)*fontHeight-y, grey)
 								}
-							case terminal.display[line][col].reverse:
-								if !bdfFont[terminal.display[line][col].charValue].pixels[x][y] {
+							case terminal.display.cells[line][col].reverse:
+								if !bdfFont[terminal.display.cells[line][col].charValue].pixels[x][y] {
 									img.Set(col*fontWidth+x, (line+1)*fontHeight-y, blk)
 								}
 							default:
-								if bdfFont[terminal.display[line][col].charValue].pixels[x][y] {
+								if bdfFont[terminal.display.cells[line][col].charValue].pixels[x][y] {
 									img.Set(col*fontWidth+x, (line+1)*fontHeight-y, blk)
 								}
 							}
 						}
 					}
-					if terminal.display[line][col].underscore {
+					if terminal.display.cells[line][col].underscore {
 						for x := 0; x < fontWidth; x++ {
 							img.Set(col*fontWidth+x, (line+1)*fontHeight, blk)
 						}
