@@ -25,14 +25,14 @@ import (
 	"image"
 	"image/draw"
 
-	"fyne.io/fyne"
-	"fyne.io/fyne/canvas"
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 )
 
 func buildCrt2() (crtImage *canvas.Raster, backingImage *image.NRGBA) {
 	backingImage = image.NewNRGBA(image.Rect(0, 0, terminal.visibleCols*charWidth, terminal.visibleLines*charHeight))
 	crtImage = canvas.NewRasterFromImage(backingImage) // canvas.NewImageFromImage(backingImage)
-	crtImage.SetMinSize(fyne.Size{terminal.visibleCols * charWidth, terminal.visibleLines * charHeight})
+	crtImage.SetMinSize(fyne.Size{float32(terminal.visibleCols * charWidth), float32(terminal.visibleLines * charHeight)})
 	//crtImage.FillMode = canvas.ImageFillOriginal
 	return crtImage, backingImage
 }
