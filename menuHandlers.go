@@ -1,6 +1,6 @@
 // menuHandlers.go - part of DasherG
 
-// Copyright ©2019,2020  Steve Merrony
+// Copyright ©2019-2021 Steve Merrony
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -28,7 +28,7 @@ import (
 	"os"
 	"strconv"
 
-	"fyne.io/fyne/dialog"
+	"fyne.io/fyne/v2/dialog"
 
 	"github.com/mattn/go-gtk/gdk"
 	"github.com/mattn/go-gtk/glib"
@@ -311,7 +311,7 @@ func helpAbout() {
 }
 
 func helpAbout2() {
-	info := fmt.Sprintf("%s - %s\n\n%s", appTitle, appSemVer, appCopyright)
+	info := fmt.Sprintf("%s\n\n%s\n\n%s\n\n%s", appTitle, appSemVer, appWebsite, appCopyright)
 	dialog.ShowInformation("About", info, w)
 }
 

@@ -33,12 +33,12 @@ import (
 	"runtime"
 	"time"
 
-	"fyne.io/fyne"
-	"fyne.io/fyne/app"
-	"fyne.io/fyne/canvas"
-	"fyne.io/fyne/driver/desktop"
-	"fyne.io/fyne/layout"
-	"fyne.io/fyne/widget"
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/driver/desktop"
+	"fyne.io/fyne/v2/layout"
+	"fyne.io/fyne/v2/widget"
 
 	// _ "net/http/pprof" // debugging
 
@@ -263,7 +263,7 @@ func setupWindow2(w fyne.Window) {
 
 	go keyEventHandler(keyboardChan)
 	if deskCanvas, ok := w.Canvas().(desktop.Canvas); ok {
-		
+
 		deskCanvas.SetOnKeyDown(func(ev *fyne.KeyEvent) {
 			keyDownEventChan <- ev
 		})

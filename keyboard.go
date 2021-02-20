@@ -22,7 +22,7 @@ package main
 import (
 	"fmt"
 
-	"fyne.io/fyne"
+	"fyne.io/fyne/v2"
 	"github.com/mattn/go-gtk/gdk"
 )
 

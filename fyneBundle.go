@@ -2,7 +2,7 @@
 
 package main
 
-import "fyne.io/fyne"
+import "fyne.io/fyne/v2"
 
 var resourceDGlogoOrangePng = &fyne.StaticResource{
 	StaticName: "DGlogoOrange.png",
