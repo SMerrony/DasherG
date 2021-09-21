@@ -36,6 +36,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
@@ -282,9 +283,14 @@ func setupWindow2(w fyne.Window) {
 		}
 	}()
 
+	fkGrid := buildFkeyMatrix2()
 	statusBox := buildStatusBox2()
-	content := fyne.NewContainerWithLayout(layout.NewVBoxLayout(),
-		crtImg, statusBox)
+
+	content := container.NewBorder(
+		fkGrid,
+		statusBox,
+		nil, nil,
+		crtImg)
 	w.SetContent(content)
 }
 
