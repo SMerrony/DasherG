@@ -25,9 +25,13 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"unsafe"
 
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/widget"
 	"github.com/mattn/go-gtk/gdk"
 	"github.com/mattn/go-gtk/gtk"
 )
@@ -213,6 +217,128 @@ func buildFkeyMatrix() *gtk.Table {
 	})
 
 	return fkeyMatrix
+}
+
+var fnButs [16]*widget.Button
+var csFLabs, cFLabs, sFLabs, fLabs [16]*widget.Label
+var templLabs [2]*widget.Label
+
+func fnButton(number int) *widget.Button {
+	str := strconv.Itoa(number)
+	fnButs[number] = widget.NewButton("F"+str, nil)
+	return fnButs[number]
+}
+
+func buildFkeyMatrix2() *fyne.Container {
+
+	fkeyGrid := container.NewGridWithColumns(19)
+	locPrBut := widget.NewButton("LocPr", nil)
+	holdBut := widget.NewButton("Hold", nil)
+	erPgBut := widget.NewButton("Er Pg", nil)
+	crBut := widget.NewButton("CR", nil)
+	erEOLBut := widget.NewButton("ErEOL", nil)
+	breakBut := widget.NewButton("Break", nil)
+
+	// top row
+	fkeyGrid.Add(locPrBut)
+	for k := 1; k <= 5; k++ {
+		csFLabs[k] = widget.NewLabel("")
+		csFLabs[k].Wrapping = fyne.TextWrapWord
+		fkeyGrid.Add(csFLabs[k])
+	}
+	fkeyGrid.Add(widget.NewLabel("CtlSh"))
+	for k := 6; k <= 10; k++ {
+		csFLabs[k] = widget.NewLabel("")
+		csFLabs[k].Wrapping = fyne.TextWrapWord
+		fkeyGrid.Add(csFLabs[k])
+	}
+	fkeyGrid.Add(widget.NewLabel("CtlSh"))
+	for k := 11; k <= 15; k++ {
+		csFLabs[k] = widget.NewLabel("")
+		csFLabs[k].Wrapping = fyne.TextWrapWord
+		fkeyGrid.Add(csFLabs[k])
+	}
+	fkeyGrid.Add(holdBut)
+
+	// 2nd row
+	fkeyGrid.Add(widget.NewLabel(""))
+	for k := 1; k <= 5; k++ {
+		cFLabs[k] = widget.NewLabel("")
+		cFLabs[k].Wrapping = fyne.TextWrapWord
+		fkeyGrid.Add(cFLabs[k])
+	}
+	fkeyGrid.Add(widget.NewLabel("Ctrl"))
+	for k := 6; k <= 10; k++ {
+		cFLabs[k] = widget.NewLabel("")
+		cFLabs[k].Wrapping = fyne.TextWrapWord
+		fkeyGrid.Add(cFLabs[k])
+	}
+	fkeyGrid.Add(widget.NewLabel("Ctrl"))
+	for k := 11; k <= 15; k++ {
+		cFLabs[k] = widget.NewLabel("")
+		cFLabs[k].Wrapping = fyne.TextWrapWord
+		fkeyGrid.Add(cFLabs[k])
+	}
+	fkeyGrid.Add(erPgBut)
+
+	// 3rd row
+	fkeyGrid.Add(widget.NewLabel(""))
+	for k := 1; k <= 5; k++ {
+		sFLabs[k] = widget.NewLabel("")
+		sFLabs[k].Wrapping = fyne.TextWrapWord
+		fkeyGrid.Add(sFLabs[k])
+	}
+	fkeyGrid.Add(widget.NewLabel("Shift"))
+	for k := 6; k <= 10; k++ {
+		sFLabs[k] = widget.NewLabel("")
+		sFLabs[k].Wrapping = fyne.TextWrapWord
+		fkeyGrid.Add(sFLabs[k])
+	}
+	fkeyGrid.Add(widget.NewLabel("Shift"))
+	for k := 11; k <= 15; k++ {
+		sFLabs[k] = widget.NewLabel("")
+		sFLabs[k].Wrapping = fyne.TextWrapWord
+		fkeyGrid.Add(sFLabs[k])
+	}
+	fkeyGrid.Add(crBut)
+
+	// 4th row
+	fkeyGrid.Add(widget.NewLabel(""))
+	for k := 1; k <= 5; k++ {
+		fLabs[k] = widget.NewLabel("")
+		fLabs[k].Wrapping = fyne.TextWrapWord
+		fkeyGrid.Add(fLabs[k])
+	}
+	fkeyGrid.Add(widget.NewLabel(""))
+	for k := 6; k <= 10; k++ {
+		fLabs[k] = widget.NewLabel("")
+		fLabs[k].Wrapping = fyne.TextWrapWord
+		fkeyGrid.Add(fLabs[k])
+	}
+	fkeyGrid.Add(widget.NewLabel(""))
+	for k := 11; k <= 15; k++ {
+		fLabs[k] = widget.NewLabel("")
+		fLabs[k].Wrapping = fyne.TextWrapWord
+		fkeyGrid.Add(fLabs[k])
+	}
+	fkeyGrid.Add(erEOLBut)
+
+	// 5th (bottom) row
+	fkeyGrid.Add(breakBut)
+	for k := 1; k <= 5; k++ {
+		fkeyGrid.Add(fnButton(k))
+	}
+	templLabs[0] = widget.NewLabel("")
+	fkeyGrid.Add(templLabs[0])
+	for k := 6; k <= 10; k++ {
+		fkeyGrid.Add(fnButton(k))
+	}
+	templLabs[1] = widget.NewLabel("")
+	fkeyGrid.Add(templLabs[1])
+	for k := 11; k <= 15; k++ {
+		fkeyGrid.Add(fnButton(k))
+	}
+	return fkeyGrid
 }
 
 func loadFKeyTemplate() {
