@@ -24,13 +24,16 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"image/color"
 	"os"
 	"strconv"
 	"strings"
 	"unsafe"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"github.com/mattn/go-gtk/gdk"
 	"github.com/mattn/go-gtk/gtk"
@@ -220,7 +223,7 @@ func buildFkeyMatrix() *gtk.Table {
 }
 
 var fnButs [16]*widget.Button
-var csFLabs, cFLabs, sFLabs, fLabs [16]*widget.Label
+var csFLabs, cFLabs, sFLabs, fLabs [16]*canvas.Text
 var templLabs [2]*widget.Label
 
 func fnButton(number int) *widget.Button {
@@ -229,9 +232,29 @@ func fnButton(number int) *widget.Button {
 	return fnButs[number]
 }
 
+func smallText(text string) *canvas.Text {
+	s := text
+	// if text == "" {
+	// 	s = "        "
+	// }
+	return &canvas.Text{
+		Alignment: fyne.TextAlignCenter,
+		Color:     color.White,
+		Text:      s,
+		TextSize:  9.0,
+		TextStyle: fyne.TextStyle{
+			Bold:      false,
+			Italic:    false,
+			Monospace: false,
+			TabWidth:  0,
+		},
+	}
+}
+
 func buildFkeyMatrix2() *fyne.Container {
 
-	fkeyGrid := container.NewGridWithColumns(19)
+	// fkeyGrid := container.NewGridWithColumns(19)
+
 	locPrBut := widget.NewButton("LocPr", nil)
 	holdBut := widget.NewButton("Hold", nil)
 	erPgBut := widget.NewButton("Er Pg", nil)
@@ -239,106 +262,173 @@ func buildFkeyMatrix2() *fyne.Container {
 	erEOLBut := widget.NewButton("ErEOL", nil)
 	breakBut := widget.NewButton("Break", nil)
 
-	// top row
-	fkeyGrid.Add(locPrBut)
-	for k := 1; k <= 5; k++ {
-		csFLabs[k] = widget.NewLabel("")
-		csFLabs[k].Wrapping = fyne.TextWrapWord
-		fkeyGrid.Add(csFLabs[k])
+	hbox := container.NewHBox()
+	var vboxes [19]*fyne.Container
+	for col := 0; col < 19; col++ {
+		vboxes[col] = container.NewVBox()
+		hbox.Add(vboxes[col])
 	}
-	fkeyGrid.Add(widget.NewLabel("CtlSh"))
-	for k := 6; k <= 10; k++ {
-		csFLabs[k] = widget.NewLabel("")
-		csFLabs[k].Wrapping = fyne.TextWrapWord
-		fkeyGrid.Add(csFLabs[k])
-	}
-	fkeyGrid.Add(widget.NewLabel("CtlSh"))
-	for k := 11; k <= 15; k++ {
-		csFLabs[k] = widget.NewLabel("")
-		csFLabs[k].Wrapping = fyne.TextWrapWord
-		fkeyGrid.Add(csFLabs[k])
-	}
-	fkeyGrid.Add(holdBut)
 
-	// 2nd row
-	fkeyGrid.Add(widget.NewLabel(""))
-	for k := 1; k <= 5; k++ {
-		cFLabs[k] = widget.NewLabel("")
-		cFLabs[k].Wrapping = fyne.TextWrapWord
-		fkeyGrid.Add(cFLabs[k])
-	}
-	fkeyGrid.Add(widget.NewLabel("Ctrl"))
-	for k := 6; k <= 10; k++ {
-		cFLabs[k] = widget.NewLabel("")
-		cFLabs[k].Wrapping = fyne.TextWrapWord
-		fkeyGrid.Add(cFLabs[k])
-	}
-	fkeyGrid.Add(widget.NewLabel("Ctrl"))
-	for k := 11; k <= 15; k++ {
-		cFLabs[k] = widget.NewLabel("")
-		cFLabs[k].Wrapping = fyne.TextWrapWord
-		fkeyGrid.Add(cFLabs[k])
-	}
-	fkeyGrid.Add(erPgBut)
+	vboxes[0].Add(locPrBut)
+	vboxes[0].Add(layout.NewSpacer())
+	vboxes[0].Add(layout.NewSpacer())
+	vboxes[0].Add(layout.NewSpacer())
+	vboxes[0].Add(breakBut)
 
-	// 3rd row
-	fkeyGrid.Add(widget.NewLabel(""))
-	for k := 1; k <= 5; k++ {
-		sFLabs[k] = widget.NewLabel("")
-		sFLabs[k].Wrapping = fyne.TextWrapWord
-		fkeyGrid.Add(sFLabs[k])
+	for col := 1; col <= 5; col++ {
+		csFLabs[col] = smallText("")
+		vboxes[col].Add(csFLabs[col])
+		cFLabs[col] = smallText("")
+		vboxes[col].Add(cFLabs[col])
+		sFLabs[col] = smallText("")
+		vboxes[col].Add(sFLabs[col])
+		fLabs[col] = smallText("")
+		vboxes[col].Add(fLabs[col])
+		vboxes[col].Add(fnButton(col))
 	}
-	fkeyGrid.Add(widget.NewLabel("Shift"))
-	for k := 6; k <= 10; k++ {
-		sFLabs[k] = widget.NewLabel("")
-		sFLabs[k].Wrapping = fyne.TextWrapWord
-		fkeyGrid.Add(sFLabs[k])
-	}
-	fkeyGrid.Add(widget.NewLabel("Shift"))
-	for k := 11; k <= 15; k++ {
-		sFLabs[k] = widget.NewLabel("")
-		sFLabs[k].Wrapping = fyne.TextWrapWord
-		fkeyGrid.Add(sFLabs[k])
-	}
-	fkeyGrid.Add(crBut)
 
-	// 4th row
-	fkeyGrid.Add(widget.NewLabel(""))
-	for k := 1; k <= 5; k++ {
-		fLabs[k] = widget.NewLabel("")
-		fLabs[k].Wrapping = fyne.TextWrapWord
-		fkeyGrid.Add(fLabs[k])
-	}
-	fkeyGrid.Add(widget.NewLabel(""))
-	for k := 6; k <= 10; k++ {
-		fLabs[k] = widget.NewLabel("")
-		fLabs[k].Wrapping = fyne.TextWrapWord
-		fkeyGrid.Add(fLabs[k])
-	}
-	fkeyGrid.Add(widget.NewLabel(""))
-	for k := 11; k <= 15; k++ {
-		fLabs[k] = widget.NewLabel("")
-		fLabs[k].Wrapping = fyne.TextWrapWord
-		fkeyGrid.Add(fLabs[k])
-	}
-	fkeyGrid.Add(erEOLBut)
+	vboxes[6].Add(smallText("Ctrl-Sh"))
+	vboxes[6].Add(smallText("Ctrl"))
+	vboxes[6].Add(smallText("Shift"))
+	vboxes[6].Add(smallText(""))
+	vboxes[6].Add(smallText(""))
 
-	// 5th (bottom) row
-	fkeyGrid.Add(breakBut)
-	for k := 1; k <= 5; k++ {
-		fkeyGrid.Add(fnButton(k))
+	for col := 7; col <= 11; col++ {
+		csFLabs[col-1] = smallText("")
+		vboxes[col].Add(csFLabs[col-1])
+		cFLabs[col-1] = smallText("")
+		vboxes[col].Add(cFLabs[col-1])
+		sFLabs[col-1] = smallText("")
+		vboxes[col].Add(sFLabs[col-1])
+		fLabs[col-1] = smallText("")
+		vboxes[col].Add(fLabs[col-1])
+		vboxes[col].Add(fnButton(col - 1))
 	}
-	templLabs[0] = widget.NewLabel("")
-	fkeyGrid.Add(templLabs[0])
-	for k := 6; k <= 10; k++ {
-		fkeyGrid.Add(fnButton(k))
+
+	vboxes[12].Add(smallText("Ctrl-Sh"))
+	vboxes[12].Add(smallText("Ctrl"))
+	vboxes[12].Add(smallText("Shift"))
+	vboxes[12].Add(smallText(""))
+	vboxes[12].Add(smallText(""))
+
+	for col := 13; col <= 17; col++ {
+		csFLabs[col-2] = smallText("")
+		vboxes[col].Add(csFLabs[col-2])
+		cFLabs[col-2] = smallText("")
+		vboxes[col].Add(cFLabs[col-2])
+		sFLabs[col-2] = smallText("")
+		vboxes[col].Add(sFLabs[col-2])
+		fLabs[col-2] = smallText("")
+		vboxes[col].Add(fLabs[col-2])
+		vboxes[col].Add(fnButton(col - 2))
 	}
-	templLabs[1] = widget.NewLabel("")
-	fkeyGrid.Add(templLabs[1])
-	for k := 11; k <= 15; k++ {
-		fkeyGrid.Add(fnButton(k))
-	}
-	return fkeyGrid
+
+	vboxes[18].Add(holdBut)
+	vboxes[18].Add(erPgBut)
+	vboxes[18].Add(crBut)
+	vboxes[18].Add(erEOLBut)
+	vboxes[18].Add(smallText(""))
+
+	return hbox
+
+	// // top row
+	// fkeyHbox1 := container.NewHBox()
+	// fkeyHbox1.Add(locPrBut)
+	// for k := 1; k <= 5; k++ {
+	// 	csFLabs[k] = smallText("")
+	// 	fkeyHbox1.Add(csFLabs[k])
+	// }
+	// fkeyHbox1.Add(smallText("C-S"))
+	// for k := 6; k <= 10; k++ {
+	// 	csFLabs[k] = smallText("")
+	// 	fkeyHbox1.Add(csFLabs[k])
+	// }
+	// fkeyHbox1.Add(smallText("C-S"))
+	// for k := 11; k <= 15; k++ {
+	// 	csFLabs[k] = smallText("")
+	// 	fkeyHbox1.Add(csFLabs[k])
+	// }
+	// fkeyHbox1.Add(holdBut)
+	// fkeyGrid.Add(fkeyHbox1)
+
+	// // 2nd row
+	// fkeyHbox2 := container.NewHBox()
+	// fkeyHbox2.Add(smallText(""))
+	// for k := 1; k <= 5; k++ {
+	// 	cFLabs[k] = smallText("")
+	// 	fkeyHbox2.Add(cFLabs[k])
+	// }
+	// fkeyHbox2.Add(smallText("Ctrl"))
+	// for k := 6; k <= 10; k++ {
+	// 	cFLabs[k] = smallText("")
+	// 	fkeyHbox2.Add(cFLabs[k])
+	// }
+	// fkeyHbox2.Add(smallText("Ctrl"))
+	// for k := 11; k <= 15; k++ {
+	// 	cFLabs[k] = smallText("")
+	// 	fkeyHbox2.Add(cFLabs[k])
+	// }
+	// fkeyHbox2.Add(erPgBut)
+	// fkeyGrid.Add(fkeyHbox2)
+
+	// // 3rd row
+	// fkeyHbox3 := container.NewHBox()
+	// fkeyHbox3.Add(smallText(""))
+	// for k := 1; k <= 5; k++ {
+	// 	sFLabs[k] = smallText("")
+	// 	fkeyHbox3.Add(sFLabs[k])
+	// }
+	// fkeyHbox3.Add(smallText("Shift"))
+	// for k := 6; k <= 10; k++ {
+	// 	sFLabs[k] = smallText("")
+	// 	fkeyHbox3.Add(sFLabs[k])
+	// }
+	// fkeyHbox3.Add(smallText("Shift"))
+	// for k := 11; k <= 15; k++ {
+	// 	sFLabs[k] = smallText("")
+	// 	fkeyHbox3.Add(sFLabs[k])
+	// }
+	// fkeyHbox3.Add(crBut)
+	// fkeyGrid.Add(fkeyHbox3)
+
+	// // 4th row
+	// fkeyHbox4 := container.NewHBox()
+	// fkeyHbox4.Add(smallText(""))
+	// for k := 1; k <= 5; k++ {
+	// 	fLabs[k] = smallText("")
+	// 	fkeyHbox4.Add(fLabs[k])
+	// }
+	// fkeyHbox4.Add(smallText(""))
+	// for k := 6; k <= 10; k++ {
+	// 	fLabs[k] = smallText("")
+	// 	fkeyHbox4.Add(fLabs[k])
+	// }
+	// fkeyHbox4.Add(smallText(""))
+	// for k := 11; k <= 15; k++ {
+	// 	fLabs[k] = smallText("")
+	// 	fkeyHbox4.Add(fLabs[k])
+	// }
+	// fkeyHbox4.Add(erEOLBut)
+	// fkeyGrid.Add(fkeyHbox4)
+
+	// // 5th (bottom) row
+	// fkeyHbox5 := container.NewHBox()
+	// fkeyHbox5.Add(breakBut)
+	// for k := 1; k <= 5; k++ {
+	// 	fkeyHbox5.Add(fnButton(k))
+	// }
+	// templLabs[0] = widget.NewLabel("")
+	// fkeyHbox5.Add(templLabs[0])
+	// for k := 6; k <= 10; k++ {
+	// 	fkeyHbox5.Add(fnButton(k))
+	// }
+	// templLabs[1] = widget.NewLabel("")
+	// fkeyHbox5.Add(templLabs[1])
+	// for k := 11; k <= 15; k++ {
+	// 	fkeyHbox5.Add(fnButton(k))
+	// }
+	// fkeyGrid.Add(fkeyHbox5)
+	// return fkeyGrid
 }
 
 func loadFKeyTemplate() {
