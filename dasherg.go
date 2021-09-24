@@ -39,7 +39,6 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/layout"
-	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
 	// _ "net/http/pprof" // debugging
@@ -257,28 +256,6 @@ func setupWindow(win *gtk.Window) {
 	// vbox.PackEnd(statusBox, false, false, 0)
 	// win.Add(vbox)
 	// win.SetIcon(iconPixbuf)
-}
-
-type ourTheme struct{}
-
-func (t *ourTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) color.Color {
-	return theme.DefaultTheme().Color(name, variant)
-}
-
-func (t *ourTheme) Font(textStyle fyne.TextStyle) fyne.Resource {
-	return theme.DefaultTheme().Font(textStyle)
-}
-
-func (t *ourTheme) Icon(themeIconName fyne.ThemeIconName) fyne.Resource {
-	return theme.DefaultTheme().Icon(themeIconName)
-}
-
-func (t *ourTheme) Size(themeSize fyne.ThemeSizeName) (f float32) {
-
-	if themeSize == theme.SizeNameText {
-		return 9.0
-	}
-	return theme.DefaultTheme().Size(themeSize)
 }
 
 func setupWindow2(w fyne.Window) {
