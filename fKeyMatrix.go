@@ -33,7 +33,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"github.com/mattn/go-gtk/gdk"
 	"github.com/mattn/go-gtk/gtk"
@@ -255,12 +254,20 @@ func buildFkeyMatrix2() *fyne.Container {
 
 	// fkeyGrid := container.NewGridWithColumns(19)
 
-	locPrBut := widget.NewButton("LocPr", nil)
-	holdBut := widget.NewButton("Hold", nil)
-	erPgBut := widget.NewButton("Er Pg", nil)
-	crBut := widget.NewButton("CR", nil)
-	erEOLBut := widget.NewButton("ErEOL", nil)
-	breakBut := widget.NewButton("Break", nil)
+	locPrBut := widget.NewButton("LocPr", localPrint)
+	holdBut := widget.NewButton("Hold", func() {
+		terminal.rwMutex.Lock()
+		terminal.holding = !terminal.holding
+		terminal.rwMutex.Unlock()
+	})
+	erPgBut := widget.NewButton("Er Pg", func() { keyboardChan <- dasherErasePage })
+	crBut := widget.NewButton("CR", func() { keyboardChan <- dasherCR })
+	erEOLBut := widget.NewButton("ErEOL", func() { keyboardChan <- dasherEraseEol })
+	breakBut := widget.NewButton("Break", func() {
+		if terminal.connectionType == serialConnected {
+			serialSession.sendSerialBreakChan <- true
+		}
+	})
 
 	hbox := container.NewHBox()
 	var vboxes [19]*fyne.Container
@@ -270,9 +277,12 @@ func buildFkeyMatrix2() *fyne.Container {
 	}
 
 	vboxes[0].Add(locPrBut)
-	vboxes[0].Add(layout.NewSpacer())
-	vboxes[0].Add(layout.NewSpacer())
-	vboxes[0].Add(layout.NewSpacer())
+	// vboxes[0].Add(layout.NewSpacer())
+	// vboxes[0].Add(layout.NewSpacer())
+	// vboxes[0].Add(layout.NewSpacer())
+	vboxes[0].Add(crBut)
+	// vboxes[0].Add(smallText(""))
+	// vboxes[0].Add(smallText(""))
 	vboxes[0].Add(breakBut)
 
 	for col := 1; col <= 5; col++ {
@@ -325,9 +335,9 @@ func buildFkeyMatrix2() *fyne.Container {
 
 	vboxes[18].Add(holdBut)
 	vboxes[18].Add(erPgBut)
-	vboxes[18].Add(crBut)
+	// vboxes[18].Add(crBut)
 	vboxes[18].Add(erEOLBut)
-	vboxes[18].Add(smallText(""))
+	// vboxes[18].Add(smallText(""))
 
 	return hbox
 
