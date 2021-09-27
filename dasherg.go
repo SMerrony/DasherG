@@ -290,7 +290,8 @@ func setupWindow2(w fyne.Window) {
 		fkGrid,
 		statusBox,
 		nil, nil,
-		crtImg)
+		container.NewHBox(layout.NewSpacer(), crtImg, layout.NewSpacer()),
+	)
 	w.SetContent(content)
 
 }

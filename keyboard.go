@@ -55,6 +55,9 @@ func keyEventHandler(kbdChan chan<- byte) {
 			case "LeftShift", "RightShift":
 				shiftPressed = false
 
+			case "Return":
+				kbdChan <- dasherNewLine
+
 			case "Escape":
 				kbdChan <- '\033'
 
