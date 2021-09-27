@@ -23,12 +23,11 @@ import (
 	"fmt"
 
 	"fyne.io/fyne/v2"
-	"github.com/mattn/go-gtk/gdk"
 )
 
 var (
-	keyPressEventChan         = make(chan *gdk.EventKey, keyBuffSize)
-	keyReleaseEventChan       = make(chan *gdk.EventKey, keyBuffSize)
+	// keyPressEventChan         = make(chan *gdk.EventKey, keyBuffSize)
+	// keyReleaseEventChan       = make(chan *gdk.EventKey, keyBuffSize)
 	keyDownEventChan          = make(chan *fyne.KeyEvent, keyBuffSize)
 	keyUpEventChan            = make(chan *fyne.KeyEvent, keyBuffSize)
 	ctrlPressed, shiftPressed bool

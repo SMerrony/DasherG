@@ -22,13 +22,16 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
 	"strconv"
 
+	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/widget"
 
 	"github.com/mattn/go-gtk/gdk"
 	"github.com/mattn/go-gtk/glib"
@@ -297,20 +300,20 @@ func fileXmodemSend1k() {
 
 }
 
-func helpAbout() {
-	ad := gtk.NewAboutDialog()
-	ad.SetProgramName(appTitle)
-	ad.SetAuthors(appAuthors)
-	ad.SetIcon(iconPixbuf)
-	ad.SetLogo(iconPixbuf)
-	ad.SetVersion(appSemVer)
-	ad.SetCopyright(appCopyright)
-	ad.SetWebsite(appWebsite)
-	ad.Run()
-	ad.Destroy()
-}
+// func helpAbout() {
+// 	ad := gtk.NewAboutDialog()
+// 	ad.SetProgramName(appTitle)
+// 	ad.SetAuthors(appAuthors)
+// 	ad.SetIcon(iconPixbuf)
+// 	ad.SetLogo(iconPixbuf)
+// 	ad.SetVersion(appSemVer)
+// 	ad.SetCopyright(appCopyright)
+// 	ad.SetWebsite(appWebsite)
+// 	ad.Run()
+// 	ad.Destroy()
+// }
 
-func helpAbout2() {
+func helpAbout() {
 	info := fmt.Sprintf("%s\n\n%s\n\n%s\n\n%s", appTitle, appSemVer, appWebsite, appCopyright)
 	dialog.ShowInformation("About", info, w)
 }
@@ -411,56 +414,38 @@ func telnetClose() {
 	telnetClosing = false
 }
 
-func telnetOpen() {
-	nd := gtk.NewDialog()
-	nd.SetTitle("DasherG - Telnet Host")
-	nd.SetIcon(iconPixbuf)
-	ca := nd.GetVBox()
-	hostLab := gtk.NewLabel("Host:")
-	ca.PackStart(hostLab, true, true, 5)
-	hostEntry := gtk.NewEntry()
+func telnetOpen(win fyne.Window) {
+	hostEntry := widget.NewEntry()
 	hostEntry.SetText(lastTelnetHost)
-	ca.PackStart(hostEntry, true, true, 5)
-	portLab := gtk.NewLabel("Port:")
-	ca.PackStart(portLab, true, true, 5)
-	portEntry := gtk.NewEntry()
-	portEntry.SetActivatesDefault(true) // hitting ENTER will cause default (OK) response
+	portEntry := widget.NewEntry()
 	if lastTelnetPort != 0 {
 		portEntry.SetText(strconv.Itoa(lastTelnetPort))
 	}
-	ca.PackStart(portEntry, true, true, 5)
-
-	nd.AddButton("Cancel", gtk.RESPONSE_CANCEL)
-	nd.AddButton("OK", gtk.RESPONSE_OK)
-	nd.SetDefaultResponse(gtk.RESPONSE_OK)
-	nd.ShowAll()
-	response := nd.Run()
-
-	if response == gtk.RESPONSE_OK {
-		host := hostEntry.GetText()
-		port, err := strconv.Atoi(portEntry.GetText())
-		if err != nil || port < 0 || len(host) == 0 {
-			ed := gtk.NewMessageDialog(win, gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_ERROR,
-				gtk.BUTTONS_CLOSE, "Must enter valid host and numeric port")
-			ed.Run()
-			ed.Destroy()
-		} else {
+	formItems := []*widget.FormItem{
+		widget.NewFormItem("Host", hostEntry),
+		widget.NewFormItem("Port", portEntry),
+	}
+	dialog.ShowForm("DasherG - Telnet Host", "Connect", "Cancel", formItems, func(b bool) {
+		if b {
+			host := hostEntry.Text
+			port, err := strconv.Atoi(portEntry.Text)
+			if err != nil || port < 0 || len(host) == 0 {
+				err = errors.New("must enter valid host and numeric port")
+				dialog.ShowError(err, win)
+				return
+			}
 			telnetSession = newTelnetSession()
 			if telnetSession.openTelnetConn(host, port) {
 				localListenerStopChan <- true
-				networkConnectMenuItem.SetSensitive(false)
-				serialConnectMenuItem.SetSensitive(false)
-				networkDisconnectMenuItem.SetSensitive(true)
+				// networkConnectMenuItem.SetSensitive(false)
+				// serialConnectMenuItem.SetSensitive(false)
+				// networkDisconnectMenuItem.SetSensitive(true)
 				lastTelnetHost = host
 				lastTelnetPort = port
 			} else {
-				ed := gtk.NewMessageDialog(win, gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_ERROR,
-					gtk.BUTTONS_CLOSE, "Could not connect to remote host")
-				ed.Run()
-				ed.Destroy()
+				err = errors.New("could not connect to remote host")
+				dialog.ShowError(err, win)
 			}
 		}
-	}
-
-	nd.Destroy()
+	}, win)
 }

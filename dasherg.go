@@ -62,7 +62,7 @@ const (
 	appID        = "uk.co.merrony.dasherg"
 	appTitle     = "DasherG"
 	appComment   = "A Data General DASHER terminal emulator"
-	appCopyright = "Copyright ©2017-2020 S.Merrony"
+	appCopyright = "Copyright ©2017-2021 S.Merrony"
 	appSemVer    = "v0.11.0" // TODO Update SemVer on each release!
 	appWebsite   = "https://github.com/SMerrony/DasherG"
 	fontFile     = "D410-b-12.bdf"
@@ -473,17 +473,17 @@ func buildMenu2() (mainMenu *fyne.MainMenu) {
 
 	// serial
 	serialConnectItem := fyne.NewMenuItem("Connect", nil)
-	serialDisconnectItem := fyne.NewMenuItem("Disconnect", nil)
+	serialDisconnectItem := fyne.NewMenuItem("Disconnect", serialClose)
 	serialMenu := fyne.NewMenu("Serial", serialConnectItem, serialDisconnectItem)
 
 	// network
-	networkConnectItem := fyne.NewMenuItem("Connect", nil)
-	networkDisconnectItem := fyne.NewMenuItem("Disconnect", nil)
+	networkConnectItem := fyne.NewMenuItem("Connect", func() { telnetOpen(w) })
+	networkDisconnectItem := fyne.NewMenuItem("Disconnect", telnetClose)
 	networkMenu := fyne.NewMenu("Network", networkConnectItem, networkDisconnectItem)
 
 	// help
 	onlineHelpItem := fyne.NewMenuItem("Online Help", nil)
-	aboutItem := fyne.NewMenuItem("About", helpAbout2)
+	aboutItem := fyne.NewMenuItem("About", helpAbout)
 	helpMenu := fyne.NewMenu("Help", onlineHelpItem, fyne.NewMenuItemSeparator(), aboutItem)
 
 	mainMenu = fyne.NewMainMenu(
