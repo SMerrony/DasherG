@@ -1,4 +1,4 @@
-// Copyright (C) 2017,2019  Steve Merrony
+// Copyright ©2017,2019,2020 Steve Merrony
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -24,26 +24,35 @@ type cell struct {
 	blink, dim, reverse, underscore, protect bool
 }
 
-func (cell *cell) set(cv byte, bl, dm, rev, under, prot bool) {
-	cell.charValue = cv
-	cell.blink = bl
-	cell.dim = dm
-	cell.reverse = rev
-	cell.underscore = under
-	cell.protect = prot
+func (c *cell) set(cv byte, bl, dm, rev, under, prot bool) {
+	c.charValue = cv
+	c.blink = bl
+	c.dim = dm
+	c.reverse = rev
+	c.underscore = under
+	c.protect = prot
 }
 
-func (cell *cell) clearToSpace() {
-	cell.charValue = ' '
-	cell.blink = false
-	cell.dim = false
-	cell.reverse = false
-	cell.underscore = false
-	cell.protect = false
+func (c *cell) clearToSpace() {
+	c.charValue = ' '
+	c.blink = false
+	c.dim = false
+	c.reverse = false
+	c.underscore = false
+	c.protect = false
 }
 
-func (cell *cell) clearToSpaceIfUnprotected() {
-	if !cell.protect {
-		cell.clearToSpace()
+func (c *cell) clearToSpaceIfUnprotected() {
+	if !c.protect {
+		c.clearToSpace()
 	}
+}
+
+func (c *cell) copyFrom(src cell) {
+	c.charValue = src.charValue
+	c.blink = src.blink
+	c.dim = src.dim
+	c.reverse = src.reverse
+	c.underscore = src.underscore
+	c.protect = src.protect
 }
