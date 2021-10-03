@@ -1,4 +1,4 @@
-// Copyright © 2017-2020  Steve Merrony
+// Copyright ©2017-2021  Steve Merrony
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -57,7 +57,6 @@ type terminalT struct {
 	emulation                                    emulType
 	connectionType                               int
 	remoteHost, remotePort, serialPort           string
-	visibleLines, visibleCols                    int
 	cursorX, cursorY                             int
 	rollEnabled, blinkEnabled, protectionEnabled bool
 	blinkState                                   bool
@@ -67,9 +66,9 @@ type terminalT struct {
 	logFile                                      *os.File
 
 	// display is the 2D array of cells containing the terminal 'contents'
-	display                  [totalLines][totalCols]cell
+	display                  displayT
 	displayDirty             [totalLines][totalCols]bool
-	savedDisplay             [totalLines][totalCols]cell // used when scrolling back over history
+	savedDisplay             displayT // used when scrolling back over history
 	displayHistory           [historyLines][totalCols]cell
 	historyStart, historyEnd int
 
@@ -97,8 +96,8 @@ func (t *terminalT) setup(fromHostChan <-chan []byte, update chan int, expectCha
 	t.rawChan = make(chan byte)
 	t.emulation = d210
 	t.updateCrtChan = update
-	t.visibleLines = defaultLines
-	t.visibleCols = defaultCols
+	t.display.visibleLines = defaultLines
+	t.display.visibleCols = defaultCols
 	t.emptyCell.clearToSpace()
 	for c := range t.emptyLine {
 		t.emptyLine[c] = t.emptyCell
@@ -112,10 +111,24 @@ func (t *terminalT) setup(fromHostChan <-chan []byte, update chan int, expectCha
 	t.rollEnabled = true
 	t.blinkEnabled = true
 	t.clearScreen()
-	t.display[12][39].charValue = 'O'
-	t.display[12][40].charValue = 'K'
+	t.display.cells[12][39].charValue = 'O'
+	t.display.cells[12][40].charValue = 'K'
 	t.rwMutex.Unlock()
 	t.updateCrtChan <- updateCrtNormal
+}
+
+// updateListener is to be run as a Goroutine, it listens for update notifications and marks
+// the terminal as needing a redraw
+func (t *terminalT) updateListener() {
+	for {
+		updateType := <-updateCrtChan
+		t.rwMutex.Lock()
+		if updateType == updateCrtBlink {
+			t.blinkState = !t.blinkState
+		}
+		t.terminalUpdated = true
+		t.rwMutex.Unlock()
+	}
 }
 
 func (t *terminalT) setEmulation(e emulType) {
@@ -132,7 +145,7 @@ func (t *terminalT) setRawMode(raw bool) {
 }
 
 func (t *terminalT) clearLine(line int) {
-	t.display[line] = t.emptyLine
+	t.display.cells[line] = t.emptyLine
 	t.displayDirty[line] = t.dirtyLine
 	t.inCommand = false
 	t.readingWindowAddressX = false
@@ -144,7 +157,7 @@ func (t *terminalT) clearLine(line int) {
 }
 
 func (t *terminalT) clearScreen() {
-	t.scrollUp(t.visibleLines + 1)
+	t.scrollUp(t.display.visibleLines + 1)
 	t.inCommand = false
 	t.readingWindowAddressX = false
 	t.readingWindowAddressY = false
@@ -162,14 +175,14 @@ func (t *terminalT) resize() {
 
 func (t *terminalT) eraseUnprotectedToEndOfScreen() {
 	// clear remainder of line
-	for x := t.cursorX; x < t.visibleCols; x++ {
-		t.display[t.cursorY][x].clearToSpaceIfUnprotected()
+	for x := t.cursorX; x < t.display.visibleCols; x++ {
+		t.display.cells[t.cursorY][x].clearToSpaceIfUnprotected()
 		t.displayDirty[t.cursorY][x] = true
 	}
 	// clear all lines below
-	for y := t.cursorY + 1; y < t.visibleLines; y++ {
-		for x := 0; x < t.visibleCols; x++ {
-			t.display[y][x].clearToSpaceIfUnprotected()
+	for y := t.cursorY + 1; y < t.display.visibleLines; y++ {
+		for x := 0; x < t.display.visibleCols; x++ {
+			t.display.cells[y][x].clearToSpaceIfUnprotected()
 			t.displayDirty[y][x] = true
 		}
 	}
@@ -214,25 +227,25 @@ func (t *terminalT) getNthHistoryLine(n int) (screenLine [totalCols]cell) {
 
 func (t *terminalT) scrollUp(rows int) {
 	for times := 0; times < rows; times++ {
-		t.addToHistory(t.display[0])
+		t.addToHistory(t.display.cells[0])
 		// move each line up a row
-		for r := 1; r < t.visibleLines; r++ {
-			t.display[r-1] = t.display[r]
+		for r := 1; r < t.display.visibleLines; r++ {
+			t.display.cells[r-1] = t.display.cells[r]
 			t.displayDirty[r-1] = t.dirtyLine
 		}
-		t.clearLine(t.visibleLines - 1)
+		t.clearLine(t.display.visibleLines - 1)
 	}
 }
 
 func (t *terminalT) scrollDown(topLine string) {
 	// move every visible row down
-	for r := t.visibleLines; r > 0; r-- {
-		t.display[r+1] = t.display[r]
+	for r := t.display.visibleLines; r > 0; r-- {
+		t.display.cells[r+1] = t.display.cells[r]
 		t.displayDirty[r+1] = t.dirtyLine
 	}
 	t.clearLine(0)
 	for c := 0; c < len(topLine); c++ {
-		t.display[0][c].set(byte(topLine[c]), false, false, false, false, false)
+		t.display.cells[0][c].set(byte(topLine[c]), false, false, false, false, false)
 		t.displayDirty[0][c] = true
 	}
 }
@@ -242,31 +255,31 @@ func (t *terminalT) scrollBack(startLine int) {
 	// fmt.Printf("scrollBack - startLine: %d\n", startLine)
 	if !t.scrolledBack { // new scrollback
 		// save live screen
-		t.savedDisplay = t.display
+		t.display.copyTo(&t.savedDisplay)
 		t.scrolledBack = true
 	}
 
 	// there are two cases: we are already scrolled back beyond the 'live' screen, or we are partially showing it
-	if startLine < t.visibleLines {
+	if startLine < t.display.visibleLines {
 		// the partial case
 		onScreenLine := 0
 		for hl := startLine; hl >= 0; hl-- {
-			t.display[onScreenLine] = t.getNthHistoryLine(hl)
+			t.display.cells[onScreenLine] = t.getNthHistoryLine(hl)
 			t.displayDirty[onScreenLine] = t.dirtyLine
 			onScreenLine++
 		}
 		liveLine := 0
-		for onScreenLine < t.visibleLines {
-			t.display[onScreenLine] = t.savedDisplay[liveLine]
+		for onScreenLine < t.display.visibleLines {
+			t.display.cells[onScreenLine] = t.savedDisplay.cells[liveLine]
 			t.displayDirty[onScreenLine] = t.dirtyLine
 			liveLine++
 			onScreenLine++
 		}
 	} else {
 		// all 'history' - we can cheat
-		for l := 0; l < t.visibleLines; l++ {
+		for l := 0; l < t.display.visibleLines; l++ {
 			histLine := startLine - l
-			t.display[l] = t.getNthHistoryLine(histLine)
+			t.display.cells[l] = t.getNthHistoryLine(histLine)
 			t.displayDirty[l] = t.dirtyLine
 		}
 	}
@@ -278,8 +291,8 @@ func (t *terminalT) scrollBack(startLine int) {
 func (t *terminalT) cancelScrollBack() {
 	// fmt.Println("cancelScrollBack called")
 	t.rwMutex.Lock()
-	t.display = t.savedDisplay
-	for l := 0; l < t.visibleLines; l++ {
+	t.savedDisplay.copyTo(&t.display)
+	for l := 0; l < t.display.visibleLines; l++ {
 		t.displayDirty[l] = t.dirtyLine
 	}
 	t.scrolledBack = false
@@ -300,8 +313,8 @@ func (t *terminalT) selfTest(hostChan chan []byte) {
 	)
 
 	hostChan <- []byte{dasherErasePage}
-	hostChan <- []byte(testLineHRule1[:t.visibleCols])
-	hostChan <- []byte(testLineHRule2[:t.visibleCols])
+	hostChan <- []byte(testLineHRule1[:t.display.visibleCols])
+	hostChan <- []byte(testLineHRule2[:t.display.visibleCols])
 	hostChan <- []byte(testLineN)
 	hostChan <- []byte(testLineChars)
 	hostChan <- []byte("\n")
@@ -331,7 +344,7 @@ func (t *terminalT) selfTest(hostChan chan []byte) {
 	hostChan <- []byte(testLineChars)
 	hostChan <- []byte{dasherNormal}
 
-	for i := 8; i <= t.visibleLines; i++ {
+	for i := 8; i <= t.display.visibleLines; i++ {
 		hostChan <- []byte(fmt.Sprintf("\n%d", i))
 	}
 }
@@ -425,8 +438,8 @@ func (t *terminalT) run() {
 
 			if t.readingWindowAddressX {
 				t.newXaddress = int(ch & 0x7f)
-				if t.newXaddress >= t.visibleCols {
-					t.newXaddress -= t.visibleCols
+				if t.newXaddress >= t.display.visibleCols {
+					t.newXaddress -= t.display.visibleCols
 				}
 				if t.newXaddress == 127 {
 					// special case - x stays the same - see D410 User Manual p.3-25
@@ -447,12 +460,12 @@ func (t *terminalT) run() {
 					// special case - y stays the same - see D410 User Manual p.3-25
 					t.newYaddress = t.cursorY
 				}
-				if t.cursorY >= t.visibleLines {
+				if t.cursorY >= t.display.visibleLines {
 					// see end of p.3-24 in D410 User Manual
 					if t.rollEnabled {
-						t.scrollUp(t.cursorY - (t.visibleLines - 1))
+						t.scrollUp(t.cursorY - (t.display.visibleLines - 1))
 					}
-					t.cursorY -= t.visibleLines
+					t.cursorY -= t.display.visibleLines
 				}
 				t.readingWindowAddressY = false
 				skipChar = true
@@ -527,7 +540,7 @@ func (t *terminalT) run() {
 				t.blinkEnabled = true
 				skipChar = true
 			case dasherCursorDown:
-				if t.cursorY < t.visibleLines-1 {
+				if t.cursorY < t.display.visibleLines-1 {
 					t.cursorY++
 				} else {
 					t.cursorY = 0
@@ -537,20 +550,20 @@ func (t *terminalT) run() {
 				if t.cursorX > 0 {
 					t.cursorX--
 				} else {
-					t.cursorX = t.visibleCols - 1
+					t.cursorX = t.display.visibleCols - 1
 					if t.cursorY > 0 {
 						t.cursorY--
 					} else {
-						t.cursorY = t.visibleLines - 1
+						t.cursorY = t.display.visibleLines - 1
 					}
 				}
 				skipChar = true
 			case dasherCursorRight:
-				if t.cursorX < t.visibleCols-1 {
+				if t.cursorX < t.display.visibleCols-1 {
 					t.cursorX++
 				} else {
 					t.cursorX = 0
-					if t.cursorY < t.visibleLines-2 {
+					if t.cursorY < t.display.visibleLines-2 {
 						t.cursorY++
 					} else {
 						t.cursorY = 0
@@ -561,7 +574,7 @@ func (t *terminalT) run() {
 				if t.cursorY > 0 {
 					t.cursorY--
 				} else {
-					t.cursorY = t.visibleLines - 1
+					t.cursorY = t.display.visibleLines - 1
 				}
 				skipChar = true
 			case dasherDimOn:
@@ -571,9 +584,9 @@ func (t *terminalT) run() {
 				t.dimmed = false
 				skipChar = true
 			case dasherEraseEol:
-				for col := t.cursorX; col < t.visibleCols; col++ {
-					//t.display[t.cursorY][col].clearToSpace()
-					t.display[t.cursorY][col] = t.emptyCell
+				for col := t.cursorX; col < t.display.visibleCols; col++ {
+					//t.display.cells[t.cursorY][col].clearToSpace()
+					t.display.cells[t.cursorY][col] = t.emptyCell
 					t.displayDirty[t.cursorY][col] = true
 				}
 				skipChar = true
@@ -616,7 +629,7 @@ func (t *terminalT) run() {
 			case dasherTab:
 				t.cursorX++
 				for (t.cursorX+1)%8 != 0 {
-					if t.cursorX >= t.visibleCols-1 {
+					if t.cursorX >= t.display.visibleCols-1 {
 						t.cursorX = 0
 					} else {
 						t.cursorX++
@@ -637,8 +650,8 @@ func (t *terminalT) run() {
 			}
 
 			// wrap due to hitting margin or new line?
-			if t.cursorX == t.visibleCols || ch == dasherNewLine {
-				if t.cursorY == t.visibleLines-1 { // hit bottom of screen
+			if t.cursorX == t.display.visibleCols || ch == dasherNewLine {
+				if t.cursorY == t.display.visibleLines-1 { // hit bottom of screen
 					if t.rollEnabled {
 						t.scrollUp(1)
 					} else {
@@ -667,9 +680,9 @@ func (t *terminalT) run() {
 			// finally, put the char in the displayable char matrix
 			if ch > 0 && int(ch) < len(bdfFont) && bdfFont[ch].loaded {
 				// fmt.Printf("DEBUG: Terminal inserting %c\n", ch)
-				t.display[t.cursorY][t.cursorX].set(ch, t.blinking, t.dimmed, t.reversedVideo, t.underscored, t.protectd)
+				t.display.cells[t.cursorY][t.cursorX].set(ch, t.blinking, t.dimmed, t.reversedVideo, t.underscored, t.protectd)
 			} else {
-				t.display[t.cursorY][t.cursorX].set(127, t.blinking, t.dimmed, t.reversedVideo, t.underscored, t.protectd)
+				t.display.cells[t.cursorY][t.cursorX].set(127, t.blinking, t.dimmed, t.reversedVideo, t.underscored, t.protectd)
 			}
 			t.displayDirty[t.cursorY][t.cursorX] = true
 			t.cursorX++
