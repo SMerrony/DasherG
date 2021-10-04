@@ -7,6 +7,7 @@
 * icon.gen.go !
 * keyboard.go
 * menuHandlers.go
+* miniExpect.go
 
 ## Terminal setting on Linux host:
 

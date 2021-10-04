@@ -25,7 +25,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"strconv"
 
@@ -34,7 +33,6 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/mattn/go-gtk/gdk"
-	"github.com/mattn/go-gtk/glib"
 	"github.com/mattn/go-gtk/gtk"
 )
 
@@ -66,7 +64,7 @@ func emulationResize() {
 	colsCombo.AppendText("120")
 	colsCombo.AppendText("132")
 	colsCombo.AppendText("135")
-	switch terminal.visibleCols {
+	switch terminal.display.visibleCols {
 	case 80:
 		colsCombo.SetActive(0)
 	case 81:
@@ -88,7 +86,7 @@ func emulationResize() {
 	linesCombo.AppendText("48")
 	linesCombo.AppendText("66")
 	terminal.rwMutex.RLock()
-	switch terminal.visibleLines {
+	switch terminal.display.visibleLines {
 	case 24:
 		linesCombo.SetActive(0)
 	case 25:
@@ -128,8 +126,8 @@ func emulationResize() {
 	response := rd.Run()
 	if response == gtk.RESPONSE_OK {
 		terminal.rwMutex.Lock()
-		terminal.visibleCols, _ = strconv.Atoi(colsCombo.GetActiveText())
-		terminal.visibleLines, _ = strconv.Atoi(linesCombo.GetActiveText())
+		terminal.display.visibleCols, _ = strconv.Atoi(colsCombo.GetActiveText())
+		terminal.display.visibleLines, _ = strconv.Atoi(linesCombo.GetActiveText())
 		switch zoomCombo.GetActiveText() {
 		case "Large":
 			zoom = zoomLarge
@@ -142,7 +140,7 @@ func emulationResize() {
 		}
 		bdfLoad(fontFile, zoom, green, dimGreen)
 
-		crt.SetSizeRequest(terminal.visibleCols*charWidth, terminal.visibleLines*charHeight)
+		crt.SetSizeRequest(terminal.display.visibleCols*charWidth, terminal.display.visibleLines*charHeight)
 		terminal.rwMutex.Unlock()
 		terminal.resize()
 		win.Resize(800, 600) // this is effectively a minimum size, user can override
@@ -167,26 +165,33 @@ func fileChooseExpectScript() {
 	}
 }
 
-func fileLogging() {
+func fileLogging(win fyne.Window) {
 	if terminal.logging {
 		terminal.logFile.Close()
 		terminal.logging = false
 	} else {
-		fd := gtk.NewFileChooserDialog("DasherG Logfile", win, gtk.FILE_CHOOSER_ACTION_SAVE,
-			"_Cancel", gtk.RESPONSE_CANCEL, "_Open", gtk.RESPONSE_ACCEPT)
-		res := fd.Run()
-		if res == gtk.RESPONSE_ACCEPT {
-			filename := fd.GetFilename()
-			var err error
-			terminal.logFile, err = os.Create(filename)
-			if err != nil {
-				log.Printf("WARNING: Could not open log file %s\n", filename)
-				terminal.logging = false
-			} else {
-				terminal.logging = true
+		// fd := gtk.NewFileChooserDialog("DasherG Logfile", win, gtk.FILE_CHOOSER_ACTION_SAVE,
+		// 	"_Cancel", gtk.RESPONSE_CANCEL, "_Open", gtk.RESPONSE_ACCEPT)
+		// res := fd.Run()
+		fd := dialog.NewFileSave(func(uriwc fyne.URIWriteCloser, e error) {
+			if uriwc != nil {
+
 			}
-		}
-		fd.Destroy()
+		}, win)
+		fd.SetDismissText("Start Logging")
+		fd.Show()
+		// if res == gtk.RESPONSE_ACCEPT {
+		// 	filename := fd.GetFilename()
+		// 	var err error
+		// 	terminal.logFile, err = os.Create(filename)
+		// 	if err != nil {
+		// 		log.Printf("WARNING: Could not open log file %s\n", filename)
+		// 		terminal.logging = false
+		// 	} else {
+		// 		terminal.logging = true
+		// 	}
+		// }
+		// fd.Destroy()
 	}
 }
 
@@ -300,19 +305,6 @@ func fileXmodemSend1k() {
 
 }
 
-// func helpAbout() {
-// 	ad := gtk.NewAboutDialog()
-// 	ad.SetProgramName(appTitle)
-// 	ad.SetAuthors(appAuthors)
-// 	ad.SetIcon(iconPixbuf)
-// 	ad.SetLogo(iconPixbuf)
-// 	ad.SetVersion(appSemVer)
-// 	ad.SetCopyright(appCopyright)
-// 	ad.SetWebsite(appWebsite)
-// 	ad.Run()
-// 	ad.Destroy()
-// }
-
 func helpAbout() {
 	info := fmt.Sprintf("%s\n\n%s\n\n%s\n\n%s", appTitle, appSemVer, appWebsite, appCopyright)
 	dialog.ShowInformation("About", info, w)
@@ -320,83 +312,61 @@ func helpAbout() {
 
 func serialClose() {
 	serialSession.closeSerialPort()
-	glib.IdleAdd(func() {
-		serialDisconnectMenuItem.SetSensitive(false)
-		networkConnectMenuItem.SetSensitive(true)
-		serialConnectMenuItem.SetSensitive(true)
-	})
+	// glib.IdleAdd(func() {
+	// 	serialDisconnectMenuItem.SetSensitive(false)
+	// 	networkConnectMenuItem.SetSensitive(true)
+	// 	serialConnectMenuItem.SetSensitive(true)
+	// })
 	go localListener(keyboardChan, fromHostChan)
 }
 
-func serialConnect() {
-	sd := gtk.NewDialog()
-	sd.SetTitle("DasherG - Serial Port")
-	sd.SetIcon(iconPixbuf)
-	ca := sd.GetVBox()
-	table := gtk.NewTable(5, 2, false)
-	table.SetColSpacings(5)
-	table.SetRowSpacings(5)
-	portLab := gtk.NewLabel("Port:")
-	table.AttachDefaults(portLab, 0, 1, 0, 1)
-	portEntry := gtk.NewEntry()
-	table.AttachDefaults(portEntry, 1, 2, 0, 1)
-	baudLab := gtk.NewLabel("Baud:")
-	table.AttachDefaults(baudLab, 0, 1, 1, 2)
-	baudCombo := gtk.NewComboBoxText()
-	baudCombo.AppendText("300")
-	baudCombo.AppendText("1200")
-	baudCombo.AppendText("2400")
-	baudCombo.AppendText("9600")
-	baudCombo.AppendText("19200")
-	baudCombo.SetActive(3)
-	table.AttachDefaults(baudCombo, 1, 2, 1, 2)
-	bitsLab := gtk.NewLabel("Data bits:")
-	table.AttachDefaults(bitsLab, 0, 1, 2, 3)
-	bitsCombo := gtk.NewComboBoxText()
-	bitsCombo.AppendText("7")
-	bitsCombo.AppendText("8")
-	bitsCombo.SetActive(1)
-	table.AttachDefaults(bitsCombo, 1, 2, 2, 3)
-	parityLab := gtk.NewLabel("Parity:")
-	table.AttachDefaults(parityLab, 0, 1, 3, 4)
-	parityCombo := gtk.NewComboBoxText()
-	parityCombo.AppendText("None")
-	parityCombo.AppendText("Even")
-	parityCombo.AppendText("Odd")
-	parityCombo.SetActive(0)
-	table.AttachDefaults(parityCombo, 1, 2, 3, 4)
-	stopLab := gtk.NewLabel("Stop bits:")
-	table.AttachDefaults(stopLab, 0, 1, 4, 5)
-	stopCombo := gtk.NewComboBoxText()
-	stopCombo.AppendText("1")
-	//stopCombo.AppendText("1.5")
-	stopCombo.AppendText("2")
-	stopCombo.SetActive(0)
-	table.AttachDefaults(stopCombo, 1, 2, 4, 5)
-	ca.PackStart(table, true, true, 5)
-	sd.AddButton("Cancel", gtk.RESPONSE_CANCEL)
-	sd.AddButton("OK", gtk.RESPONSE_OK)
-	sd.SetDefaultResponse(gtk.RESPONSE_OK)
-	sd.ShowAll()
-	response := sd.Run()
-
-	if response == gtk.RESPONSE_OK {
-		baud, _ := strconv.Atoi(baudCombo.GetActiveText())
-		bits, _ := strconv.Atoi(bitsCombo.GetActiveText())
-		stopBits, _ := strconv.Atoi(stopCombo.GetActiveText())
-		if serialSession.openSerialPort(portEntry.GetText(), baud, bits, parityCombo.GetActiveText(), stopBits) {
-			localListenerStopChan <- true
-			serialConnectMenuItem.SetSensitive(false)
-			networkConnectMenuItem.SetSensitive(false)
-			serialDisconnectMenuItem.SetSensitive(true)
-		} else {
-			ed := gtk.NewMessageDialog(win, gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_ERROR,
-				gtk.BUTTONS_CLOSE, "Could not connect via serial port")
-			ed.Run()
-			ed.Destroy()
-		}
+func serialConnect(win fyne.Window) {
+	portEntry := widget.NewEntry()
+	var selectedBaud int
+	baudSelect := widget.NewSelect([]string{"300", "1200", "2400", "9600", "19200"},
+		func(selected string) {
+			selectedBaud, _ = strconv.Atoi(selected)
+		})
+	baudSelect.SetSelected("9600")
+	var selectedBits int
+	bitsSelect := widget.NewSelect([]string{"7", "8"},
+		func(selected string) {
+			selectedBits, _ = strconv.Atoi(selected)
+		})
+	bitsSelect.SetSelected("8")
+	var selectedParity string
+	paritySelect := widget.NewSelect([]string{"None", "Odd", "Even"},
+		func(selected string) {
+			selectedParity = selected
+		})
+	paritySelect.SetSelected("None")
+	var selectedStopBits int
+	stopBitsSelect := widget.NewSelect([]string{"1", "2"},
+		func(selected string) {
+			selectedStopBits, _ = strconv.Atoi(selected)
+		})
+	stopBitsSelect.SetSelected("1")
+	formItems := []*widget.FormItem{
+		widget.NewFormItem("Port", portEntry),
+		widget.NewFormItem("Baud", baudSelect),
+		widget.NewFormItem("Data Bits", bitsSelect),
+		widget.NewFormItem("Parity", paritySelect),
+		widget.NewFormItem("Stop Bits", stopBitsSelect),
 	}
-	sd.Destroy()
+	dialog.ShowForm("DasherG - Serial Port", "Connect", "Cancel", formItems,
+		func(b bool) {
+			if b {
+				if serialSession.openSerialPort(portEntry.Text, selectedBaud, selectedBits, selectedParity, selectedStopBits) {
+					localListenerStopChan <- true
+					// serialConnectMenuItem.SetSensitive(false)
+					// networkConnectMenuItem.SetSensitive(false)
+					// serialDisconnectMenuItem.SetSensitive(true)
+				} else {
+					err := errors.New("could not connect via serial port")
+					dialog.ShowError(err, win)
+				}
+			}
+		}, win)
 }
 
 func telnetClose() {
@@ -405,11 +375,11 @@ func telnetClose() {
 	}
 	telnetClosing = true
 	telnetSession.closeTelnetConn()
-	glib.IdleAdd(func() {
-		networkDisconnectMenuItem.SetSensitive(false)
-		serialConnectMenuItem.SetSensitive(true)
-		networkConnectMenuItem.SetSensitive(true)
-	})
+	// glib.IdleAdd(func() {
+	// 	networkDisconnectMenuItem.SetSensitive(false)
+	// 	serialConnectMenuItem.SetSensitive(true)
+	// 	networkConnectMenuItem.SetSensitive(true)
+	// })
 	go localListener(keyboardChan, fromHostChan)
 	telnetClosing = false
 }

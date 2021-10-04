@@ -84,8 +84,6 @@ const (
 	zoomTiny
 )
 
-var appAuthors = []string{"Stephen Merrony"}
-
 var (
 	terminal *terminalT
 
@@ -211,7 +209,7 @@ func main() {
 		}
 	}
 
-	go updateTerminal(terminal)
+	go terminal.updateListener()
 
 	go func() {
 		for {
@@ -444,7 +442,7 @@ func localListener(kbdChan <-chan byte, frmHostChan chan<- []byte) {
 func buildMenu2() (mainMenu *fyne.MainMenu) {
 
 	// file
-	loggingItem := fyne.NewMenuItem("Logging", nil)
+	loggingItem := fyne.NewMenuItem("Logging", func() { fileLogging(w) })
 	expectItem := fyne.NewMenuItem("Run mini-Expect Sctipt", nil)
 	sendFileItem := fyne.NewMenuItem("Send (Text) File", nil)
 	xmodemRcvItem := fyne.NewMenuItem("XMODEM-CRC - Receive File", nil)
@@ -473,7 +471,7 @@ func buildMenu2() (mainMenu *fyne.MainMenu) {
 	)
 
 	// serial
-	serialConnectItem := fyne.NewMenuItem("Connect", nil)
+	serialConnectItem := fyne.NewMenuItem("Connect", func() { serialConnect(w) })
 	serialDisconnectItem := fyne.NewMenuItem("Disconnect", serialClose)
 	serialMenu := fyne.NewMenu("Serial", serialConnectItem, serialDisconnectItem)
 
@@ -521,7 +519,7 @@ func openBrowser(url string) {
 // 	var mne int
 // 	crt = gtk.NewDrawingArea()
 // 	terminal.rwMutex.RLock()
-// 	crt.SetSizeRequest(terminal.visibleCols*charWidth, terminal.visibleLines*charHeight)
+// 	crt.SetSizeRequest(terminal.display.visibleCols*charWidth, terminal.display.visibleLines*charHeight)
 // 	terminal.rwMutex.RUnlock()
 
 // 	crt.Connect("configure-event", func() {
@@ -531,7 +529,7 @@ func openBrowser(url string) {
 // 		//allocation := crt.GetAllocation()
 // 		terminal.rwMutex.RLock()
 // 		offScreenPixmap = gdk.NewPixmap(crt.GetWindow().GetDrawable(),
-// 			terminal.visibleCols*charWidth, terminal.visibleLines*charHeight*charHeight, 24)
+// 			terminal.display.visibleCols*charWidth, terminal.display.visibleLines*charHeight*charHeight, 24)
 // 		terminal.rwMutex.RUnlock()
 // 		gc = gdk.NewGC(offScreenPixmap.GetDrawable())
 // 		offScreenPixmap.GetDrawable().DrawRectangle(gc, true, 0, 0, -1, -1)
@@ -594,15 +592,15 @@ func handleScrollbarChangedEvent(ctx *glib.CallbackContext) {
 
 // getSelection returns a DG-ASCII string containing the mouse-selected portion of the screen
 func getSelection() string {
-	startCharPosn := selectionRegion.startCol + selectionRegion.startRow*terminal.visibleCols
-	endCharPosn := selectionRegion.endCol + selectionRegion.endRow*terminal.visibleCols
+	startCharPosn := selectionRegion.startCol + selectionRegion.startRow*terminal.display.visibleCols
+	endCharPosn := selectionRegion.endCol + selectionRegion.endRow*terminal.display.visibleCols
 	selection := ""
 	if startCharPosn <= endCharPosn {
 		// normal (forward) selection
 		col := selectionRegion.startCol
 		for row := selectionRegion.startRow; row <= selectionRegion.endRow; row++ {
-			for col < terminal.visibleCols {
-				selection += string(terminal.display[row][col].charValue)
+			for col < terminal.display.visibleCols {
+				selection += string(terminal.display.cells[row][col].charValue)
 				terminal.displayDirty[row][col] = true
 				if row == selectionRegion.endRow && col == selectionRegion.endCol {
 					return selection
@@ -625,23 +623,9 @@ func handleMotionNotifyEvent(ctx *glib.CallbackContext) {
 	col := int(btnPressEvent.X) / charWidth
 	if row != selectionRegion.endRow || col != selectionRegion.endCol {
 		// moved at least 1 cell...
-		// fmt.Printf("DEBUG: Row: %d, Col: %d, Character: %c\n", row, col, terminal.display[row][col].charValue)
+		// fmt.Printf("DEBUG: Row: %d, Col: %d, Character: %c\n", row, col, terminal.display.cells[row][col].charValue)
 		selectionRegion.endCol = col
 		selectionRegion.endRow = row
-	}
-}
-
-// updateTerminal is to be run as a Goroutine, it listens for update notifications and marks
-// the terminal as needing a redraw
-func updateTerminal(t *terminalT) {
-	for {
-		updateType := <-updateCrtChan
-		t.rwMutex.Lock()
-		if updateType == updateCrtBlink {
-			t.blinkState = !t.blinkState
-		}
-		t.terminalUpdated = true
-		t.rwMutex.Unlock()
 	}
 }
 
@@ -692,7 +676,7 @@ func updateStatusBox() {
 		loggingLabel2.SetText("")
 	}
 	emuStat := "D" + strconv.Itoa(int(terminal.emulation)) + " (" +
-		strconv.Itoa(terminal.visibleLines) + "x" + strconv.Itoa(terminal.visibleCols) + ")"
+		strconv.Itoa(terminal.display.visibleLines) + "x" + strconv.Itoa(terminal.display.visibleCols) + ")"
 	if terminal.holding {
 		emuStat += " (Hold)"
 	}
@@ -712,32 +696,32 @@ func localPrint() {
 			fmt.Printf("ERROR: Could not create file <%s> for screen-dump\n", filename)
 		} else {
 			defer dumpFile.Close()
-			img := image.NewNRGBA(image.Rect(0, 0, (terminal.visibleCols+1)*fontWidth, (terminal.visibleLines+1)*fontHeight))
+			img := image.NewNRGBA(image.Rect(0, 0, (terminal.display.visibleCols+1)*fontWidth, (terminal.display.visibleLines+1)*fontHeight))
 			bg := image.NewUniform(color.RGBA{255, 255, 255, 255})   // prepare white for background
 			grey := image.NewUniform(color.RGBA{128, 128, 128, 255}) // prepare grey for foreground
 			blk := image.NewUniform(color.RGBA{0, 0, 0, 255})        // prepare black for foreground
 			draw.Draw(img, img.Bounds(), bg, image.ZP, draw.Src)     // fill the background
-			for line := 0; line < terminal.visibleLines; line++ {
-				for col := 0; col < terminal.visibleCols; col++ {
+			for line := 0; line < terminal.display.visibleLines; line++ {
+				for col := 0; col < terminal.display.visibleCols; col++ {
 					for x := 0; x < fontWidth; x++ {
 						for y := 0; y < fontHeight; y++ {
 							switch {
-							case terminal.display[line][col].dim:
-								if bdfFont[terminal.display[line][col].charValue].pixels[x][y] {
+							case terminal.display.cells[line][col].dim:
+								if bdfFont[terminal.display.cells[line][col].charValue].pixels[x][y] {
 									img.Set(col*fontWidth+x, (line+1)*fontHeight-y, grey)
 								}
-							case terminal.display[line][col].reverse:
-								if !bdfFont[terminal.display[line][col].charValue].pixels[x][y] {
+							case terminal.display.cells[line][col].reverse:
+								if !bdfFont[terminal.display.cells[line][col].charValue].pixels[x][y] {
 									img.Set(col*fontWidth+x, (line+1)*fontHeight-y, blk)
 								}
 							default:
-								if bdfFont[terminal.display[line][col].charValue].pixels[x][y] {
+								if bdfFont[terminal.display.cells[line][col].charValue].pixels[x][y] {
 									img.Set(col*fontWidth+x, (line+1)*fontHeight-y, blk)
 								}
 							}
 						}
 					}
-					if terminal.display[line][col].underscore {
+					if terminal.display.cells[line][col].underscore {
 						for x := 0; x < fontWidth; x++ {
 							img.Set(col*fontWidth+x, (line+1)*fontHeight, blk)
 						}
