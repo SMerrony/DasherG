@@ -107,17 +107,17 @@ var (
 	gc              *gdk.GC
 	crt             *gtk.DrawingArea
 	scroller        *gtk.VScrollbar
-	zoom            = zoomNormal
+	zoom            = ZoomNormal
 	offScreenPixmap *gdk.Pixmap
 	win             *gtk.Window
 	gdkWin          *gdk.Window
 	iconPixbuf      *gdkpixbuf.Pixbuf
 
-	w          fyne.Window
-	crtImg     *canvas.Raster
-	backingImg *image.NRGBA
-	green      = color.RGBA{0x00, 0xff, 0x00, 0xff}
-	dimGreen   = color.RGBA{0x00, 0x80, 0x00, 0xff}
+	w      fyne.Window
+	crtImg *canvas.Raster
+	// backingImg *image.NRGBA
+	green    = color.RGBA{0x00, 0xff, 0x00, 0xff}
+	dimGreen = color.RGBA{0x00, 0x80, 0x00, 0xff}
 
 	// widgets needing global access
 	serialConnectMenuItem, serialDisconnectMenuItem          *gtk.MenuItem
@@ -177,7 +177,7 @@ func main() {
 	// get the application and dialog icon
 	// iconPixbuf = gdkpixbuf.NewPixbufFromData(iconPNG)
 
-	bdfLoad(fontFile, zoomNormal, green, dimGreen)
+	bdfLoad(fontFile, ZoomNormal, green, dimGreen)
 	go localListener(keyboardChan, fromHostChan)
 	terminal = new(terminalT)
 	terminal.setup(fromHostChan, updateCrtChan, expectChan)
@@ -221,40 +221,40 @@ func main() {
 	w.ShowAndRun()
 }
 
-func setupWindow(win *gtk.Window) {
-	// win.SetTitle(appTitle)
-	// win.Connect("destroy", func() {
-	// 	gtk.MainQuit()
-	// })
-	// //win.SetDefaultSize(800, 600)
-	// go keyEventHandler(keyboardChan)
-	// win.Connect("key-press-event", func(ctx *glib.CallbackContext) {
-	// 	arg := ctx.Args(0)
-	// 	keyPressEventChan <- *(**gdk.EventKey)(unsafe.Pointer(&arg))
-	// })
-	// win.Connect("key-release-event", func(ctx *glib.CallbackContext) {
-	// 	arg := ctx.Args(0)
-	// 	keyReleaseEventChan <- *(**gdk.EventKey)(unsafe.Pointer(&arg))
-	// })
-	// vbox := gtk.NewVBox(false, 1)
-	// vbox.PackStart(buildMenu(), false, false, 0)
-	// vbox.PackStart(buildFkeyMatrix(), false, false, 0)
-	// crt = buildCrt()
-	// // go terminal.run()
-	// // glib.TimeoutAdd(blinkPeriodMs, func() bool {
-	// // 	updateCrtChan <- updateCrtBlink
-	// // 	return true
-	// // })
-	// scroller = buildScrollbar()
-	// hbox := gtk.NewHBox(false, 1)
-	// hbox.PackStart(crt, false, false, 1)
-	// hbox.PackEnd(scroller, false, false, 1)
-	// vbox.PackStart(hbox, false, false, 1)
-	// statusBox := buildStatusBox()
-	// vbox.PackEnd(statusBox, false, false, 0)
-	// win.Add(vbox)
-	// win.SetIcon(iconPixbuf)
-}
+// func setupWindow(win *gtk.Window) {
+// win.SetTitle(appTitle)
+// win.Connect("destroy", func() {
+// 	gtk.MainQuit()
+// })
+// //win.SetDefaultSize(800, 600)
+// go keyEventHandler(keyboardChan)
+// win.Connect("key-press-event", func(ctx *glib.CallbackContext) {
+// 	arg := ctx.Args(0)
+// 	keyPressEventChan <- *(**gdk.EventKey)(unsafe.Pointer(&arg))
+// })
+// win.Connect("key-release-event", func(ctx *glib.CallbackContext) {
+// 	arg := ctx.Args(0)
+// 	keyReleaseEventChan <- *(**gdk.EventKey)(unsafe.Pointer(&arg))
+// })
+// vbox := gtk.NewVBox(false, 1)
+// vbox.PackStart(buildMenu(), false, false, 0)
+// vbox.PackStart(buildFkeyMatrix(), false, false, 0)
+// crt = buildCrt()
+// // go terminal.run()
+// // glib.TimeoutAdd(blinkPeriodMs, func() bool {
+// // 	updateCrtChan <- updateCrtBlink
+// // 	return true
+// // })
+// scroller = buildScrollbar()
+// hbox := gtk.NewHBox(false, 1)
+// hbox.PackStart(crt, false, false, 1)
+// hbox.PackEnd(scroller, false, false, 1)
+// vbox.PackStart(hbox, false, false, 1)
+// statusBox := buildStatusBox()
+// vbox.PackEnd(statusBox, false, false, 0)
+// win.Add(vbox)
+// win.SetIcon(iconPixbuf)
+// }
 
 func setupWindow2(w fyne.Window) {
 	w.SetIcon(resourceDGlogoOrangePng)
@@ -271,7 +271,7 @@ func setupWindow2(w fyne.Window) {
 		})
 	}
 
-	crtImg, backingImg = buildCrt2()
+	crtImg = buildCrt()
 	go terminal.run()
 
 	go func() {
@@ -281,17 +281,20 @@ func setupWindow2(w fyne.Window) {
 		}
 	}()
 
+	setContent()
+}
+
+func setContent() {
 	fkGrid := buildFkeyMatrix2()
 	statusBox := buildStatusBox2()
-
 	content := container.NewBorder(
 		fkGrid,
 		statusBox,
 		nil, nil,
-		container.NewHBox(layout.NewSpacer(), crtImg, layout.NewSpacer()),
+		// container.NewHBox(layout.NewSpacer(), crtImg, layout.NewSpacer()),
+		container.NewHBox(layout.NewSpacer(), container.NewVBox(layout.NewSpacer(), crtImg, layout.NewSpacer()), layout.NewSpacer()),
 	)
 	w.SetContent(content)
-
 }
 
 func localListener(kbdChan <-chan byte, frmHostChan chan<- []byte) {
@@ -461,7 +464,7 @@ func buildMenu2() (mainMenu *fyne.MainMenu) {
 	// emulation
 	d200Item := fyne.NewMenuItem("D200", nil)
 	d210Item := fyne.NewMenuItem("D210", nil)
-	resizeItem := fyne.NewMenuItem("Resize", nil)
+	resizeItem := fyne.NewMenuItem("Resize", func() { emulationResize(w) })
 	selfTestItem := fyne.NewMenuItem("Self-Test", func() { terminal.selfTest(fromHostChan) })
 	loadTemplateItem := fyne.NewMenuItem("Load Func. Key Template", nil)
 	emulationMenu := fyne.NewMenu("Emulation",

@@ -51,101 +51,48 @@ func editPaste() {
 	}
 }
 
-func emulationResize() {
+func emulationResize(win fyne.Window) {
+
+	var selectedCols int
+	colsRadio := widget.NewRadioGroup([]string{"80", "81", "120", "132", "135"},
+		func(selected string) { selectedCols, _ = strconv.Atoi(selected) })
+
+	var selectedLines int
+	linesRadio := widget.NewRadioGroup([]string{"24", "25", "36", "48", "66"},
+		func(selected string) { selectedLines, _ = strconv.Atoi(selected) })
+
+	terminal.rwMutex.RLock()
+	colsRadio.SetSelected(strconv.Itoa(terminal.display.visibleCols))
+	linesRadio.SetSelected(strconv.Itoa(terminal.display.visibleLines))
+	terminal.rwMutex.RUnlock()
+
 	rd := gtk.NewDialog()
 	rd.SetTitle("Resize Terminal")
-	vb := rd.GetVBox()
-	table := gtk.NewTable(3, 3, false)
-	cLab := gtk.NewLabel("Columns")
-	table.AttachDefaults(cLab, 0, 1, 0, 1)
-	colsCombo := gtk.NewComboBoxText()
-	colsCombo.AppendText("80")
-	colsCombo.AppendText("81")
-	colsCombo.AppendText("120")
-	colsCombo.AppendText("132")
-	colsCombo.AppendText("135")
-	switch terminal.display.visibleCols {
-	case 80:
-		colsCombo.SetActive(0)
-	case 81:
-		colsCombo.SetActive(1)
-	case 120:
-		colsCombo.SetActive(2)
-	case 132:
-		colsCombo.SetActive(3)
-	case 135:
-		colsCombo.SetActive(4)
-	}
-	table.AttachDefaults(colsCombo, 1, 2, 0, 1)
-	lLab := gtk.NewLabel("Lines")
-	table.AttachDefaults(lLab, 0, 1, 1, 2)
-	linesCombo := gtk.NewComboBoxText()
-	linesCombo.AppendText("24")
-	linesCombo.AppendText("25")
-	linesCombo.AppendText("36")
-	linesCombo.AppendText("48")
-	linesCombo.AppendText("66")
-	terminal.rwMutex.RLock()
-	switch terminal.display.visibleLines {
-	case 24:
-		linesCombo.SetActive(0)
-	case 25:
-		linesCombo.SetActive(1)
-	case 36:
-		linesCombo.SetActive(2)
-	case 48:
-		linesCombo.SetActive(3)
-	case 66:
-		linesCombo.SetActive(4)
-	}
-	terminal.rwMutex.RUnlock()
-	table.AttachDefaults(linesCombo, 1, 2, 1, 2)
-	zLab := gtk.NewLabel("Zoom")
-	table.AttachDefaults(zLab, 0, 1, 2, 3)
-	zoomCombo := gtk.NewComboBoxText()
-	zoomCombo.AppendText("Large")
-	zoomCombo.AppendText("Normal")
-	zoomCombo.AppendText("Smaller")
-	zoomCombo.AppendText("Tiny")
-	switch zoom {
-	case zoomLarge:
-		zoomCombo.SetActive(0)
-	case zoomNormal:
-		zoomCombo.SetActive(1)
-	case zoomSmaller:
-		zoomCombo.SetActive(2)
-	case zoomTiny:
-		zoomCombo.SetActive(3)
-	}
-	table.AttachDefaults(zoomCombo, 1, 2, 2, 3)
-	vb.PackStart(table, false, false, 1)
 
-	rd.AddButton("Cancel", gtk.RESPONSE_CANCEL)
-	rd.AddButton("OK", gtk.RESPONSE_OK)
-	rd.ShowAll()
-	response := rd.Run()
-	if response == gtk.RESPONSE_OK {
-		terminal.rwMutex.Lock()
-		terminal.display.visibleCols, _ = strconv.Atoi(colsCombo.GetActiveText())
-		terminal.display.visibleLines, _ = strconv.Atoi(linesCombo.GetActiveText())
-		switch zoomCombo.GetActiveText() {
-		case "Large":
-			zoom = zoomLarge
-		case "Normal":
-			zoom = zoomNormal
-		case "Smaller":
-			zoom = zoomSmaller
-		case "Tiny":
-			zoom = zoomTiny
-		}
-		bdfLoad(fontFile, zoom, green, dimGreen)
+	zoomRadio := widget.NewRadioGroup([]string{ZoomLarge, ZoomNormal, ZoomSmaller, ZoomTiny},
+		func(selected string) { zoom = selected })
+	zoomRadio.SetSelected(zoom)
 
-		crt.SetSizeRequest(terminal.display.visibleCols*charWidth, terminal.display.visibleLines*charHeight)
-		terminal.rwMutex.Unlock()
-		terminal.resize()
-		win.Resize(800, 600) // this is effectively a minimum size, user can override
+	formItems := []*widget.FormItem{
+		widget.NewFormItem("Columns", colsRadio),
+		widget.NewFormItem("Lines", linesRadio),
+		widget.NewFormItem("Zoom", zoomRadio),
 	}
-	rd.Destroy()
+
+	dialog.ShowForm("Resize Terminal", "Resize", "Cancel", formItems,
+		func(b bool) {
+			if b {
+				terminal.rwMutex.Lock()
+				terminal.display.visibleCols = selectedCols
+				terminal.display.visibleLines = selectedLines
+				bdfLoad(fontFile, zoom, green, dimGreen)
+				terminal.rwMutex.Unlock()
+				crtImg = buildCrt()
+				terminal.resize()
+				setContent()
+			}
+		}, win)
+
 }
 
 func fileChooseExpectScript() {
