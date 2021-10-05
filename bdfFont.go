@@ -1,4 +1,4 @@
-// Copyright ©2017,2019,2020 Steve Merrony
+// Copyright ©2017-2021 Steve Merrony
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -40,6 +40,11 @@ const (
 	fontWidth = 10
 	// height (pixels) of a char in the raw font
 	fontHeight = 12
+	// zoom names
+	ZoomLarge   = "Large"
+	ZoomNormal  = "Normal"
+	ZoomSmaller = "Smaller"
+	ZoomTiny    = "Tiny"
 )
 
 type bdfChar struct {
@@ -56,15 +61,15 @@ var (
 	charHeight int
 )
 
-func bdfLoad(filename string, zoom int, bright, dim color.Color) {
+func bdfLoad(filename string, zoom string, bright, dim color.Color) {
 	switch zoom {
-	case zoomLarge:
+	case ZoomLarge:
 		charWidth, charHeight = 10, 24
-	case zoomNormal:
+	case ZoomNormal:
 		charWidth, charHeight = 10, 18
-	case zoomSmaller:
+	case ZoomSmaller:
 		charWidth, charHeight = 8, 12
-	case zoomTiny:
+	case ZoomTiny:
 		charWidth, charHeight = 7, 10
 	}
 
