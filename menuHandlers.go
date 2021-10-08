@@ -25,6 +25,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"strconv"
 
@@ -95,21 +96,21 @@ func emulationResize(win fyne.Window) {
 
 }
 
-func fileChooseExpectScript() {
-	expectDialog = gtk.NewFileChooserDialog("DasherG mini-Expect Script to run", win, gtk.FILE_CHOOSER_ACTION_OPEN, "_Cancel", gtk.RESPONSE_CANCEL, "_Run", gtk.RESPONSE_ACCEPT)
-	res := expectDialog.Run()
-	if res == gtk.RESPONSE_ACCEPT {
-		expectFile, err := os.Open(expectDialog.GetFilename())
-		if err != nil {
-			errDialog := gtk.NewMessageDialog(win, gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_ERROR,
-				gtk.BUTTONS_CLOSE, "Could not open or read mini-Expect script file")
-			errDialog.Run()
-			errDialog.Destroy()
-		} else {
-			go expectRunner(expectFile, expectChan, keyboardChan, terminal)
-			expectDialog.Destroy()
+func fileChooseExpectScript(win fyne.Window) {
+	ed := dialog.NewFileOpen(func(urirc fyne.URIReadCloser, e error) {
+		if urirc != nil {
+			expectFile, err := os.Open(urirc.URI().Path())
+			if err != nil {
+				dialog.ShowError(err, win)
+				log.Printf("WARNING: Could not open mini-Expect file %s\n", urirc.URI().Path())
+			} else {
+				go expectRunner(expectFile, expectChan, keyboardChan, terminal)
+			}
 		}
-	}
+	}, win)
+	ed.Resize(fyne.Size{600, 600})
+	ed.SetDismissText("Execute")
+	ed.Show()
 }
 
 func fileLogging(win fyne.Window) {
@@ -117,28 +118,23 @@ func fileLogging(win fyne.Window) {
 		terminal.logFile.Close()
 		terminal.logging = false
 	} else {
-		// fd := gtk.NewFileChooserDialog("DasherG Logfile", win, gtk.FILE_CHOOSER_ACTION_SAVE,
-		// 	"_Cancel", gtk.RESPONSE_CANCEL, "_Open", gtk.RESPONSE_ACCEPT)
-		// res := fd.Run()
 		fd := dialog.NewFileSave(func(uriwc fyne.URIWriteCloser, e error) {
 			if uriwc != nil {
-
+				filename := uriwc.URI().Path()
+				var err error
+				terminal.logFile, err = os.Create(filename)
+				if err != nil {
+					dialog.ShowError(err, win)
+					log.Printf("WARNING: Could not open log file %s\n", filename)
+					terminal.logging = false
+				} else {
+					terminal.logging = true
+				}
 			}
 		}, win)
+		fd.Resize(fyne.Size{600, 600})
 		fd.SetDismissText("Start Logging")
 		fd.Show()
-		// if res == gtk.RESPONSE_ACCEPT {
-		// 	filename := fd.GetFilename()
-		// 	var err error
-		// 	terminal.logFile, err = os.Create(filename)
-		// 	if err != nil {
-		// 		log.Printf("WARNING: Could not open log file %s\n", filename)
-		// 		terminal.logging = false
-		// 	} else {
-		// 		terminal.logging = true
-		// 	}
-		// }
-		// fd.Destroy()
 	}
 }
 
