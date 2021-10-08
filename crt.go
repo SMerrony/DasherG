@@ -57,13 +57,13 @@ func drawCrt() {
 						cellRect := image.Rect(col*charWidth, line*charHeight, col*charWidth+charWidth, line*charHeight+charHeight)
 						switch {
 						case terminal.blinkEnabled && terminal.blinkState && terminal.display.cells[line][col].blink:
-							draw.Draw(backingImg, cellRect, bdfFont[32].plainImg, image.ZP, draw.Src)
+							draw.Draw(backingImg, cellRect, bdfFont[32].plainImg, image.Point{}, draw.Src)
 						case terminal.display.cells[line][col].reverse:
-							draw.Draw(backingImg, cellRect, bdfFont[cIx].revImg, image.ZP, draw.Src)
+							draw.Draw(backingImg, cellRect, bdfFont[cIx].revImg, image.Point{}, draw.Src)
 						case terminal.display.cells[line][col].dim:
-							draw.Draw(backingImg, cellRect, bdfFont[cIx].dimImg, image.ZP, draw.Src)
+							draw.Draw(backingImg, cellRect, bdfFont[cIx].dimImg, image.Point{}, draw.Src)
 						default:
-							draw.Draw(backingImg, cellRect, bdfFont[cIx].plainImg, image.ZP, draw.Src)
+							draw.Draw(backingImg, cellRect, bdfFont[cIx].plainImg, image.Point{}, draw.Src)
 						}
 					}
 					// underscore?
@@ -84,10 +84,10 @@ func drawCrt() {
 				cIx = 32
 			}
 			if terminal.display.cells[terminal.cursorY][terminal.cursorX].reverse {
-				draw.Draw(backingImg, cellRect, bdfFont[cIx].plainImg, image.ZP, draw.Src)
+				draw.Draw(backingImg, cellRect, bdfFont[cIx].plainImg, image.Point{}, draw.Src)
 			} else {
 				// fmt.Printf("Drawing cursor at %d,%d\n", terminal.cursorX*charWidth, terminal.cursorY*charHeight)
-				draw.Draw(backingImg, cellRect, bdfFont[cIx].revImg, image.ZP, draw.Src)
+				draw.Draw(backingImg, cellRect, bdfFont[cIx].revImg, image.Point{}, draw.Src)
 			}
 			terminal.displayDirty[terminal.cursorY][terminal.cursorX] = true // this ensures that the old cursor pos is redrawn on the next refresh
 		}

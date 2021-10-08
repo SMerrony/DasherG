@@ -51,7 +51,6 @@ import (
 	"unsafe"
 
 	"github.com/mattn/go-gtk/gdk"
-	"github.com/mattn/go-gtk/gdkpixbuf"
 	"github.com/mattn/go-gtk/glib"
 	"github.com/mattn/go-gtk/gtk"
 )
@@ -77,11 +76,6 @@ const (
 	// crtRefreshMs influences the responsiveness of the display. 50ms = 20Hz or 20fps
 	crtRefreshMs         = 50
 	statusUpdatePeriodMs = 500
-
-	zoomLarge = iota
-	zoomNormal
-	zoomSmaller
-	zoomTiny
 )
 
 var (
@@ -104,17 +98,11 @@ var (
 		startRow, startCol, endRow, endCol int
 	}
 
-	gc              *gdk.GC
-	crt             *gtk.DrawingArea
-	scroller        *gtk.VScrollbar
-	zoom            = ZoomNormal
-	offScreenPixmap *gdk.Pixmap
-	win             *gtk.Window
-	gdkWin          *gdk.Window
-	iconPixbuf      *gdkpixbuf.Pixbuf
-
-	w      fyne.Window
-	crtImg *canvas.Raster
+	scroller *gtk.VScrollbar
+	zoom     = ZoomNormal
+	win      *gtk.Window
+	w        fyne.Window
+	crtImg   *canvas.Raster
 	// backingImg *image.NRGBA
 	green    = color.RGBA{0x00, 0xff, 0x00, 0xff}
 	dimGreen = color.RGBA{0x00, 0x80, 0x00, 0xff}
@@ -182,12 +170,7 @@ func main() {
 	terminal = new(terminalT)
 	terminal.setup(fromHostChan, updateCrtChan, expectChan)
 	w = a.NewWindow(appTitle)
-	// win = gtk.NewWindow(gtk.WINDOW_TOPLEVEL)
-	// setupWindow(win)
 	setupWindow2(w)
-
-	// win.ShowAll()
-	// gdkWin = crt.GetWindow()
 
 	if *hostFlag != "" {
 		hostParts := strings.Split(*hostFlag, ":")
@@ -700,10 +683,10 @@ func localPrint() {
 		} else {
 			defer dumpFile.Close()
 			img := image.NewNRGBA(image.Rect(0, 0, (terminal.display.visibleCols+1)*fontWidth, (terminal.display.visibleLines+1)*fontHeight))
-			bg := image.NewUniform(color.RGBA{255, 255, 255, 255})   // prepare white for background
-			grey := image.NewUniform(color.RGBA{128, 128, 128, 255}) // prepare grey for foreground
-			blk := image.NewUniform(color.RGBA{0, 0, 0, 255})        // prepare black for foreground
-			draw.Draw(img, img.Bounds(), bg, image.ZP, draw.Src)     // fill the background
+			bg := image.NewUniform(color.RGBA{255, 255, 255, 255})    // prepare white for background
+			grey := image.NewUniform(color.RGBA{128, 128, 128, 255})  // prepare grey for foreground
+			blk := image.NewUniform(color.RGBA{0, 0, 0, 255})         // prepare black for foreground
+			draw.Draw(img, img.Bounds(), bg, image.Point{}, draw.Src) // fill the background
 			for line := 0; line < terminal.display.visibleLines; line++ {
 				for col := 0; col < terminal.display.visibleCols; col++ {
 					for x := 0; x < fontWidth; x++ {
