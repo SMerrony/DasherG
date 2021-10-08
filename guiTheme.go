@@ -30,8 +30,6 @@ import (
 
 type ourTheme struct{}
 
-const smallTextSize fyne.ThemeSizeName = "smallTextSize"
-
 func (t *ourTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) color.Color {
 	return theme.DefaultTheme().Color(name, variant)
 }

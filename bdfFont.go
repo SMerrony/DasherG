@@ -124,9 +124,9 @@ func bdfLoad(filename string, zoom string, bright, dim color.Color) {
 		// skip the BITMAP line
 		scanner.Scan()
 		// load the actual bitmap for this char a row at a time from the top down
-		draw.Draw(tmpPlainImg, tmpPlainImg.Bounds(), &image.Uniform{color.Black}, image.ZP, draw.Src)
-		draw.Draw(tmpDimImg, tmpDimImg.Bounds(), &image.Uniform{color.Black}, image.ZP, draw.Src)
-		draw.Draw(tmpRevImg, tmpRevImg.Bounds(), &image.Uniform{bright}, image.ZP, draw.Src)
+		draw.Draw(tmpPlainImg, tmpPlainImg.Bounds(), &image.Uniform{color.Black}, image.Point{}, draw.Src)
+		draw.Draw(tmpDimImg, tmpDimImg.Bounds(), &image.Uniform{color.Black}, image.Point{}, draw.Src)
+		draw.Draw(tmpRevImg, tmpRevImg.Bounds(), &image.Uniform{bright}, image.Point{}, draw.Src)
 		for bitMapLine := pixHeight; bitMapLine >= 0; bitMapLine-- {
 			// for bitMapLine := 0; bitMapLine < pixHeight; bitMapLine++ {
 			scanner.Scan()

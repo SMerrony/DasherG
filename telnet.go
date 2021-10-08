@@ -46,20 +46,20 @@ const (
 	telnetCmdDONT = 254
 	telnetCmdIAC  = 255
 
-	telnetOptBIN    = 0
-	telnetOptECHO   = 1
-	telnetOptRECON  = 2
-	telnetOptSGA    = 3
-	telnetOptSTATUS = 5
-	telnetOptCOLS   = 8
-	telnetOptROWS   = 9
-	telnetOptEASCII = 17
-	telnetOptLOGOUT = 18
-	telnetOptTTYPE  = 24
-	telnetOptNAWS   = 31 // window size
-	telnetOptTSPEED = 32
-	telnetOptXDISP  = 35
-	telnetOptNEWENV = 39
+	// telnetOptBIN    = 0
+	// telnetOptECHO   = 1
+	// telnetOptRECON  = 2
+	// telnetOptSGA    = 3
+	// telnetOptSTATUS = 5
+	// telnetOptCOLS   = 8
+	// telnetOptROWS   = 9
+	// telnetOptEASCII = 17
+	// telnetOptLOGOUT = 18
+	// telnetOptTTYPE  = 24
+	// telnetOptNAWS   = 31 // window size
+	// telnetOptTSPEED = 32
+	// telnetOptXDISP  = 35
+	// telnetOptNEWENV = 39
 
 	dialTimeout = time.Second * 10
 )
