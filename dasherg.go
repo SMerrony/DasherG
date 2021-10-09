@@ -431,9 +431,9 @@ func buildMenu2() (mainMenu *fyne.MainMenu) {
 	loggingItem := fyne.NewMenuItem("Logging", func() { fileLogging(w) })
 	expectItem := fyne.NewMenuItem("Run mini-Expect Sctipt", func() { fileChooseExpectScript(w) })
 	sendFileItem := fyne.NewMenuItem("Send (Text) File", func() { fileSendText(w) })
-	xmodemRcvItem := fyne.NewMenuItem("XMODEM-CRC - Receive File", nil)
-	xmodemSendItem := fyne.NewMenuItem("XMODEM-CRC - Send File", nil)
-	xmodemSend1kItem := fyne.NewMenuItem("XMODEM-CRC - Send File (1kB packets)", nil)
+	xmodemRcvItem := fyne.NewMenuItem("XMODEM-CRC - Receive File", func() { fileXmodemReceive(w) })
+	xmodemSendItem := fyne.NewMenuItem("XMODEM-CRC - Send File", func() { fileXmodemSend(w) })
+	xmodemSend1kItem := fyne.NewMenuItem("XMODEM-CRC - Send File (1kB packets)", func() { fileXmodemSend1k(w) })
 	fileMenu := fyne.NewMenu("File",
 		loggingItem, fyne.NewMenuItemSeparator(),
 		expectItem, fyne.NewMenuItemSeparator(),
@@ -441,7 +441,7 @@ func buildMenu2() (mainMenu *fyne.MainMenu) {
 		xmodemRcvItem, xmodemSendItem, xmodemSend1kItem)
 
 	// edit
-	pasteItem := fyne.NewMenuItem("Paste", nil)
+	pasteItem := fyne.NewMenuItem("Paste", func() { editPaste(w) })
 	editMenu := fyne.NewMenu("Edit", pasteItem)
 
 	// emulation

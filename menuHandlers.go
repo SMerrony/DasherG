@@ -32,19 +32,12 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
-
-	"github.com/mattn/go-gtk/gdk"
-	"github.com/mattn/go-gtk/gtk"
 )
 
-func editPaste() {
-	clipboard := gtk.NewClipboardGetForDisplay(gdk.DisplayGetDefault(), gdk.SELECTION_CLIPBOARD)
-	text := clipboard.WaitForText()
+func editPaste(win fyne.Window) {
+	text := win.Clipboard().Content()
 	if len(text) == 0 {
-		ed := gtk.NewMessageDialog(win, gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_ERROR,
-			gtk.BUTTONS_CLOSE, "Nothing in Clipboard to Paste")
-		ed.Run()
-		ed.Destroy()
+		dialog.ShowInformation("DasherG", "Nothing in Clipboard to Paste", win)
 	} else {
 		for _, ch := range text {
 			keyboardChan <- byte(ch)
@@ -66,9 +59,6 @@ func emulationResize(win fyne.Window) {
 	colsRadio.SetSelected(strconv.Itoa(terminal.display.visibleCols))
 	linesRadio.SetSelected(strconv.Itoa(terminal.display.visibleLines))
 	terminal.rwMutex.RUnlock()
-
-	rd := gtk.NewDialog()
-	rd.SetTitle("Resize Terminal")
 
 	zoomRadio := widget.NewRadioGroup([]string{ZoomLarge, ZoomNormal, ZoomSmaller, ZoomTiny},
 		func(selected string) { zoom = selected })
@@ -157,94 +147,72 @@ func fileSendText(win fyne.Window) {
 	fsd.Show()
 }
 
-func fileXmodemReceive() {
-	fsd := gtk.NewFileChooserDialog("DasherG XMODEM Receive File", win, gtk.FILE_CHOOSER_ACTION_SAVE, "_Cancel", gtk.RESPONSE_CANCEL, "_Receive", gtk.RESPONSE_ACCEPT)
-	res := fsd.Run()
-	if res == gtk.RESPONSE_ACCEPT {
-		fileName := fsd.GetFilename()
-		fsd.Destroy()
-		f, err := os.Create(fileName)
-		defer f.Close()
-		if err != nil {
-			ed := gtk.NewMessageDialog(win, gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_ERROR,
-				gtk.BUTTONS_CLOSE, "DasherG - XMODEM Could not create file to receive")
-			ed.Run()
-			ed.Destroy()
-		} else {
-			terminal.setRawMode(true)
-			blob, err := XModemReceive(terminal.rawChan, keyboardChan)
+func fileXmodemReceive(win fyne.Window) {
+	fsd := dialog.NewFileSave(func(urirc fyne.URIWriteCloser, e error) {
+		if urirc != nil {
+			f, err := os.Create(urirc.URI().Path())
 			if err != nil {
-				ed := gtk.NewMessageDialog(win, gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_ERROR,
-					gtk.BUTTONS_CLOSE, "DasherG - "+err.Error())
-				ed.Run()
-				ed.Destroy()
+				dialog.ShowError(err, win)
 			} else {
-				f.Write(blob)
+				defer f.Close()
+				terminal.setRawMode(true)
+				blob, err := XModemReceive(terminal.rawChan, keyboardChan)
+				if err != nil {
+					dialog.ShowError(err, win)
+				} else {
+					f.Write(blob)
+				}
+				terminal.setRawMode(false)
 			}
-			terminal.setRawMode(false)
 		}
-	} else {
-		fsd.Destroy()
-	}
+	}, win)
+	fsd.Resize(fyne.Size{600, 600})
+	fsd.SetDismissText("Receive")
+	fsd.Show()
 }
 
-func fileXmodemSend() {
-	fsd := gtk.NewFileChooserDialog("DasherG XMODEM Send File", win, gtk.FILE_CHOOSER_ACTION_OPEN, "_Cancel", gtk.RESPONSE_CANCEL, "_Send", gtk.RESPONSE_ACCEPT)
-	res := fsd.Run()
-	if res == gtk.RESPONSE_ACCEPT {
-		fileName := fsd.GetFilename()
-		fsd.Destroy()
-		f, err := os.Open(fileName)
-		defer f.Close()
-		if err != nil {
-			ed := gtk.NewMessageDialog(win, gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_ERROR,
-				gtk.BUTTONS_CLOSE, "DasherG - XMODEM Could not open file to send - "+err.Error())
-			ed.Run()
-			ed.Destroy()
-		} else {
-			terminal.setRawMode(true)
-			err := XmodemSendShort(terminal.rawChan, keyboardChan, f)
+func fileXmodemSend(win fyne.Window) {
+	fsd := dialog.NewFileOpen(func(urirc fyne.URIReadCloser, e error) {
+		if urirc != nil {
+			f, err := os.Open(urirc.URI().Path())
 			if err != nil {
-				ed := gtk.NewMessageDialog(win, gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_ERROR,
-					gtk.BUTTONS_CLOSE, "DasherG - XMODEM Could not send file - "+err.Error())
-				ed.Run()
-				ed.Destroy()
+				dialog.ShowError(err, win)
+			} else {
+				defer f.Close()
+				terminal.setRawMode(true)
+				err := XmodemSendShort(terminal.rawChan, keyboardChan, f)
+				if err != nil {
+					dialog.ShowError(err, win)
+				}
+				terminal.setRawMode(false)
 			}
-			terminal.setRawMode(false)
 		}
-	} else {
-		fsd.Destroy()
-	}
+	}, win)
+	fsd.Resize(fyne.Size{600, 600})
+	fsd.SetDismissText("Receive")
+	fsd.Show()
 }
 
-func fileXmodemSend1k() {
-	fsd := gtk.NewFileChooserDialog("DasherG XMODEM Send File", win, gtk.FILE_CHOOSER_ACTION_OPEN, "_Cancel", gtk.RESPONSE_CANCEL, "_Send", gtk.RESPONSE_ACCEPT)
-	res := fsd.Run()
-	if res == gtk.RESPONSE_ACCEPT {
-		fileName := fsd.GetFilename()
-		fsd.Destroy()
-		f, err := os.Open(fileName)
-		defer f.Close()
-		if err != nil {
-			ed := gtk.NewMessageDialog(win, gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_ERROR,
-				gtk.BUTTONS_CLOSE, "DasherG - XMODEM Could not open file to send - "+err.Error())
-			ed.Run()
-			ed.Destroy()
-		} else {
-			terminal.setRawMode(true)
-			err := XmodemSendLong(terminal.rawChan, keyboardChan, f)
+func fileXmodemSend1k(win fyne.Window) {
+	fsd := dialog.NewFileOpen(func(urirc fyne.URIReadCloser, e error) {
+		if urirc != nil {
+			f, err := os.Open(urirc.URI().Path())
 			if err != nil {
-				ed := gtk.NewMessageDialog(win, gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_ERROR,
-					gtk.BUTTONS_CLOSE, "DasherG - XMODEM Could not send file - "+err.Error())
-				ed.Run()
-				ed.Destroy()
+				dialog.ShowError(err, win)
+			} else {
+				defer f.Close()
+				terminal.setRawMode(true)
+				err := XmodemSendLong(terminal.rawChan, keyboardChan, f)
+				if err != nil {
+					dialog.ShowError(err, win)
+				}
+				terminal.setRawMode(false)
 			}
-			terminal.setRawMode(false)
 		}
-	} else {
-		fsd.Destroy()
-	}
-
+	}, win)
+	fsd.Resize(fyne.Size{600, 600})
+	fsd.SetDismissText("Receive (1k)")
+	fsd.Show()
 }
 
 func helpAbout() {
