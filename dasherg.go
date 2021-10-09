@@ -430,7 +430,7 @@ func buildMenu2() (mainMenu *fyne.MainMenu) {
 	// file
 	loggingItem := fyne.NewMenuItem("Logging", func() { fileLogging(w) })
 	expectItem := fyne.NewMenuItem("Run mini-Expect Sctipt", func() { fileChooseExpectScript(w) })
-	sendFileItem := fyne.NewMenuItem("Send (Text) File", nil)
+	sendFileItem := fyne.NewMenuItem("Send (Text) File", func() { fileSendText(w) })
 	xmodemRcvItem := fyne.NewMenuItem("XMODEM-CRC - Receive File", nil)
 	xmodemSendItem := fyne.NewMenuItem("XMODEM-CRC - Send File", nil)
 	xmodemSend1kItem := fyne.NewMenuItem("XMODEM-CRC - Send File (1kB packets)", nil)

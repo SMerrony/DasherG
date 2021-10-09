@@ -138,24 +138,23 @@ func fileLogging(win fyne.Window) {
 	}
 }
 
-func fileSendText() {
-	sd := gtk.NewFileChooserDialog("DasherG File to send", win, gtk.FILE_CHOOSER_ACTION_OPEN, "_Cancel", gtk.RESPONSE_CANCEL, "_Send", gtk.RESPONSE_ACCEPT)
-	res := sd.Run()
-	if res == gtk.RESPONSE_ACCEPT {
-		fileName := sd.GetFilename()
-		bytes, err := ioutil.ReadFile(fileName)
-		if err != nil {
-			ed := gtk.NewMessageDialog(win, gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_ERROR,
-				gtk.BUTTONS_CLOSE, "Could not open or read file to send")
-			ed.Run()
-			ed.Destroy()
-		} else {
-			for _, b := range bytes {
-				keyboardChan <- b
+func fileSendText(win fyne.Window) {
+	fsd := dialog.NewFileOpen(func(urirc fyne.URIReadCloser, e error) {
+		if urirc != nil {
+			bytes, err := ioutil.ReadFile(urirc.URI().Path())
+			if err != nil {
+				dialog.ShowError(err, win)
+				log.Printf("WARNING: Could not open or read text file %s\n", urirc.URI().Path())
+			} else {
+				for _, b := range bytes {
+					keyboardChan <- b
+				}
 			}
 		}
-	}
-	sd.Destroy()
+	}, win)
+	fsd.Resize(fyne.Size{600, 600})
+	fsd.SetDismissText("Execute")
+	fsd.Show()
 }
 
 func fileXmodemReceive() {
