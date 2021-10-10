@@ -1,6 +1,6 @@
 // dasherg.go
 
-// Copyright © 2017-2020  Steve Merrony
+// Copyright © 2017-2021  Steve Merrony
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -108,11 +108,8 @@ var (
 	dimGreen = color.RGBA{0x00, 0x80, 0x00, 0xff}
 
 	// widgets needing global access
-	serialConnectMenuItem, serialDisconnectMenuItem          *gtk.MenuItem
-	networkConnectMenuItem, networkDisconnectMenuItem        *gtk.MenuItem
-	onlineLabel, hostLabel, loggingLabel, emuStatusLabel     *gtk.Label
-	onlineLabel2, hostLabel2, loggingLabel2, emuStatusLabel2 *widget.Label
-	expectDialog                                             *gtk.FileChooserDialog
+	onlineLabel2, hostLabel2, loggingLabel2, emuStatusLabel2                           *widget.Label
+	serialConnectItem, serialDisconnectItem, networkConnectItem, networkDisconnectItem *fyne.MenuItem
 )
 
 var (
@@ -184,9 +181,9 @@ func main() {
 		telnetSession = newTelnetSession()
 		if telnetSession.openTelnetConn(hostParts[0], hostPort) {
 			localListenerStopChan <- true
-			networkConnectMenuItem.SetSensitive(false)
-			serialConnectMenuItem.SetSensitive(false)
-			networkDisconnectMenuItem.SetSensitive(true)
+			// networkConnectMenuItem.SetSensitive(false)
+			// serialConnectMenuItem.SetSensitive(false)
+			// networkDisconnectMenuItem.SetSensitive(true)
 			lastTelnetHost = hostParts[0]
 			lastTelnetPort = hostPort
 		}
@@ -241,7 +238,7 @@ func main() {
 
 func setupWindow2(w fyne.Window) {
 	w.SetIcon(resourceDGlogoOrangePng)
-	w.SetMainMenu(buildMenu2())
+	w.SetMainMenu(buildMenu())
 
 	go keyEventHandler(keyboardChan)
 	if deskCanvas, ok := w.Canvas().(desktop.Canvas); ok {
@@ -296,136 +293,7 @@ func localListener(kbdChan <-chan byte, frmHostChan chan<- []byte) {
 	}
 }
 
-// func buildMenu() *gtk.MenuBar {
-// 	menuBar := gtk.NewMenuBar()
-
-// 	fileMenuItem := gtk.NewMenuItemWithLabel("File")
-// 	menuBar.Append(fileMenuItem)
-// 	subMenu := gtk.NewMenu()
-// 	fileMenuItem.SetSubmenu(subMenu)
-// 	loggingMenuItem := gtk.NewMenuItemWithLabel("Logging")
-// 	loggingMenuItem.Connect("activate", fileLogging)
-// 	subMenu.Append(loggingMenuItem)
-
-// 	subMenu.Append(gtk.NewSeparatorMenuItem())
-
-// 	expectFileMenuItem := gtk.NewMenuItemWithLabel("Run mini-Expect Script")
-// 	expectFileMenuItem.Connect("activate", fileChooseExpectScript)
-// 	subMenu.Append(expectFileMenuItem)
-
-// 	subMenu.Append(gtk.NewSeparatorMenuItem())
-
-// 	sendFileMenuItem := gtk.NewMenuItemWithLabel("Send (Text) File")
-// 	sendFileMenuItem.Connect("activate", fileSendText)
-// 	subMenu.Append(sendFileMenuItem)
-
-// 	subMenu.Append(gtk.NewSeparatorMenuItem())
-
-// 	xmodemRcvMenuItem := gtk.NewMenuItemWithLabel("XMODEM-CRC - Receive File")
-// 	xmodemRcvMenuItem.Connect("activate", fileXmodemReceive)
-// 	subMenu.Append(xmodemRcvMenuItem)
-
-// 	xmodemSendMenuItem := gtk.NewMenuItemWithLabel("XMODEM-CRC - Send File")
-// 	xmodemSendMenuItem.Connect("activate", fileXmodemSend)
-// 	subMenu.Append(xmodemSendMenuItem)
-
-// 	xmodemSend1kMenuItem := gtk.NewMenuItemWithLabel("XMODEM-CRC - Send File (1k packets)")
-// 	xmodemSend1kMenuItem.Connect("activate", fileXmodemSend1k)
-// 	subMenu.Append(xmodemSend1kMenuItem)
-
-// 	subMenu.Append(gtk.NewSeparatorMenuItem())
-
-// 	quitMenuItem := gtk.NewMenuItemWithLabel("Quit")
-// 	subMenu.Append(quitMenuItem)
-// 	quitMenuItem.Connect("activate", func() {
-// 		pprof.StopCPUProfile()
-// 		gtk.MainQuit()
-// 		//os.Exit(0)
-// 	})
-
-// 	editMenuItem := gtk.NewMenuItemWithLabel("Edit")
-// 	menuBar.Append(editMenuItem)
-// 	subMenu = gtk.NewMenu()
-// 	editMenuItem.SetSubmenu(subMenu)
-// 	pasteItem := gtk.NewMenuItemWithLabel("Paste")
-// 	pasteItem.Connect("activate", editPaste)
-// 	subMenu.Append(pasteItem)
-
-// 	emulationMenuItem := gtk.NewMenuItemWithLabel("Emulation")
-// 	menuBar.Append(emulationMenuItem)
-// 	subMenu = gtk.NewMenu()
-// 	var emuGroup *glib.SList
-// 	emulationMenuItem.SetSubmenu(subMenu)
-
-// 	d200MenuItem := gtk.NewRadioMenuItemWithLabel(emuGroup, "D200")
-// 	emuGroup = d200MenuItem.GetGroup()
-// 	if terminal.emulation == d200 {
-// 		d200MenuItem.SetActive(true)
-// 	}
-// 	subMenu.Append(d200MenuItem)
-
-// 	d210MenuItem := gtk.NewRadioMenuItemWithLabel(emuGroup, "D210")
-// 	if terminal.emulation == d210 {
-// 		d210MenuItem.SetActive(true)
-// 	}
-// 	subMenu.Append(d210MenuItem)
-
-// 	// for some reason, the 1st of these gets triggered at startup...
-// 	d210MenuItem.Connect("activate", func() { terminal.setEmulation(d210) })
-// 	d200MenuItem.Connect("activate", func() { terminal.setEmulation(d200) })
-
-// 	subMenu.Append(gtk.NewSeparatorMenuItem())
-// 	resizeMenuItem := gtk.NewMenuItemWithLabel("Resize")
-// 	resizeMenuItem.Connect("activate", emulationResize)
-// 	subMenu.Append(resizeMenuItem)
-// 	subMenu.Append(gtk.NewSeparatorMenuItem())
-// 	selfTestMenuItem := gtk.NewMenuItemWithLabel("Self-Test")
-// 	subMenu.Append(selfTestMenuItem)
-// 	selfTestMenuItem.Connect("activate", func() { terminal.selfTest(fromHostChan) })
-// 	loadTemplateMenuItem := gtk.NewMenuItemWithLabel("Load Func. Key Template")
-// 	loadTemplateMenuItem.Connect("activate", loadFKeyTemplate)
-// 	subMenu.Append(loadTemplateMenuItem)
-
-// 	serialMenuItem := gtk.NewMenuItemWithLabel("Serial")
-// 	menuBar.Append(serialMenuItem)
-// 	subMenu = gtk.NewMenu()
-// 	serialMenuItem.SetSubmenu(subMenu)
-// 	serialConnectMenuItem = gtk.NewMenuItemWithLabel("Connect")
-// 	serialConnectMenuItem.Connect("activate", serialConnect)
-// 	subMenu.Append(serialConnectMenuItem)
-// 	serialDisconnectMenuItem = gtk.NewMenuItemWithLabel("Disconnect")
-// 	serialDisconnectMenuItem.Connect("activate", serialClose)
-// 	subMenu.Append(serialDisconnectMenuItem)
-// 	serialDisconnectMenuItem.SetSensitive(false)
-
-// 	networkMenuItem := gtk.NewMenuItemWithLabel("Network")
-// 	menuBar.Append(networkMenuItem)
-// 	subMenu = gtk.NewMenu()
-// 	networkMenuItem.SetSubmenu(subMenu)
-// 	networkConnectMenuItem = gtk.NewMenuItemWithLabel("Connect")
-// 	subMenu.Append(networkConnectMenuItem)
-// 	networkConnectMenuItem.Connect("activate", telnetOpen)
-// 	networkDisconnectMenuItem = gtk.NewMenuItemWithLabel("Disconnect")
-// 	subMenu.Append(networkDisconnectMenuItem)
-// 	networkDisconnectMenuItem.Connect("activate", telnetClose)
-// 	networkDisconnectMenuItem.SetSensitive(false)
-
-// 	helpMenuItem := gtk.NewMenuItemWithLabel("Help")
-// 	menuBar.Append(helpMenuItem)
-// 	subMenu = gtk.NewMenu()
-// 	helpMenuItem.SetSubmenu(subMenu)
-// 	onlineHelpMenuItem := gtk.NewMenuItemWithLabel("Online Help")
-// 	onlineHelpMenuItem.Connect("activate", func() { openBrowser(helpURL) })
-// 	subMenu.Append(onlineHelpMenuItem)
-// 	subMenu.Append(gtk.NewSeparatorMenuItem())
-// 	aboutMenuItem := gtk.NewMenuItemWithLabel("About")
-// 	subMenu.Append(aboutMenuItem)
-// 	aboutMenuItem.Connect("activate", helpAbout)
-
-// 	return menuBar
-// }
-
-func buildMenu2() (mainMenu *fyne.MainMenu) {
+func buildMenu() (mainMenu *fyne.MainMenu) {
 
 	// file
 	loggingItem := fyne.NewMenuItem("Logging", func() { fileLogging(w) })
@@ -445,8 +313,8 @@ func buildMenu2() (mainMenu *fyne.MainMenu) {
 	editMenu := fyne.NewMenu("Edit", pasteItem)
 
 	// emulation
-	d200Item := fyne.NewMenuItem("D200", nil)
-	d210Item := fyne.NewMenuItem("D210", nil)
+	d200Item := fyne.NewMenuItem("D200", func() { terminal.setEmulation(d200) })
+	d210Item := fyne.NewMenuItem("D210", func() { terminal.setEmulation(d210) })
 	resizeItem := fyne.NewMenuItem("Resize", func() { emulationResize(w) })
 	selfTestItem := fyne.NewMenuItem("Self-Test", func() { terminal.selfTest(fromHostChan) })
 	loadTemplateItem := fyne.NewMenuItem("Load Func. Key Template", nil)
@@ -457,17 +325,19 @@ func buildMenu2() (mainMenu *fyne.MainMenu) {
 	)
 
 	// serial
-	serialConnectItem := fyne.NewMenuItem("Connect", func() { serialConnect(w) })
-	serialDisconnectItem := fyne.NewMenuItem("Disconnect", serialClose)
+	serialConnectItem = fyne.NewMenuItem("Connect", func() { serialConnect(w) })
+	serialDisconnectItem = fyne.NewMenuItem("Disconnect", serialClose)
+	serialDisconnectItem.Disabled = true
 	serialMenu := fyne.NewMenu("Serial", serialConnectItem, serialDisconnectItem)
 
 	// network
-	networkConnectItem := fyne.NewMenuItem("Connect", func() { telnetOpen(w) })
-	networkDisconnectItem := fyne.NewMenuItem("Disconnect", telnetClose)
+	networkConnectItem = fyne.NewMenuItem("Connect", func() { telnetOpen(w) })
+	networkDisconnectItem = fyne.NewMenuItem("Disconnect", telnetClose)
+	networkDisconnectItem.Disabled = true
 	networkMenu := fyne.NewMenu("Network", networkConnectItem, networkDisconnectItem)
 
 	// help
-	onlineHelpItem := fyne.NewMenuItem("Online Help", nil)
+	onlineHelpItem := fyne.NewMenuItem("Online Help", func() { openBrowser(helpURL) })
 	aboutItem := fyne.NewMenuItem("About", helpAbout)
 	helpMenu := fyne.NewMenu("Help", onlineHelpItem, fyne.NewMenuItemSeparator(), aboutItem)
 

@@ -222,11 +222,10 @@ func helpAbout() {
 
 func serialClose() {
 	serialSession.closeSerialPort()
-	// glib.IdleAdd(func() {
-	// 	serialDisconnectMenuItem.SetSensitive(false)
-	// 	networkConnectMenuItem.SetSensitive(true)
-	// 	serialConnectMenuItem.SetSensitive(true)
-	// })
+	serialConnectItem.Disabled = false
+	serialDisconnectItem.Disabled = true
+	networkConnectItem.Disabled = false
+	networkDisconnectItem.Disabled = true
 	go localListener(keyboardChan, fromHostChan)
 }
 
@@ -268,9 +267,10 @@ func serialConnect(win fyne.Window) {
 			if b {
 				if serialSession.openSerialPort(portEntry.Text, selectedBaud, selectedBits, selectedParity, selectedStopBits) {
 					localListenerStopChan <- true
-					// serialConnectMenuItem.SetSensitive(false)
-					// networkConnectMenuItem.SetSensitive(false)
-					// serialDisconnectMenuItem.SetSensitive(true)
+					serialConnectItem.Disabled = true
+					networkConnectItem.Disabled = true
+					networkDisconnectItem.Disabled = true
+					serialDisconnectItem.Disabled = false
 				} else {
 					err := errors.New("could not connect via serial port")
 					dialog.ShowError(err, win)
@@ -285,11 +285,10 @@ func telnetClose() {
 	}
 	telnetClosing = true
 	telnetSession.closeTelnetConn()
-	// glib.IdleAdd(func() {
-	// 	networkDisconnectMenuItem.SetSensitive(false)
-	// 	serialConnectMenuItem.SetSensitive(true)
-	// 	networkConnectMenuItem.SetSensitive(true)
-	// })
+	serialConnectItem.Disabled = false
+	serialDisconnectItem.Disabled = true
+	networkConnectItem.Disabled = false
+	networkDisconnectItem.Disabled = true
 	go localListener(keyboardChan, fromHostChan)
 	telnetClosing = false
 }
@@ -317,9 +316,10 @@ func telnetOpen(win fyne.Window) {
 			telnetSession = newTelnetSession()
 			if telnetSession.openTelnetConn(host, port) {
 				localListenerStopChan <- true
-				// networkConnectMenuItem.SetSensitive(false)
-				// serialConnectMenuItem.SetSensitive(false)
-				// networkDisconnectMenuItem.SetSensitive(true)
+				serialConnectItem.Disabled = true
+				networkConnectItem.Disabled = true
+				networkDisconnectItem.Disabled = false
+				serialDisconnectItem.Disabled = true
 				lastTelnetHost = host
 				lastTelnetPort = port
 			} else {
