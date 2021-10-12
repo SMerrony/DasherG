@@ -1,4 +1,4 @@
-// Copyright ©2017,2018,2020 Steve Merrony
+// Copyright ©2017-2021 Steve Merrony
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -26,8 +26,6 @@ import (
 )
 
 var (
-	// keyPressEventChan         = make(chan *gdk.EventKey, keyBuffSize)
-	// keyReleaseEventChan       = make(chan *gdk.EventKey, keyBuffSize)
 	keyDownEventChan          = make(chan *fyne.KeyEvent, keyBuffSize)
 	keyUpEventChan            = make(chan *fyne.KeyEvent, keyBuffSize)
 	ctrlPressed, shiftPressed bool
