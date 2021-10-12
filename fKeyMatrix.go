@@ -22,12 +22,16 @@
 package main
 
 import (
+	"bufio"
 	"image/color"
+	"os"
 	"strconv"
+	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
 )
 
@@ -216,7 +220,7 @@ import (
 
 var fnButs [16]*widget.Button
 var csFLabs, cFLabs, sFLabs, fLabs [16]*canvas.Text
-var templLabs [2]*widget.Label
+var templLabs [2]*canvas.Text
 
 func fnButton(number int) *widget.Button {
 	str := strconv.Itoa(number)
@@ -226,9 +230,6 @@ func fnButton(number int) *widget.Button {
 
 func smallText(text string) *canvas.Text {
 	s := text
-	// if text == "" {
-	// 	s = "        "
-	// }
 	return &canvas.Text{
 		Alignment: fyne.TextAlignCenter,
 		Color:     color.White,
@@ -243,11 +244,30 @@ func smallText(text string) *canvas.Text {
 	}
 }
 
+// type fnLabel struct {
+// 	widget.RichText
+// }
+
+// func newfnLabel(text string) *fnLabel {
+// 	lab := &fnLabel{}
+// 	lab.ExtendBaseWidget(lab)
+// 	return lab
+// }
+
+// func smallText(text string) (rich *widget.RichText) {
+// 	rich = widget.NewRichTextWithText(text)
+// 	rich.Scroll = container.ScrollNone
+// 	rich.Wrapping = fyne.TextWrapWord
+
+// 	return rich
+// }
+
 func buildFkeyMatrix2() *fyne.Container {
 
-	// fkeyGrid := container.NewGridWithColumns(19)
+	templLabs[0] = smallText("")
+	templLabs[1] = smallText("")
 
-	locPrBut := widget.NewButton("LocPr", localPrint)
+	locPrBut := widget.NewButton("LocPr", nil) // FIXME LocPr func
 	holdBut := widget.NewButton("Hold", func() {
 		terminal.rwMutex.Lock()
 		terminal.holding = !terminal.holding
@@ -291,7 +311,7 @@ func buildFkeyMatrix2() *fyne.Container {
 	vboxes[6].Add(smallText("Ctrl"))
 	vboxes[6].Add(smallText("Shift"))
 	vboxes[6].Add(smallText(""))
-	vboxes[6].Add(smallText(""))
+	vboxes[6].Add(templLabs[0])
 
 	for col := 7; col <= 11; col++ {
 		csFLabs[col-1] = smallText("")
@@ -309,7 +329,7 @@ func buildFkeyMatrix2() *fyne.Container {
 	vboxes[12].Add(smallText("Ctrl"))
 	vboxes[12].Add(smallText("Shift"))
 	vboxes[12].Add(smallText(""))
-	vboxes[12].Add(smallText(""))
+	vboxes[12].Add(templLabs[1])
 
 	for col := 13; col <= 17; col++ {
 		csFLabs[col-2] = smallText("")
@@ -330,109 +350,55 @@ func buildFkeyMatrix2() *fyne.Container {
 	// vboxes[18].Add(smallText(""))
 
 	return hbox
-
-	// // top row
-	// fkeyHbox1 := container.NewHBox()
-	// fkeyHbox1.Add(locPrBut)
-	// for k := 1; k <= 5; k++ {
-	// 	csFLabs[k] = smallText("")
-	// 	fkeyHbox1.Add(csFLabs[k])
-	// }
-	// fkeyHbox1.Add(smallText("C-S"))
-	// for k := 6; k <= 10; k++ {
-	// 	csFLabs[k] = smallText("")
-	// 	fkeyHbox1.Add(csFLabs[k])
-	// }
-	// fkeyHbox1.Add(smallText("C-S"))
-	// for k := 11; k <= 15; k++ {
-	// 	csFLabs[k] = smallText("")
-	// 	fkeyHbox1.Add(csFLabs[k])
-	// }
-	// fkeyHbox1.Add(holdBut)
-	// fkeyGrid.Add(fkeyHbox1)
-
-	// // 2nd row
-	// fkeyHbox2 := container.NewHBox()
-	// fkeyHbox2.Add(smallText(""))
-	// for k := 1; k <= 5; k++ {
-	// 	cFLabs[k] = smallText("")
-	// 	fkeyHbox2.Add(cFLabs[k])
-	// }
-	// fkeyHbox2.Add(smallText("Ctrl"))
-	// for k := 6; k <= 10; k++ {
-	// 	cFLabs[k] = smallText("")
-	// 	fkeyHbox2.Add(cFLabs[k])
-	// }
-	// fkeyHbox2.Add(smallText("Ctrl"))
-	// for k := 11; k <= 15; k++ {
-	// 	cFLabs[k] = smallText("")
-	// 	fkeyHbox2.Add(cFLabs[k])
-	// }
-	// fkeyHbox2.Add(erPgBut)
-	// fkeyGrid.Add(fkeyHbox2)
-
-	// // 3rd row
-	// fkeyHbox3 := container.NewHBox()
-	// fkeyHbox3.Add(smallText(""))
-	// for k := 1; k <= 5; k++ {
-	// 	sFLabs[k] = smallText("")
-	// 	fkeyHbox3.Add(sFLabs[k])
-	// }
-	// fkeyHbox3.Add(smallText("Shift"))
-	// for k := 6; k <= 10; k++ {
-	// 	sFLabs[k] = smallText("")
-	// 	fkeyHbox3.Add(sFLabs[k])
-	// }
-	// fkeyHbox3.Add(smallText("Shift"))
-	// for k := 11; k <= 15; k++ {
-	// 	sFLabs[k] = smallText("")
-	// 	fkeyHbox3.Add(sFLabs[k])
-	// }
-	// fkeyHbox3.Add(crBut)
-	// fkeyGrid.Add(fkeyHbox3)
-
-	// // 4th row
-	// fkeyHbox4 := container.NewHBox()
-	// fkeyHbox4.Add(smallText(""))
-	// for k := 1; k <= 5; k++ {
-	// 	fLabs[k] = smallText("")
-	// 	fkeyHbox4.Add(fLabs[k])
-	// }
-	// fkeyHbox4.Add(smallText(""))
-	// for k := 6; k <= 10; k++ {
-	// 	fLabs[k] = smallText("")
-	// 	fkeyHbox4.Add(fLabs[k])
-	// }
-	// fkeyHbox4.Add(smallText(""))
-	// for k := 11; k <= 15; k++ {
-	// 	fLabs[k] = smallText("")
-	// 	fkeyHbox4.Add(fLabs[k])
-	// }
-	// fkeyHbox4.Add(erEOLBut)
-	// fkeyGrid.Add(fkeyHbox4)
-
-	// // 5th (bottom) row
-	// fkeyHbox5 := container.NewHBox()
-	// fkeyHbox5.Add(breakBut)
-	// for k := 1; k <= 5; k++ {
-	// 	fkeyHbox5.Add(fnButton(k))
-	// }
-	// templLabs[0] = widget.NewLabel("")
-	// fkeyHbox5.Add(templLabs[0])
-	// for k := 6; k <= 10; k++ {
-	// 	fkeyHbox5.Add(fnButton(k))
-	// }
-	// templLabs[1] = widget.NewLabel("")
-	// fkeyHbox5.Add(templLabs[1])
-	// for k := 11; k <= 15; k++ {
-	// 	fkeyHbox5.Add(fnButton(k))
-	// }
-	// fkeyGrid.Add(fkeyHbox5)
-	// return fkeyGrid
 }
 
-func loadFKeyTemplate() {
-	// TODO loadFKeyTemplate rework for Fyne
+func loadFKeyTemplate(win fyne.Window) {
+	fd := dialog.NewFileOpen(func(urirc fyne.URIReadCloser, e error) {
+		if urirc != nil {
+			file, err := os.Open(urirc.URI().Path())
+			if err != nil {
+				dialog.ShowError(err, win)
+			} else {
+				defer file.Close()
+				// clear the labels
+				for f := 1; f <= 15; f++ {
+					csFLabs[f].Text = ""
+					cFLabs[f].Text = ""
+					sFLabs[f].Text = ""
+					fLabs[f].Text = ""
+				}
+				// read all the labels in order from the template file
+				lineScanner := bufio.NewScanner(file)
+				lineScanner.Scan()
+				tlab := lineScanner.Text()
+				templLabs[0].Text = tlab
+				templLabs[1].Text = tlab
+				for k := 1; k <= 15; k++ {
+					for r := 3; r >= 0; r-- {
+						lineScanner.Scan()
+						lab := lineScanner.Text()
+						if lab != "" {
+							flab := strings.Replace(lab, "\\", "\n", -1)
+							switch r {
+							case 0:
+								csFLabs[k].Text = flab
+							case 1:
+								cFLabs[k].Text = flab
+							case 2:
+								sFLabs[k].Text = flab
+							case 3:
+								fLabs[k].Text = flab
+							}
+						}
+					}
+				}
+			}
+		}
+	}, win)
+	fd.Resize(fyne.Size{600, 600})
+	fd.SetDismissText("Load Template")
+	fd.Show()
+
 	// fkd := gtk.NewFileChooserDialog("DasherG Function Key Template", win, gtk.FILE_CHOOSER_ACTION_OPEN, "_Cancel", gtk.RESPONSE_CANCEL, "_Load", gtk.RESPONSE_ACCEPT)
 	// res := fkd.Run()
 	// if res == gtk.RESPONSE_ACCEPT {
