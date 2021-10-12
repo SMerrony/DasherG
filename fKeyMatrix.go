@@ -262,12 +262,12 @@ func smallText(text string) *canvas.Text {
 // 	return rich
 // }
 
-func buildFkeyMatrix2() *fyne.Container {
+func buildFkeyMatrix(win fyne.Window) *fyne.Container {
 
 	templLabs[0] = smallText("")
 	templLabs[1] = smallText("")
 
-	locPrBut := widget.NewButton("LocPr", nil) // FIXME LocPr func
+	locPrBut := widget.NewButton("LocPr", func() { localPrint(win) })
 	holdBut := widget.NewButton("Hold", func() {
 		terminal.rwMutex.Lock()
 		terminal.holding = !terminal.holding
@@ -395,7 +395,7 @@ func loadFKeyTemplate(win fyne.Window) {
 			}
 		}
 	}, win)
-	fd.Resize(fyne.Size{600, 600})
+	fd.Resize(fyne.Size{Width: 600, Height: 600})
 	fd.SetDismissText("Load Template")
 	fd.Show()
 

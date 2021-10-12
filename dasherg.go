@@ -24,7 +24,10 @@ package main
 import (
 	"flag"
 	"fmt"
+	"image"
 	"image/color"
+	"image/draw"
+	"image/png"
 	"log"
 	"os/exec"
 	"runtime"
@@ -34,6 +37,7 @@ import (
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
@@ -158,7 +162,7 @@ func main() {
 	terminal = new(terminalT)
 	terminal.setup(fromHostChan, updateCrtChan, expectChan)
 	w = a.NewWindow(appTitle)
-	setupWindow2(w)
+	setupWindow(w)
 
 	if *hostFlag != "" {
 		hostParts := strings.Split(*hostFlag, ":")
@@ -189,48 +193,13 @@ func main() {
 	w.ShowAndRun()
 }
 
-// func setupWindow(win *gtk.Window) {
-// win.SetTitle(appTitle)
-// win.Connect("destroy", func() {
-// 	gtk.MainQuit()
-// })
-// //win.SetDefaultSize(800, 600)
-// go keyEventHandler(keyboardChan)
-// win.Connect("key-press-event", func(ctx *glib.CallbackContext) {
-// 	arg := ctx.Args(0)
-// 	keyPressEventChan <- *(**gdk.EventKey)(unsafe.Pointer(&arg))
-// })
-// win.Connect("key-release-event", func(ctx *glib.CallbackContext) {
-// 	arg := ctx.Args(0)
-// 	keyReleaseEventChan <- *(**gdk.EventKey)(unsafe.Pointer(&arg))
-// })
-// vbox := gtk.NewVBox(false, 1)
-// vbox.PackStart(buildMenu(), false, false, 0)
-// vbox.PackStart(buildFkeyMatrix(), false, false, 0)
-// crt = buildCrt()
-// // go terminal.run()
-// // glib.TimeoutAdd(blinkPeriodMs, func() bool {
-// // 	updateCrtChan <- updateCrtBlink
-// // 	return true
-// // })
-// scroller = buildScrollbar()
-// hbox := gtk.NewHBox(false, 1)
-// hbox.PackStart(crt, false, false, 1)
-// hbox.PackEnd(scroller, false, false, 1)
-// vbox.PackStart(hbox, false, false, 1)
-// statusBox := buildStatusBox()
-// vbox.PackEnd(statusBox, false, false, 0)
-// win.Add(vbox)
-// win.SetIcon(iconPixbuf)
-// }
-
-func setupWindow2(w fyne.Window) {
+func setupWindow(w fyne.Window) {
 	w.SetIcon(resourceDGlogoOrangePng)
 	w.SetMainMenu(buildMenu())
 
 	go keyEventHandler(keyboardChan)
-	if deskCanvas, ok := w.Canvas().(desktop.Canvas); ok {
 
+	if deskCanvas, ok := w.Canvas().(desktop.Canvas); ok {
 		deskCanvas.SetOnKeyDown(func(ev *fyne.KeyEvent) {
 			keyDownEventChan <- ev
 		})
@@ -249,12 +218,12 @@ func setupWindow2(w fyne.Window) {
 		}
 	}()
 
-	setContent()
+	setContent(w)
 }
 
-func setContent() {
-	fkGrid := buildFkeyMatrix2()
-	statusBox := buildStatusBox2()
+func setContent(w fyne.Window) {
+	fkGrid := buildFkeyMatrix(w)
+	statusBox := buildStatusBox()
 	scrollSlider := buildScrollSlider()
 	content := container.NewBorder(
 		fkGrid,
@@ -478,7 +447,7 @@ func getSelection() string {
 // 	}
 // }
 
-func buildStatusBox2() (statBox fyne.CanvasObject) {
+func buildStatusBox() (statBox fyne.CanvasObject) {
 
 	onlineLabel2 = widget.NewLabel("")
 	hostLabel2 = widget.NewLabel("")
@@ -533,56 +502,55 @@ func updateStatusBox() {
 	emuStatusLabel2.SetText(emuStat)
 }
 
-// FIXME reimplement localPrint()
-// func localPrint() {
-// 	fd := gtk.NewFileChooserDialog("DasherG Screen-Dump", win, gtk.FILE_CHOOSER_ACTION_SAVE,
-// 		"_Cancel", gtk.RESPONSE_CANCEL, "_Save", gtk.RESPONSE_ACCEPT)
-// 	fd.SetFilename("DASHER.png")
-// 	res := fd.Run()
-// 	if res == gtk.RESPONSE_ACCEPT {
-// 		filename := fd.GetFilename()
-// 		dumpFile, err := os.Create(filename)
-// 		if err != nil {
-// 			fmt.Printf("ERROR: Could not create file <%s> for screen-dump\n", filename)
-// 		} else {
-// 			defer dumpFile.Close()
-// 			img := image.NewNRGBA(image.Rect(0, 0, (terminal.display.visibleCols+1)*fontWidth, (terminal.display.visibleLines+1)*fontHeight))
-// 			bg := image.NewUniform(color.RGBA{255, 255, 255, 255})    // prepare white for background
-// 			grey := image.NewUniform(color.RGBA{128, 128, 128, 255})  // prepare grey for foreground
-// 			blk := image.NewUniform(color.RGBA{0, 0, 0, 255})         // prepare black for foreground
-// 			draw.Draw(img, img.Bounds(), bg, image.Point{}, draw.Src) // fill the background
-// 			for line := 0; line < terminal.display.visibleLines; line++ {
-// 				for col := 0; col < terminal.display.visibleCols; col++ {
-// 					for x := 0; x < fontWidth; x++ {
-// 						for y := 0; y < fontHeight; y++ {
-// 							switch {
-// 							case terminal.display.cells[line][col].dim:
-// 								if bdfFont[terminal.display.cells[line][col].charValue].pixels[x][y] {
-// 									img.Set(col*fontWidth+x, (line+1)*fontHeight-y, grey)
-// 								}
-// 							case terminal.display.cells[line][col].reverse:
-// 								if !bdfFont[terminal.display.cells[line][col].charValue].pixels[x][y] {
-// 									img.Set(col*fontWidth+x, (line+1)*fontHeight-y, blk)
-// 								}
-// 							default:
-// 								if bdfFont[terminal.display.cells[line][col].charValue].pixels[x][y] {
-// 									img.Set(col*fontWidth+x, (line+1)*fontHeight-y, blk)
-// 								}
-// 							}
-// 						}
-// 					}
-// 					if terminal.display.cells[line][col].underscore {
-// 						for x := 0; x < fontWidth; x++ {
-// 							img.Set(col*fontWidth+x, (line+1)*fontHeight, blk)
-// 						}
-// 					}
-// 				}
-// 			}
-// 			if err := png.Encode(dumpFile, img); err != nil {
-// 				fmt.Printf("ERROR: Could not save PNG screen-dump, %v\n", err)
-// 			}
-// 			dumpFile.Close()
-// 		}
-// 	}
-// 	fd.Destroy()
-// }
+func localPrint(win fyne.Window) {
+	fd := dialog.NewFileSave(func(uriwc fyne.URIWriteCloser, e error) {
+		if uriwc != nil {
+			filename := uriwc.URI().Path()
+			dumpFile, err := os.Create(filename)
+			if err != nil {
+				dialog.ShowError(err, win)
+			} else {
+				defer dumpFile.Close()
+				img := image.NewNRGBA(image.Rect(0, 0, (terminal.display.visibleCols+1)*fontWidth, (terminal.display.visibleLines+1)*fontHeight))
+				bg := image.NewUniform(color.RGBA{255, 255, 255, 255})    // prepare white for background
+				grey := image.NewUniform(color.RGBA{128, 128, 128, 255})  // prepare grey for foreground
+				blk := image.NewUniform(color.RGBA{0, 0, 0, 255})         // prepare black for foreground
+				draw.Draw(img, img.Bounds(), bg, image.Point{}, draw.Src) // fill the background
+				for line := 0; line < terminal.display.visibleLines; line++ {
+					for col := 0; col < terminal.display.visibleCols; col++ {
+						for x := 0; x < fontWidth; x++ {
+							for y := 0; y < fontHeight; y++ {
+								switch {
+								case terminal.display.cells[line][col].dim:
+									if bdfFont[terminal.display.cells[line][col].charValue].pixels[x][y] {
+										img.Set(col*fontWidth+x, (line+1)*fontHeight-y, grey)
+									}
+								case terminal.display.cells[line][col].reverse:
+									if !bdfFont[terminal.display.cells[line][col].charValue].pixels[x][y] {
+										img.Set(col*fontWidth+x, (line+1)*fontHeight-y, blk)
+									}
+								default:
+									if bdfFont[terminal.display.cells[line][col].charValue].pixels[x][y] {
+										img.Set(col*fontWidth+x, (line+1)*fontHeight-y, blk)
+									}
+								}
+							}
+						}
+						if terminal.display.cells[line][col].underscore {
+							for x := 0; x < fontWidth; x++ {
+								img.Set(col*fontWidth+x, (line+1)*fontHeight, blk)
+							}
+						}
+					}
+				}
+				if err := png.Encode(dumpFile, img); err != nil {
+					fmt.Printf("ERROR: Could not save PNG screen-dump, %v\n", err)
+				}
+			}
+		}
+	}, win)
+	fd.SetFileName("DASHER.png")
+	fd.Resize(fyne.Size{Width: 600, Height: 600})
+	fd.SetDismissText("Dump Screen")
+	fd.Show()
+}

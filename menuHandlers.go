@@ -80,7 +80,7 @@ func emulationResize(win fyne.Window) {
 				terminal.rwMutex.Unlock()
 				crtImg = buildCrt()
 				terminal.resize()
-				setContent()
+				setContent(win)
 			}
 		}, win)
 
@@ -98,7 +98,7 @@ func fileChooseExpectScript(win fyne.Window) {
 			}
 		}
 	}, win)
-	ed.Resize(fyne.Size{600, 600})
+	ed.Resize(fyne.Size{Width: 600, Height: 600})
 	ed.SetDismissText("Execute")
 	ed.Show()
 }
@@ -122,7 +122,7 @@ func fileLogging(win fyne.Window) {
 				}
 			}
 		}, win)
-		fd.Resize(fyne.Size{600, 600})
+		fd.Resize(fyne.Size{Width: 600, Height: 600})
 		fd.SetDismissText("Start Logging")
 		fd.Show()
 	}
@@ -142,7 +142,7 @@ func fileSendText(win fyne.Window) {
 			}
 		}
 	}, win)
-	fsd.Resize(fyne.Size{600, 600})
+	fsd.Resize(fyne.Size{Width: 600, Height: 600})
 	fsd.SetDismissText("Execute")
 	fsd.Show()
 }
@@ -166,7 +166,7 @@ func fileXmodemReceive(win fyne.Window) {
 			}
 		}
 	}, win)
-	fsd.Resize(fyne.Size{600, 600})
+	fsd.Resize(fyne.Size{Width: 600, Height: 600})
 	fsd.SetDismissText("Receive")
 	fsd.Show()
 }
@@ -188,7 +188,7 @@ func fileXmodemSend(win fyne.Window) {
 			}
 		}
 	}, win)
-	fsd.Resize(fyne.Size{600, 600})
+	fsd.Resize(fyne.Size{Width: 600, Height: 600})
 	fsd.SetDismissText("Receive")
 	fsd.Show()
 }
@@ -210,7 +210,7 @@ func fileXmodemSend1k(win fyne.Window) {
 			}
 		}
 	}, win)
-	fsd.Resize(fyne.Size{600, 600})
+	fsd.Resize(fyne.Size{Width: 600, Height: 600})
 	fsd.SetDismissText("Receive (1k)")
 	fsd.Show()
 }
