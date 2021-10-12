@@ -130,14 +130,60 @@ func keyEventHandler(kbdChan chan<- byte) {
 
 			default:
 				keyByte := byte(keyReleaseEvent.Name[0])
-				if keyByte >= 'A' && keyByte <= 'Z' {
+				switch {
+				case keyByte >= 'A' && keyByte <= 'Z':
 					if !shiftPressed {
 						keyByte += 32
 					}
-				}
-				if keyByte >= '0' && keyByte <= '9' {
+				case keyByte >= '0' && keyByte <= '9':
 					if shiftPressed {
-						keyByte -= 16
+						switch keyByte {
+						case '0':
+							keyByte = ')'
+						case '1':
+							keyByte = '!'
+						case '2':
+							keyByte = '"'
+						case '3':
+							keyByte = '#' // US-style keyboard...
+						case '4':
+							keyByte = '$'
+						case '5':
+							keyByte = '%'
+						case '6':
+							keyByte = '^'
+						case '7':
+							keyByte = '&'
+						case '8':
+							keyByte = '*'
+						case '9':
+							keyByte = '('
+						}
+					}
+				case shiftPressed:
+					switch keyByte {
+					case '`', '\\':
+						keyByte = '|'
+					case '-':
+						keyByte = '_'
+					case '=':
+						keyByte = '+'
+					case '[':
+						keyByte = '{'
+					case ']':
+						keyByte = '}'
+					case ';':
+						keyByte = ':'
+					case '\'':
+						keyByte = '@'
+					case '#':
+						keyByte = '~'
+					case ',':
+						keyByte = '<'
+					case '.':
+						keyByte = '>'
+					case '/':
+						keyByte = '?'
 					}
 				}
 				if ctrlPressed {
