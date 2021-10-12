@@ -24,10 +24,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"image"
 	"image/color"
-	"image/draw"
-	"image/png"
 	"log"
 	"os/exec"
 	"runtime"
@@ -48,11 +45,6 @@ import (
 	"runtime/trace"
 	"strconv"
 	"strings"
-	"unsafe"
-
-	"github.com/mattn/go-gtk/gdk"
-	"github.com/mattn/go-gtk/glib"
-	"github.com/mattn/go-gtk/gtk"
 )
 
 //go:generate go-bindata -prefix "resources/" -pkg main -o resources.go resources/...
@@ -76,6 +68,7 @@ const (
 	// crtRefreshMs influences the responsiveness of the display. 50ms = 20Hz or 20fps
 	crtRefreshMs         = 50
 	statusUpdatePeriodMs = 500
+	logLines             = 1000
 )
 
 var (
@@ -98,11 +91,9 @@ var (
 		startRow, startCol, endRow, endCol int
 	}
 
-	scroller *gtk.VScrollbar
-	zoom     = ZoomNormal
-	win      *gtk.Window
-	w        fyne.Window
-	crtImg   *canvas.Raster
+	zoom   = ZoomNormal
+	w      fyne.Window
+	crtImg *canvas.Raster
 	// backingImg *image.NRGBA
 	green    = color.RGBA{0x00, 0xff, 0x00, 0xff}
 	dimGreen = color.RGBA{0x00, 0x80, 0x00, 0xff}
@@ -181,9 +172,6 @@ func main() {
 		telnetSession = newTelnetSession()
 		if telnetSession.openTelnetConn(hostParts[0], hostPort) {
 			localListenerStopChan <- true
-			// networkConnectMenuItem.SetSensitive(false)
-			// serialConnectMenuItem.SetSensitive(false)
-			// networkDisconnectMenuItem.SetSensitive(true)
 			lastTelnetHost = hostParts[0]
 			lastTelnetPort = hostPort
 		}
@@ -267,12 +255,15 @@ func setupWindow2(w fyne.Window) {
 func setContent() {
 	fkGrid := buildFkeyMatrix2()
 	statusBox := buildStatusBox2()
+	scrollSlider := buildScrollSlider()
 	content := container.NewBorder(
 		fkGrid,
 		statusBox,
 		nil, nil,
-		// container.NewHBox(layout.NewSpacer(), crtImg, layout.NewSpacer()),
-		container.NewHBox(layout.NewSpacer(), container.NewVBox(layout.NewSpacer(), crtImg, layout.NewSpacer()), layout.NewSpacer()),
+		container.NewHBox(layout.NewSpacer(),
+			container.NewVBox(layout.NewSpacer(), crtImg, layout.NewSpacer()),
+			scrollSlider,
+			layout.NewSpacer()),
 	)
 	w.SetContent(content)
 }
@@ -317,7 +308,7 @@ func buildMenu() (mainMenu *fyne.MainMenu) {
 	d210Item := fyne.NewMenuItem("D210", func() { terminal.setEmulation(d210) })
 	resizeItem := fyne.NewMenuItem("Resize", func() { emulationResize(w) })
 	selfTestItem := fyne.NewMenuItem("Self-Test", func() { terminal.selfTest(fromHostChan) })
-	loadTemplateItem := fyne.NewMenuItem("Load Func. Key Template", nil)
+	loadTemplateItem := fyne.NewMenuItem("Load Func. Key Template", func() { loadFKeyTemplate(w) })
 	emulationMenu := fyne.NewMenu("Emulation",
 		d200Item, d210Item, fyne.NewMenuItemSeparator(),
 		resizeItem, fyne.NewMenuItemSeparator(),
@@ -429,20 +420,21 @@ func openBrowser(url string) {
 // 	return crt
 // }
 
-func buildScrollbar() (sb *gtk.VScrollbar) {
-	adj := gtk.NewAdjustment(historyLines, 0.0, historyLines, 1.0, 1.0, 1.0)
-	sb = gtk.NewVScrollbar(adj)
-	sb.Connect("value-changed", handleScrollbarChangedEvent)
-	return sb
+func buildScrollSlider() (scrollSlider *widget.Slider) {
+	scrollSlider = widget.NewSlider(0.0, 1000.0)
+	scrollSlider.Orientation = widget.Vertical
+	scrollSlider.Step = 1.0
+	scrollSlider.OnChanged = handleScrollSliderChanged
+	return scrollSlider
 }
 
-func handleScrollbarChangedEvent(ctx *glib.CallbackContext) {
-	posn := int(scroller.GetValue())
-	// fmt.Printf("Scrollbar event: Value: %d\n", posn)
-	if posn >= historyLines-1 {
+func handleScrollSliderChanged(newVal float64) {
+	posn := int(newVal)
+	fmt.Printf("DEBUG: New scroller posn: %f\n", newVal)
+	if posn == 0 {
 		terminal.cancelScrollBack()
 	} else {
-		terminal.scrollBack(historyLines - posn)
+		terminal.scrollBack(posn)
 	}
 }
 
@@ -470,20 +462,21 @@ func getSelection() string {
 	return selection
 }
 
-// handleMotionNotifyEvent is called every time the mouse moves after being clicked
-// in the CRT.  It is no longer called once the mouse is released.
-func handleMotionNotifyEvent(ctx *glib.CallbackContext) {
-	arg := ctx.Args(0)
-	btnPressEvent := *(**gdk.EventMotion)(unsafe.Pointer(&arg))
-	row := int(btnPressEvent.Y) / charHeight
-	col := int(btnPressEvent.X) / charWidth
-	if row != selectionRegion.endRow || col != selectionRegion.endCol {
-		// moved at least 1 cell...
-		// fmt.Printf("DEBUG: Row: %d, Col: %d, Character: %c\n", row, col, terminal.display.cells[row][col].charValue)
-		selectionRegion.endCol = col
-		selectionRegion.endRow = row
-	}
-}
+// FIXME reimplement mouse movement detection
+// // handleMotionNotifyEvent is called every time the mouse moves after being clicked
+// // in the CRT.  It is no longer called once the mouse is released.
+// func handleMotionNotifyEvent(ctx *glib.CallbackContext) {
+// 	arg := ctx.Args(0)
+// 	btnPressEvent := *(**gdk.EventMotion)(unsafe.Pointer(&arg))
+// 	row := int(btnPressEvent.Y) / charHeight
+// 	col := int(btnPressEvent.X) / charWidth
+// 	if row != selectionRegion.endRow || col != selectionRegion.endCol {
+// 		// moved at least 1 cell...
+// 		// fmt.Printf("DEBUG: Row: %d, Col: %d, Character: %c\n", row, col, terminal.display.cells[row][col].charValue)
+// 		selectionRegion.endCol = col
+// 		selectionRegion.endRow = row
+// 	}
+// }
 
 func buildStatusBox2() (statBox fyne.CanvasObject) {
 
@@ -540,55 +533,56 @@ func updateStatusBox() {
 	emuStatusLabel2.SetText(emuStat)
 }
 
-func localPrint() {
-	fd := gtk.NewFileChooserDialog("DasherG Screen-Dump", win, gtk.FILE_CHOOSER_ACTION_SAVE,
-		"_Cancel", gtk.RESPONSE_CANCEL, "_Save", gtk.RESPONSE_ACCEPT)
-	fd.SetFilename("DASHER.png")
-	res := fd.Run()
-	if res == gtk.RESPONSE_ACCEPT {
-		filename := fd.GetFilename()
-		dumpFile, err := os.Create(filename)
-		if err != nil {
-			fmt.Printf("ERROR: Could not create file <%s> for screen-dump\n", filename)
-		} else {
-			defer dumpFile.Close()
-			img := image.NewNRGBA(image.Rect(0, 0, (terminal.display.visibleCols+1)*fontWidth, (terminal.display.visibleLines+1)*fontHeight))
-			bg := image.NewUniform(color.RGBA{255, 255, 255, 255})    // prepare white for background
-			grey := image.NewUniform(color.RGBA{128, 128, 128, 255})  // prepare grey for foreground
-			blk := image.NewUniform(color.RGBA{0, 0, 0, 255})         // prepare black for foreground
-			draw.Draw(img, img.Bounds(), bg, image.Point{}, draw.Src) // fill the background
-			for line := 0; line < terminal.display.visibleLines; line++ {
-				for col := 0; col < terminal.display.visibleCols; col++ {
-					for x := 0; x < fontWidth; x++ {
-						for y := 0; y < fontHeight; y++ {
-							switch {
-							case terminal.display.cells[line][col].dim:
-								if bdfFont[terminal.display.cells[line][col].charValue].pixels[x][y] {
-									img.Set(col*fontWidth+x, (line+1)*fontHeight-y, grey)
-								}
-							case terminal.display.cells[line][col].reverse:
-								if !bdfFont[terminal.display.cells[line][col].charValue].pixels[x][y] {
-									img.Set(col*fontWidth+x, (line+1)*fontHeight-y, blk)
-								}
-							default:
-								if bdfFont[terminal.display.cells[line][col].charValue].pixels[x][y] {
-									img.Set(col*fontWidth+x, (line+1)*fontHeight-y, blk)
-								}
-							}
-						}
-					}
-					if terminal.display.cells[line][col].underscore {
-						for x := 0; x < fontWidth; x++ {
-							img.Set(col*fontWidth+x, (line+1)*fontHeight, blk)
-						}
-					}
-				}
-			}
-			if err := png.Encode(dumpFile, img); err != nil {
-				fmt.Printf("ERROR: Could not save PNG screen-dump, %v\n", err)
-			}
-			dumpFile.Close()
-		}
-	}
-	fd.Destroy()
-}
+// FIXME reimplement localPrint()
+// func localPrint() {
+// 	fd := gtk.NewFileChooserDialog("DasherG Screen-Dump", win, gtk.FILE_CHOOSER_ACTION_SAVE,
+// 		"_Cancel", gtk.RESPONSE_CANCEL, "_Save", gtk.RESPONSE_ACCEPT)
+// 	fd.SetFilename("DASHER.png")
+// 	res := fd.Run()
+// 	if res == gtk.RESPONSE_ACCEPT {
+// 		filename := fd.GetFilename()
+// 		dumpFile, err := os.Create(filename)
+// 		if err != nil {
+// 			fmt.Printf("ERROR: Could not create file <%s> for screen-dump\n", filename)
+// 		} else {
+// 			defer dumpFile.Close()
+// 			img := image.NewNRGBA(image.Rect(0, 0, (terminal.display.visibleCols+1)*fontWidth, (terminal.display.visibleLines+1)*fontHeight))
+// 			bg := image.NewUniform(color.RGBA{255, 255, 255, 255})    // prepare white for background
+// 			grey := image.NewUniform(color.RGBA{128, 128, 128, 255})  // prepare grey for foreground
+// 			blk := image.NewUniform(color.RGBA{0, 0, 0, 255})         // prepare black for foreground
+// 			draw.Draw(img, img.Bounds(), bg, image.Point{}, draw.Src) // fill the background
+// 			for line := 0; line < terminal.display.visibleLines; line++ {
+// 				for col := 0; col < terminal.display.visibleCols; col++ {
+// 					for x := 0; x < fontWidth; x++ {
+// 						for y := 0; y < fontHeight; y++ {
+// 							switch {
+// 							case terminal.display.cells[line][col].dim:
+// 								if bdfFont[terminal.display.cells[line][col].charValue].pixels[x][y] {
+// 									img.Set(col*fontWidth+x, (line+1)*fontHeight-y, grey)
+// 								}
+// 							case terminal.display.cells[line][col].reverse:
+// 								if !bdfFont[terminal.display.cells[line][col].charValue].pixels[x][y] {
+// 									img.Set(col*fontWidth+x, (line+1)*fontHeight-y, blk)
+// 								}
+// 							default:
+// 								if bdfFont[terminal.display.cells[line][col].charValue].pixels[x][y] {
+// 									img.Set(col*fontWidth+x, (line+1)*fontHeight-y, blk)
+// 								}
+// 							}
+// 						}
+// 					}
+// 					if terminal.display.cells[line][col].underscore {
+// 						for x := 0; x < fontWidth; x++ {
+// 							img.Set(col*fontWidth+x, (line+1)*fontHeight, blk)
+// 						}
+// 					}
+// 				}
+// 			}
+// 			if err := png.Encode(dumpFile, img); err != nil {
+// 				fmt.Printf("ERROR: Could not save PNG screen-dump, %v\n", err)
+// 			}
+// 			dumpFile.Close()
+// 		}
+// 	}
+// 	fd.Destroy()
+// }

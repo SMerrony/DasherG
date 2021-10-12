@@ -66,11 +66,10 @@ type terminalT struct {
 	logFile                                      *os.File
 
 	// display is the 2D array of cells containing the terminal 'contents'
-	display                  displayT
-	displayDirty             [totalLines][totalCols]bool
-	savedDisplay             displayT // used when scrolling back over history
-	displayHistory           [historyLines][totalCols]cell
-	historyStart, historyEnd int
+	display        displayT
+	displayDirty   [totalLines][totalCols]bool
+	savedDisplay   displayT // used when scrolling back over history
+	displayHistory *historyT
 
 	updateCrtChan chan int
 	// terminalUpdated indicates that a visual refresh is required
@@ -105,9 +104,7 @@ func (t *terminalT) setup(fromHostChan <-chan []byte, update chan int, expectCha
 	for c := range t.dirtyLine {
 		t.dirtyLine[c] = true
 	}
-	for l := range t.displayHistory {
-		t.displayHistory[l] = t.emptyLine
-	}
+	t.displayHistory = createHistory()
 	t.rollEnabled = true
 	t.blinkEnabled = true
 	t.clearScreen()
@@ -188,46 +185,11 @@ func (t *terminalT) eraseUnprotectedToEndOfScreen() {
 	}
 }
 
-// addToHistory inserts a display line into the circular history buffer
-// It is assumed that the terminal mutex has been locked by the caller
-func (t *terminalT) addToHistory(screenLine [totalCols]cell) {
-	t.historyEnd++
-	// end of buffer?
-	if t.historyEnd == historyLines {
-		// wrap-around
-		t.historyEnd = 0
-	}
-	// has the tail hit the head?
-	if t.historyEnd == t.historyStart {
-		t.historyStart++ // advance the head
-		if t.historyStart == historyLines {
-			// wrap-around if at limit
-			t.historyStart = 0
-		}
-	}
-	t.displayHistory[t.historyEnd] = screenLine
-	// fmt.Printf("addToHistory added real index: %d [start: %d]\n", t.historyEnd, t.historyStart)
-}
-
-// getNthHistoryLine returns a line of cells from the history
-func (t *terminalT) getNthHistoryLine(n int) (screenLine [totalCols]cell) {
-	var hline int
-	if t.historyStart == t.historyEnd { // there's no history yet
-		screenLine = t.emptyLine
-	} else {
-		hline = t.historyEnd - n
-		if hline < 0 {
-			hline += historyLines
-		}
-		screenLine = t.displayHistory[hline]
-	}
-	// fmt.Printf("getNthHistoryLine called with %d, returning history ix: %d\n", n, hline)
-	return screenLine
-}
-
+// scrollUp moves every line up one position, the top line
+// is stored in the history (this is the *only* case is which history is written)
 func (t *terminalT) scrollUp(rows int) {
+	t.displayHistory.append(t.display.cells[0])
 	for times := 0; times < rows; times++ {
-		t.addToHistory(t.display.cells[0])
 		// move each line up a row
 		for r := 1; r < t.display.visibleLines; r++ {
 			t.display.cells[r-1] = t.display.cells[r]
@@ -237,18 +199,19 @@ func (t *terminalT) scrollUp(rows int) {
 	}
 }
 
-func (t *terminalT) scrollDown(topLine string) {
-	// move every visible row down
-	for r := t.display.visibleLines; r > 0; r-- {
-		t.display.cells[r+1] = t.display.cells[r]
-		t.displayDirty[r+1] = t.dirtyLine
-	}
-	t.clearLine(0)
-	for c := 0; c < len(topLine); c++ {
-		t.display.cells[0][c].set(byte(topLine[c]), false, false, false, false, false)
-		t.displayDirty[0][c] = true
-	}
-}
+// scrollDown is not (yet) used
+// func (t *terminalT) scrollDown(topLine string) {
+// 	// move every visible row down
+// 	for r := t.display.visibleLines; r > 0; r-- {
+// 		t.display.cells[r+1] = t.display.cells[r]
+// 		t.displayDirty[r+1] = t.dirtyLine
+// 	}
+// 	t.clearLine(0)
+// 	for c := 0; c < len(topLine); c++ {
+// 		t.display.cells[0][c].set(byte(topLine[c]), false, false, false, false, false)
+// 		t.displayDirty[0][c] = true
+// 	}
+// }
 
 func (t *terminalT) scrollBack(startLine int) {
 	t.rwMutex.Lock()
@@ -259,27 +222,10 @@ func (t *terminalT) scrollBack(startLine int) {
 		t.scrolledBack = true
 	}
 
-	// there are two cases: we are already scrolled back beyond the 'live' screen, or we are partially showing it
-	if startLine < t.display.visibleLines {
-		// the partial case
-		onScreenLine := 0
-		for hl := startLine; hl >= 0; hl-- {
-			t.display.cells[onScreenLine] = t.getNthHistoryLine(hl)
-			t.displayDirty[onScreenLine] = t.dirtyLine
-			onScreenLine++
-		}
-		liveLine := 0
-		for onScreenLine < t.display.visibleLines {
-			t.display.cells[onScreenLine] = t.savedDisplay.cells[liveLine]
-			t.displayDirty[onScreenLine] = t.dirtyLine
-			liveLine++
-			onScreenLine++
-		}
-	} else {
-		// all 'history' - we can cheat
-		for l := 0; l < t.display.visibleLines; l++ {
+	if startLine >= t.display.visibleLines {
+		for l := t.display.visibleLines - 1; l >= 0; l-- {
 			histLine := startLine - l
-			t.display.cells[l] = t.getNthHistoryLine(histLine)
+			t.display.cells[l] = t.displayHistory.getNthLine(histLine)
 			t.displayDirty[l] = t.dirtyLine
 		}
 	}
