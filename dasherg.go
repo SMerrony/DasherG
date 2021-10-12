@@ -430,7 +430,7 @@ func buildScrollSlider() (scrollSlider *widget.Slider) {
 
 func handleScrollSliderChanged(newVal float64) {
 	posn := int(newVal)
-	fmt.Printf("DEBUG: New scroller posn: %f\n", newVal)
+	// fmt.Printf("DEBUG: New scroller posn: %f\n", newVal)
 	if posn == 0 {
 		terminal.cancelScrollBack()
 	} else {
