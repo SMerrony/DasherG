@@ -1,5 +1,5 @@
 # DasherG
-DasherG is a free terminal emulator for Data General DASHER series character-based terminals.  It is written in [Go](https://golang.org/) using the [Go-Gtk](https://github.com/mattn/go-gtk) toolkit and should run on all common platforms supported by Go.
+DasherG is a free terminal emulator for Data General DASHER series character-based terminals.  It is written in [Go](https://golang.org/) using the [Fyne](https://fyne.io) toolkit and should run on all common platforms supported by Go.
 
 ![screenshot](screenshots/DasherG_v0_9_8.png "Windows Screenshot")
 
@@ -15,7 +15,7 @@ DasherG is a free terminal emulator for Data General DASHER series character-bas
 * Pixel-for-pixel copy of D410 character set
 * Session logging to file
 * Loadable function key templates (BROWSE, SED and SMI provided as examples)
-* 2000-line terminal history
+* 1000-line terminal history
 * May specify ```-host=host:port``` on command line
 * Support for mini-Expect scripts to automate some tasks [see Wiki](https://github.com/SMerrony/DasherG/wiki/DasherG-Mini-Expect-Scripts)
 * Copy and Paste - select region with mouse (it is automatically copied to clipboard) and paste at cursor via Edit menu
@@ -26,13 +26,9 @@ DasherG is [hosted on GitHub](https://github.com/SMerrony/DasherG).
 
 ## Build from Source
 ### Prerequisites
-To build from the source you will need the GTK-Development packages installed on your system.  You will also need to install the following Go packages...
-
-```go get github.com/mattn/go-gtk/gtk``` 
-
-and 
-
-```go get github.com/distributed/sers```
+You will need a working, recent (v1.16 or later) Go compiler.  The first time you build or install
+DasherG it might pull in the toolkit dependencies - this will take a little while.  Subsequent
+builds should be very quick.
 
 ### Build
 ```go build```

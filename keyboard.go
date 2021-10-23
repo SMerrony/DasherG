@@ -20,8 +20,6 @@
 package main
 
 import (
-	"fmt"
-
 	"fyne.io/fyne/v2"
 )
 
@@ -35,7 +33,7 @@ func keyEventHandler(kbdChan chan<- byte) {
 	for {
 		select {
 		case keyPressEvent := <-keyDownEventChan:
-			fmt.Println("keyEventHandler got press event")
+			// fmt.Println("keyEventHandler got press event")
 			switch keyPressEvent.Name {
 			case "LeftControl", "RightControl":
 				ctrlPressed = true
@@ -46,7 +44,7 @@ func keyEventHandler(kbdChan chan<- byte) {
 			}
 
 		case keyReleaseEvent := <-keyUpEventChan:
-			fmt.Printf("keyEventHandler got release event for <%s>\n", keyReleaseEvent.Name)
+			// fmt.Printf("keyEventHandler got release event for <%s>\n", keyReleaseEvent.Name)
 			switch keyReleaseEvent.Name {
 			case "LeftControl", "RightControl":
 				ctrlPressed = false

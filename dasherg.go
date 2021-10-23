@@ -35,7 +35,6 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
-	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/driver/desktop"
@@ -95,10 +94,9 @@ var (
 		startRow, startCol, endRow, endCol int
 	}
 
-	zoom   = ZoomNormal
-	w      fyne.Window
-	crtImg *canvas.Raster
-	// backingImg *image.NRGBA
+	zoom     = ZoomNormal
+	w        fyne.Window
+	crtImg   *crtMouseable
 	green    = color.RGBA{0x00, 0xff, 0x00, 0xff}
 	dimGreen = color.RGBA{0x00, 0x80, 0x00, 0xff}
 
@@ -208,6 +206,7 @@ func setupWindow(w fyne.Window) {
 		})
 	}
 
+	// crtImg = buildCrt()
 	crtImg = buildCrt()
 	go terminal.run()
 
@@ -331,64 +330,6 @@ func openBrowser(url string) {
 
 }
 
-// func buildCrt() *gtk.DrawingArea {
-// 	var mne int
-// 	crt = gtk.NewDrawingArea()
-// 	terminal.rwMutex.RLock()
-// 	crt.SetSizeRequest(terminal.display.visibleCols*charWidth, terminal.display.visibleLines*charHeight)
-// 	terminal.rwMutex.RUnlock()
-
-// 	crt.Connect("configure-event", func() {
-// 		if offScreenPixmap != nil {
-// 			offScreenPixmap.Unref()
-// 		}
-// 		//allocation := crt.GetAllocation()
-// 		terminal.rwMutex.RLock()
-// 		offScreenPixmap = gdk.NewPixmap(crt.GetWindow().GetDrawable(),
-// 			terminal.display.visibleCols*charWidth, terminal.display.visibleLines*charHeight*charHeight, 24)
-// 		terminal.rwMutex.RUnlock()
-// 		gc = gdk.NewGC(offScreenPixmap.GetDrawable())
-// 		offScreenPixmap.GetDrawable().DrawRectangle(gc, true, 0, 0, -1, -1)
-// 		gc.SetForeground(gc.GetColormap().AllocColorRGB(0, 65535, 0))
-// 	})
-
-// 	crt.Connect("expose-event", func() {
-// 		gdkWin.GetDrawable().DrawDrawable(gc, offScreenPixmap.GetDrawable(), 0, 0, 0, 0, -1, -1)
-// 		//fmt.Println("expose-event handled")
-// 	})
-
-// 	crt.SetCanFocus(true)
-// 	crt.AddEvents(int(gdk.BUTTON_PRESS_MASK))
-// 	crt.Connect("button-press-event", func(ctx *glib.CallbackContext) {
-// 		arg := ctx.Args(0)
-// 		btnPressEvent := *(**gdk.EventButton)(unsafe.Pointer(&arg))
-// 		//fmt.Printf("DEBUG: Mouse clicked at %d, %d\t", btnPressEvent.X, btnPressEvent.Y)
-// 		selectionRegion.startRow = int(btnPressEvent.Y) / charHeight
-// 		selectionRegion.startCol = int(btnPressEvent.X) / charWidth
-// 		selectionRegion.endRow = selectionRegion.startRow
-// 		selectionRegion.endCol = selectionRegion.startCol
-// 		selectionRegion.isActive = true
-// 		mne = crt.Connect("motion-notify-event", handleMotionNotifyEvent)
-// 	})
-// 	crt.AddEvents(int(gdk.BUTTON_RELEASE_MASK))
-// 	crt.Connect("button-release-event", func(ctx *glib.CallbackContext) {
-// 		arg := ctx.Args(0)
-// 		btnPressEvent := *(**gdk.EventButton)(unsafe.Pointer(&arg))
-// 		//fmt.Printf("DEBUG: Mouse released at %d, %d\t", btnPressEvent.X, btnPressEvent.Y)
-// 		selectionRegion.endRow = int(btnPressEvent.Y) / charHeight
-// 		selectionRegion.endCol = int(btnPressEvent.X) / charWidth
-// 		sel := getSelection()
-// 		selectionRegion.isActive = false
-// 		//fmt.Printf("DEBUG: Copied selection: <%s>\n", sel)
-// 		clipboard := gtk.NewClipboardGetForDisplay(gdk.DisplayGetDefault(), gdk.SELECTION_CLIPBOARD)
-// 		clipboard.SetText(sel)
-// 		crt.HandlerDisconnect(mne)
-// 	})
-// 	crt.AddEvents(int(gdk.POINTER_MOTION_MASK))
-
-// 	return crt
-// }
-
 func buildScrollSlider() (scrollSlider *widget.Slider) {
 	scrollSlider = widget.NewSlider(0.0, 1000.0)
 	scrollSlider.Orientation = widget.Vertical
@@ -424,28 +365,12 @@ func getSelection() string {
 				}
 				col++
 			}
-			selection += string(dasherNewLine)
+			selection += string(rune(dasherNewLine))
 			col = 0
 		}
 	}
 	return selection
 }
-
-// FIXME reimplement mouse movement detection
-// // handleMotionNotifyEvent is called every time the mouse moves after being clicked
-// // in the CRT.  It is no longer called once the mouse is released.
-// func handleMotionNotifyEvent(ctx *glib.CallbackContext) {
-// 	arg := ctx.Args(0)
-// 	btnPressEvent := *(**gdk.EventMotion)(unsafe.Pointer(&arg))
-// 	row := int(btnPressEvent.Y) / charHeight
-// 	col := int(btnPressEvent.X) / charWidth
-// 	if row != selectionRegion.endRow || col != selectionRegion.endCol {
-// 		// moved at least 1 cell...
-// 		// fmt.Printf("DEBUG: Row: %d, Col: %d, Character: %c\n", row, col, terminal.display.cells[row][col].charValue)
-// 		selectionRegion.endCol = col
-// 		selectionRegion.endRow = row
-// 	}
-// }
 
 func buildStatusBox() (statBox fyne.CanvasObject) {
 
