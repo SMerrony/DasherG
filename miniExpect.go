@@ -60,21 +60,20 @@ scriptLoop:
 			found := false
 			time.Sleep(200 * time.Millisecond)
 			for {
-				select {
-				case b := <-expectChan:
-					if b == dasherCR || b == dasherNewLine {
-						hostString = ""
-					} else {
-						hostString += string(b)
-						if traceExpect {
-							fmt.Printf("DEBUG: Expect want <%s>, response so far is: <%s>\n", expectStr, hostString)
-						}
-						if strings.HasSuffix(hostString, expectStr) {
-							found = true
-							break
-						}
+				b := <-expectChan
+				if b == dasherCR || b == dasherNewLine {
+					hostString = ""
+				} else {
+					hostString += string(b)
+					if traceExpect {
+						fmt.Printf("DEBUG: Expect want <%s>, response so far is: <%s>\n", expectStr, hostString)
+					}
+					if strings.HasSuffix(hostString, expectStr) {
+						found = true
+						break
 					}
 				}
+
 				if found {
 					if traceExpect {
 						fmt.Printf("DEBUG: found expect string<%s>\n", expectStr)

@@ -46,24 +46,24 @@ const (
 	// d211 emulType = 211
 )
 
-// terminalT encapsulates most of the emulation bevahiour itself.
+// terminalT encapsulates most of the emulation behaviour itself.
 // The display[][] matrix represents the currently-displayed state of the
 // terminal (which is actually displayed elsewhere)
 type terminalT struct {
-	rwMutex                                      sync.RWMutex // deadlock.RWMutex //sync.RWMutex
-	fromHostChan                                 <-chan []byte
-	expectChan                                   chan<- byte
-	rawChan                                      chan byte
-	emulation                                    emulType
-	connectionType                               int
-	remoteHost, remotePort, serialPort           string
-	cursorX, cursorY                             int
-	rollEnabled, blinkEnabled, protectionEnabled bool
-	blinkState                                   bool
-	holding, logging, scrolledBack               bool
-	expecting                                    bool
-	rawMode                                      bool // in rawMode all host data is passed straight through to rawChan
-	logFile                                      *os.File
+	rwMutex                            sync.RWMutex // deadlock.RWMutex //sync.RWMutex
+	fromHostChan                       <-chan []byte
+	expectChan                         chan<- byte
+	rawChan                            chan byte
+	emulation                          emulType
+	connectionType                     int
+	remoteHost, remotePort, serialPort string
+	cursorX, cursorY                   int
+	rollEnabled, blinkEnabled          bool
+	blinkState                         bool
+	holding, logging, scrolledBack     bool
+	expecting                          bool
+	rawMode                            bool // in rawMode all host data is passed straight through to rawChan
+	logFile                            *os.File
 
 	// display is the 2D array of cells containing the terminal 'contents'
 	display        displayT
@@ -85,7 +85,6 @@ type terminalT struct {
 	blinking, dimmed, reversedVideo, underscored, protectd bool
 	newXaddress, newYaddress                    int
 	inTelnetCommand, gotTelnetDo, gotTelnetWill bool
-	telnetCmd, doAction, willAction             byte
 }
 
 func (t *terminalT) setup(fromHostChan <-chan []byte, update chan int, expectChan chan<- byte) {
