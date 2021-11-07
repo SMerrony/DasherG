@@ -46,7 +46,7 @@ func (t *ourTheme) Size(themeSize fyne.ThemeSizeName) (f float32) {
 
 	// fmt.Printf("DEBUG: ThemeSizeName: %s\n", themeSize)
 	if themeSize == "text" {
-		return 11.0
+		return 13
 	}
 	return theme.DefaultTheme().Size(themeSize)
 }

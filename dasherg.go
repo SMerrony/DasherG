@@ -50,7 +50,7 @@ import (
 	"strings"
 )
 
-//go:generate go-bindata -prefix "resources/" -pkg main -o resources.go resources/...
+//NOT ANY MORE... go:generate go-bindata -prefix "resources/" -pkg main -o resources.go resources/...
 
 const (
 	appID        = "uk.co.merrony.dasherg"
@@ -372,14 +372,14 @@ func getSelection() string {
 	return selection
 }
 
-func buildStatusBox() (statBox fyne.CanvasObject) {
+func buildStatusBox() (statBox *fyne.Container) {
 
 	onlineLabel2 = widget.NewLabel("")
 	hostLabel2 = widget.NewLabel("")
 	loggingLabel2 = widget.NewLabel("")
 	emuStatusLabel2 = widget.NewLabel("")
 
-	statBox = fyne.NewContainerWithLayout(layout.NewHBoxLayout(),
+	statBox = container.New(layout.NewHBoxLayout(),
 		onlineLabel2,
 		layout.NewSpacer(),
 		hostLabel2,

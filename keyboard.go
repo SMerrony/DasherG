@@ -44,61 +44,61 @@ func keyEventHandler(kbdChan chan<- byte) {
 			}
 
 		case keyReleaseEvent := <-keyUpEventChan:
-			// fmt.Printf("keyEventHandler got release event for <%s>\n", keyReleaseEvent.Name)
+			// fmt.Printf("keyEventHandler got release event for <%s> with code: %d\n", keyReleaseEvent.Name, keyReleaseEvent.Physical)
 			switch keyReleaseEvent.Name {
 			case "LeftControl", "RightControl":
 				ctrlPressed = false
 			case "LeftShift", "RightShift":
 				shiftPressed = false
 
-			case "Return":
+			case fyne.KeyReturn:
 				kbdChan <- dasherNewLine
 
-			case "Escape":
+			case fyne.KeyEscape:
 				kbdChan <- '\033'
 
-			case "Home":
+			case fyne.KeyHome:
 				kbdChan <- dasherHome
 
-			case "Delete": // the DEL key must map to 127 which is the DASHER DEL code
+			case fyne.KeyDelete: // the DEL key must map to 127 which is the DASHER DEL code
 				kbdChan <- modify(127)
 
-			case "F1":
+			case fyne.KeyF1:
 				kbdChan <- dasherCmd
 				kbdChan <- modify(113)
-			case "F2":
+			case fyne.KeyF2:
 				kbdChan <- dasherCmd
 				kbdChan <- modify(114)
-			case "F3":
+			case fyne.KeyF3:
 				kbdChan <- dasherCmd
 				kbdChan <- modify(115)
-			case "F4":
+			case fyne.KeyF4:
 				kbdChan <- dasherCmd
 				kbdChan <- modify(116)
-			case "F5":
+			case fyne.KeyF5:
 				kbdChan <- dasherCmd
 				kbdChan <- modify(117)
 
-			case "F6":
+			case fyne.KeyF6:
 				kbdChan <- dasherCmd
 				kbdChan <- modify(118)
-			case "F7":
+			case fyne.KeyF7:
 				kbdChan <- dasherCmd
 				kbdChan <- modify(119)
-			case "F8":
+			case fyne.KeyF8:
 				kbdChan <- dasherCmd
 				kbdChan <- modify(120)
-			case "F9":
+			case fyne.KeyF9:
 				kbdChan <- dasherCmd
 				kbdChan <- modify(121)
-			case "F10":
+			case fyne.KeyF10:
 				kbdChan <- dasherCmd
 				kbdChan <- modify(122)
 
-			case "F11":
+			case fyne.KeyF11:
 				kbdChan <- dasherCmd
 				kbdChan <- modify(123)
-			case "F12":
+			case fyne.KeyF12:
 				kbdChan <- dasherCmd
 				kbdChan <- modify(124)
 			case "F13":
@@ -112,19 +112,28 @@ func keyEventHandler(kbdChan chan<- byte) {
 				kbdChan <- modify(112)
 
 				// Cursor keys
-			case "Down":
+			case fyne.KeyDown:
 				kbdChan <- dasherCursorDown
-			case "Left":
+			case fyne.KeyLeft:
 				kbdChan <- dasherCursorLeft
-			case "Right":
+			case fyne.KeyRight:
 				kbdChan <- dasherCursorRight
-			case "Up":
+			case fyne.KeyUp:
 				kbdChan <- dasherCursorUp
 
-			case "Space":
+			case fyne.KeySpace:
 				kbdChan <- ' '
 
 			default:
+				// TODO special case for #, remove when Fyne adds KeyName for KeyHash
+				if keyReleaseEvent.Physical.ScanCode == 51 {
+					if shiftPressed {
+						kbdChan <- '~'
+					} else {
+						kbdChan <- '#'
+					}
+					continue
+				}
 				keyByte := byte(keyReleaseEvent.Name[0])
 				switch {
 				case keyByte >= 'A' && keyByte <= 'Z':
