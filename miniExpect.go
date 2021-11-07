@@ -44,6 +44,9 @@ func expectRunner(expectFile *os.File, expectChan <-chan byte, kbdChan chan<- by
 scriptLoop:
 	for scanner.Scan() {
 		expectLine := scanner.Text()
+		if len(expectLine) == 0 {
+			continue
+		}
 		if traceExpect {
 			fmt.Printf("DEBUG: Expect line <%s>\n", expectLine)
 		}

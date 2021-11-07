@@ -1,6 +1,6 @@
 // dasherg.go
 
-// Copyright ©2017-2020  Steve Merrony
+// Copyright ©2017-2021  Steve Merrony
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -54,7 +54,7 @@ const (
 	appTitle     = "DasherG"
 	appComment   = "A Data General DASHER terminal emulator"
 	appCopyright = "Copyright ©2017-2020 S.Merrony"
-	appSemVer    = "v0.10.3" // TODO Update SemVer on each release!
+	appSemVer    = "v0.10.4" // TODO Update SemVer on each release!
 	appWebsite   = "https://github.com/SMerrony/DasherG"
 	fontFile     = "D410-b-12.bdf"
 	helpURL      = "https://github.com/SMerrony/DasherG"
