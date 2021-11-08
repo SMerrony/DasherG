@@ -15,7 +15,7 @@ DasherG is a free terminal emulator for Data General DASHER series character-bas
 * Pixel-for-pixel copy of D410 character set
 * Session logging to file
 * Loadable function key templates (BROWSE, SED and SMI provided as examples)
-* 2000-line terminal history
+* 1000-line terminal history
 * May specify ```-host=host:port``` on command line
 * Support for mini-Expect scripts to automate some tasks [see Wiki](https://github.com/SMerrony/DasherG/wiki/DasherG-Mini-Expect-Scripts)
 * Copy and Paste - select region with mouse (it is automatically copied to clipboard) and paste at cursor via Edit menu
