@@ -1,4 +1,9 @@
 # DasherG
+
+UPDATE: February 2022 - It is becoming difficult to build DasherA from scratch as the GUI toolkit used has
+not been updated in a long time :-(  Development of this version of the Dasher emulator had been suspended
+and I recommend you take a look at [DasherA](https://github.com/SMerrony/dashera).
+
 DasherG is a free terminal emulator for Data General DASHER series character-based terminals.  It is written in [Go](https://golang.org/) using the [Go-Gtk](https://github.com/mattn/go-gtk) toolkit and should run on all common platforms supported by Go.
 
 ![screenshot](screenshots/DasherG_v0_9_8.png "Windows Screenshot")
