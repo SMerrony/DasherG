@@ -70,9 +70,11 @@ func (c *crtMouseable) MouseUp(me *desktop.MouseEvent) {
 
 func buildCrt() (crtImage *crtMouseable) {
 	terminal.rwMutex.RLock()
-	backingImg = image.NewNRGBA(image.Rect(0, 0, terminal.display.visibleCols*charWidth, terminal.display.visibleLines*charHeight))
+	backingImg = image.NewNRGBA(image.Rect(0, 0, terminal.display.visibleCols*charWidth, terminal.display.visibleLines*charHeight+1))
+	draw.Draw(backingImg, backingImg.Bounds(), image.Black, image.ZP, draw.Src)
 	crtImage = newCrtMouseable(backingImg) // canvas.NewImageFromImage(backingImage)
-	crtImage.obj.SetMinSize(fyne.Size{Width: float32(terminal.display.visibleCols * charWidth), Height: float32(terminal.display.visibleLines * charHeight)})
+	crtImage.obj.SetMinSize(fyne.Size{Width: float32(terminal.display.visibleCols * charWidth),
+		Height: float32(terminal.display.visibleLines*charHeight + 1)})
 	// crtImage.FillMode = canvas.ImageFillOriginal
 	terminal.rwMutex.RUnlock()
 	return crtImage
@@ -90,7 +92,7 @@ func drawCrt() {
 					cIx = int(terminal.display.cells[line][col].charValue)
 					if cIx > 31 && cIx < 128 {
 						// fmt.Printf("DEBUG: drawCrt found updatable char <%c>\n", terminal.display.cells[line][col].charValue)
-						cellRect := image.Rect(col*charWidth, line*charHeight, col*charWidth+charWidth, line*charHeight+charHeight)
+						cellRect := image.Rect(col*charWidth, line*charHeight+1, col*charWidth+charWidth, line*charHeight+charHeight)
 						switch {
 						case terminal.blinkEnabled && terminal.blinkState && terminal.display.cells[line][col].blink:
 							draw.Draw(backingImg, cellRect, bdfFont[32].plainImg, image.Point{}, draw.Src)
@@ -114,7 +116,7 @@ func drawCrt() {
 		} // end for line
 		// draw the cursor - if on-screen
 		if terminal.cursorX < terminal.display.visibleCols && terminal.cursorY < terminal.display.visibleLines {
-			cellRect := image.Rect(terminal.cursorX*charWidth, terminal.cursorY*charHeight, terminal.cursorX*charWidth+charWidth, terminal.cursorY*charHeight+charHeight)
+			cellRect := image.Rect(terminal.cursorX*charWidth, terminal.cursorY*charHeight+1, terminal.cursorX*charWidth+charWidth, terminal.cursorY*charHeight+charHeight)
 			cIx := int(terminal.display.cells[terminal.cursorY][terminal.cursorX].charValue)
 			if cIx == 0 {
 				cIx = 32
