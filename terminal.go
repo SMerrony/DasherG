@@ -121,8 +121,22 @@ func (t *terminalT) updateListener() {
 		t.rwMutex.Lock()
 		if updateType == updateCrtBlink {
 			t.blinkState = !t.blinkState
+			anyBlinking := false
+		outer:
+			for line := 0; line < t.display.visibleLines; line++ {
+				for col := 0; col < t.display.visibleCols; col++ {
+					if t.display.cells[line][col].blink {
+						anyBlinking = true
+						break outer
+					}
+				}
+			}
+			if anyBlinking {
+				t.terminalUpdated = true
+			}
+		} else {
+			t.terminalUpdated = true
 		}
-		t.terminalUpdated = true
 		t.rwMutex.Unlock()
 	}
 }

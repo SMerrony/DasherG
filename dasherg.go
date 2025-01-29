@@ -57,7 +57,7 @@ const (
 	appTitle     = "DasherG"
 	appComment   = "A Data General DASHER terminal emulator"
 	appCopyright = "Copyright ©2017-2021 S.Merrony"
-	appSemVer    = "v0.11.0" // TODO Update SemVer on each release!
+	appSemVer    = "v0.11.0t" // TODO Update SemVer on each release!
 	appWebsite   = "https://github.com/SMerrony/DasherG"
 	fontFile     = "D410-b-12.bdf"
 	helpURL      = "https://github.com/SMerrony/DasherG"
