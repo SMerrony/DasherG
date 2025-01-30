@@ -61,7 +61,7 @@ type terminalT struct {
 	cursorX, cursorY                   int
 	rollEnabled, blinkEnabled          bool
 	blinkState                         bool
-	holding, logging, scrolledBack     bool
+	holding, logging                   bool
 	fontColour                         color.RGBA
 	expecting                          bool
 	rawMode                            bool // in rawMode all host data is passed straight through to rawChan
@@ -70,7 +70,6 @@ type terminalT struct {
 	// display is the 2D array of cells containing the terminal 'contents'
 	display        displayT
 	displayDirty   [totalLines][totalCols]bool
-	savedDisplay   displayT // used when scrolling back over history
 	displayHistory *historyT
 
 	updateCrtChan chan int
@@ -230,39 +229,6 @@ func (t *terminalT) scrollUp(rows int) {
 // 	}
 // }
 
-func (t *terminalT) scrollBack(startLine int) {
-	t.rwMutex.Lock()
-	// fmt.Printf("scrollBack - startLine: %d\n", startLine)
-	if !t.scrolledBack { // new scrollback
-		// save live screen
-		t.display.copyTo(&t.savedDisplay)
-		t.scrolledBack = true
-	}
-
-	if startLine >= t.display.visibleLines {
-		for l := t.display.visibleLines - 1; l >= 0; l-- {
-			histLine := startLine - l
-			t.display.cells[l] = t.displayHistory.getNthLine(histLine)
-			t.displayDirty[l] = t.dirtyLine
-		}
-	}
-	t.terminalUpdated = true
-	t.rwMutex.Unlock()
-}
-
-// cancelScrollBack restores the 'live' screen after scrollbacks (may) have happened
-func (t *terminalT) cancelScrollBack() {
-	// fmt.Println("cancelScrollBack called")
-	t.rwMutex.Lock()
-	t.savedDisplay.copyTo(&t.display)
-	for l := 0; l < t.display.visibleLines; l++ {
-		t.displayDirty[l] = t.dirtyLine
-	}
-	t.scrolledBack = false
-	t.terminalUpdated = true
-	t.rwMutex.Unlock()
-}
-
 func (t *terminalT) selfTest(hostChan chan []byte) {
 	const (
 		testLineHRule1 = "123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012245"
@@ -314,8 +280,8 @@ func (t *terminalT) selfTest(hostChan chan []byte) {
 
 func (t *terminalT) run() {
 	var (
-		skipChar, sb bool
-		ch           byte
+		skipChar bool
+		ch       byte
 	)
 	for hostData := range t.fromHostChan {
 		// fmt.Printf("DEBUG: Terminal got %v from Host channel\n", hostData)
@@ -326,12 +292,8 @@ func (t *terminalT) run() {
 			time.Sleep(holdPauseMs * time.Millisecond)
 			t.rwMutex.RLock()
 		}
-		sb = t.scrolledBack
-		t.rwMutex.RUnlock()
 
-		if sb {
-			t.cancelScrollBack()
-		}
+		t.rwMutex.RUnlock()
 
 		for _, ch = range hostData {
 

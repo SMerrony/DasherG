@@ -352,24 +352,6 @@ func openBrowser(url string) {
 
 }
 
-func buildScrollSlider() (scrollSlider *widget.Slider) {
-	scrollSlider = widget.NewSlider(0.0, 1000.0)
-	scrollSlider.Orientation = widget.Vertical
-	scrollSlider.Step = 1.0
-	scrollSlider.OnChanged = handleScrollSliderChanged
-	return scrollSlider
-}
-
-func handleScrollSliderChanged(newVal float64) {
-	posn := int(newVal)
-	// fmt.Printf("DEBUG: New scroller posn: %f\n", newVal)
-	if posn == 0 {
-		terminal.cancelScrollBack()
-	} else {
-		terminal.scrollBack(posn)
-	}
-}
-
 // getSelection returns a DG-ASCII string containing the mouse-selected portion of the screen
 func getSelection() string {
 	startCharPosn := selectionRegion.startCol + selectionRegion.startRow*terminal.display.visibleCols
