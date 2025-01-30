@@ -120,7 +120,7 @@ func bdfLoad(filename string, zoom string, bright, dim color.Color) {
 		pixHeight, _ := strconv.Atoi(bbxTokens[2])
 		xOffset, _ := strconv.Atoi(bbxTokens[3])
 		yOffset, _ := strconv.Atoi(bbxTokens[4])
-		fmt.Printf("Char %c, pixHeight: %d, yOffset: %d\n", asciiCode, pixHeight, yOffset)
+		// fmt.Printf("Char %c, pixHeight: %d, yOffset: %d\n", asciiCode, pixHeight, yOffset)
 		// skip the BITMAP line
 		scanner.Scan()
 		// load the actual bitmap for this char a row at a time from the top down

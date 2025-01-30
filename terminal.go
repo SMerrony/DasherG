@@ -21,6 +21,7 @@ package main
 
 import (
 	"fmt"
+	"image/color"
 	"os"
 	"sync"
 	"time"
@@ -61,6 +62,7 @@ type terminalT struct {
 	rollEnabled, blinkEnabled          bool
 	blinkState                         bool
 	holding, logging, scrolledBack     bool
+	fontColour                         color.RGBA
 	expecting                          bool
 	rawMode                            bool // in rawMode all host data is passed straight through to rawChan
 	logFile                            *os.File
@@ -87,7 +89,8 @@ type terminalT struct {
 	inTelnetCommand, gotTelnetDo, gotTelnetWill bool
 }
 
-func (t *terminalT) setup(fromHostChan <-chan []byte, update chan int, expectChan chan<- byte) {
+func (t *terminalT) setup(fromHostChan <-chan []byte, update chan int, expectChan chan<- byte,
+	baseColour color.RGBA) {
 	t.rwMutex.Lock()
 	t.fromHostChan = fromHostChan
 	t.expectChan = expectChan
@@ -96,6 +99,7 @@ func (t *terminalT) setup(fromHostChan <-chan []byte, update chan int, expectCha
 	t.updateCrtChan = update
 	t.display.visibleLines = defaultLines
 	t.display.visibleCols = defaultCols
+	t.fontColour = baseColour
 	t.emptyCell.clearToSpace()
 	for c := range t.emptyLine {
 		t.emptyLine[c] = t.emptyCell

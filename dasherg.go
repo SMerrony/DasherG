@@ -97,8 +97,12 @@ var (
 	zoom     = ZoomNormal
 	w        fyne.Window
 	crtImg   *crtMouseable
+	amber    = color.RGBA{0xff, 0xbf, 0x00, 0xff}
+	dimAmber = color.RGBA{0x88, 0x5f, 0x00, 0xff}
 	green    = color.RGBA{0x00, 0xff, 0x00, 0xff}
 	dimGreen = color.RGBA{0x00, 0x80, 0x00, 0xff}
+	white    = color.RGBA{0xff, 0xff, 0xff, 0xff}
+	dimWhite = color.RGBA{0x88, 0x88, 0x88, 0xff}
 
 	// widgets needing global access
 	onlineLabel2, hostLabel2, loggingLabel2, emuStatusLabel2                           *widget.Label
@@ -106,12 +110,14 @@ var (
 )
 
 var (
+	amberFlag       = flag.Bool("amber", false, "Use Amber font instead of default Green")
 	cpuprofile      = flag.String("cpuprofile", "", "Write cpu profile to file")
 	cputrace        = flag.String("cputrace", "", "Write trace to file")
 	hostFlag        = flag.String("host", "", "Host to connect with")
 	traceExpectFlag = flag.Bool("tracescript", false, "Print trace of Mini-Expect script on STDOUT")
+	xmodemTraceFlag = flag.Bool("tracexmodem", false, "Show details of XMODEM file transfers on STDOUT")
 	versionFlag     = flag.Bool("version", false, "Display version number and exit")
-	xmodemTraceFlag = flag.Bool("xmodemtrace", false, "Show details of XMODEM file transfers on STDOUT")
+	whiteFlag       = flag.Bool("white", false, "Use White font")
 )
 
 func main() {
@@ -155,10 +161,21 @@ func main() {
 	// get the application and dialog icon
 	// iconPixbuf = gdkpixbuf.NewPixbufFromData(iconPNG)
 
-	bdfLoad(fontFile, ZoomNormal, green, dimGreen)
+	fontColour := green
+	fontDimColour := dimGreen
+	if *amberFlag {
+		fontColour = amber
+		fontDimColour = dimAmber
+	}
+	if *whiteFlag {
+		fontColour = white
+		fontDimColour = dimWhite
+	}
+
+	bdfLoad(fontFile, ZoomNormal, fontColour, fontDimColour)
 	go localListener(keyboardChan, fromHostChan)
 	terminal = new(terminalT)
-	terminal.setup(fromHostChan, updateCrtChan, expectChan)
+	terminal.setup(fromHostChan, updateCrtChan, expectChan, fontColour)
 	w = a.NewWindow(appTitle)
 	setupWindow(w)
 
@@ -223,14 +240,14 @@ func setupWindow(w fyne.Window) {
 func setContent(w fyne.Window) {
 	fkGrid := buildFkeyMatrix(w)
 	statusBox := buildStatusBox()
-	scrollSlider := buildScrollSlider()
+	// scrollSlider := buildScrollSlider()
 	content := container.NewBorder(
 		fkGrid,
 		statusBox,
 		nil, nil,
 		container.NewHBox(layout.NewSpacer(),
 			container.NewVBox(layout.NewSpacer(), crtImg, layout.NewSpacer()),
-			scrollSlider,
+			// scrollSlider,
 			layout.NewSpacer()),
 	)
 	w.SetContent(content)
@@ -271,16 +288,20 @@ func buildMenu() (mainMenu *fyne.MainMenu) {
 	pasteItem := fyne.NewMenuItem("Paste", func() { editPaste(w) })
 	editMenu := fyne.NewMenu("Edit", pasteItem)
 
+	historyItem := fyne.NewMenuItem("History", nil)
+	loadTemplateItem := fyne.NewMenuItem("Load Func. Key Template", func() { loadFKeyTemplate(w) })
+	hideTemplateItem := fyne.NewMenuItem("Hide Func. Key Template", nil)
+	viewMenu := fyne.NewMenu("View", historyItem, fyne.NewMenuItemSeparator(), loadTemplateItem, hideTemplateItem)
+
 	// emulation
 	d200Item := fyne.NewMenuItem("D200", func() { terminal.setEmulation(d200) })
 	d210Item := fyne.NewMenuItem("D210", func() { terminal.setEmulation(d210) })
-	resizeItem := fyne.NewMenuItem("Resize", func() { emulationResize(w) })
+	resizeItem := fyne.NewMenuItem("Resize Terminal", func() { emulationResize(w) })
 	selfTestItem := fyne.NewMenuItem("Self-Test", func() { terminal.selfTest(fromHostChan) })
-	loadTemplateItem := fyne.NewMenuItem("Load Func. Key Template", func() { loadFKeyTemplate(w) })
 	emulationMenu := fyne.NewMenu("Emulation",
 		d200Item, d210Item, fyne.NewMenuItemSeparator(),
 		resizeItem, fyne.NewMenuItemSeparator(),
-		selfTestItem, loadTemplateItem,
+		selfTestItem,
 	)
 
 	// serial
@@ -303,6 +324,7 @@ func buildMenu() (mainMenu *fyne.MainMenu) {
 	mainMenu = fyne.NewMainMenu(
 		fileMenu,
 		editMenu,
+		viewMenu,
 		emulationMenu,
 		serialMenu,
 		networkMenu,

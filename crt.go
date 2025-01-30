@@ -107,7 +107,7 @@ func drawCrt() {
 					// underscore?
 					if terminal.display.cells[line][col].underscore {
 						for x := 0; x < charWidth; x++ {
-							backingImg.Set(col*charWidth+x, ((line+1)*charHeight)-1, green)
+							backingImg.Set(col*charWidth+x, ((line+1)*charHeight)-1, terminal.fontColour)
 						}
 					}
 					terminal.displayDirty[line][col] = false
