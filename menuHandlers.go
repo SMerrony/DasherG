@@ -1,6 +1,6 @@
 // menuHandlers.go - part of DasherG
 
-// Copyright ©2019-2021 Steve Merrony
+// Copyright ©2019-2021,2025 Steve Merrony
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -108,7 +108,7 @@ func fileLogging(win fyne.Window) {
 		terminal.logFile.Close()
 		terminal.logging = false
 	} else {
-		fd := dialog.NewFileSave(func(uriwc fyne.URIWriteCloser, e error) {
+		dialog.ShowFileSave(func(uriwc fyne.URIWriteCloser, e error) {
 			if uriwc != nil {
 				filename := uriwc.URI().Path()
 				var err error
@@ -122,9 +122,6 @@ func fileLogging(win fyne.Window) {
 				}
 			}
 		}, win)
-		fd.Resize(fyne.Size{Width: 600, Height: 600})
-		fd.SetDismissText("Start Logging")
-		fd.Show()
 	}
 }
 
