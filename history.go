@@ -1,4 +1,4 @@
-// Copyright (C) 2021 Stephen Merrony
+// Copyright (C) 2021,2025 Stephen Merrony
 //
 // This file is part of DasherG.
 //
@@ -76,4 +76,40 @@ func (h *historyT) getNthLine(n int) (screenLine [totalCols]cell) {
 	}
 	h.mutex.RUnlock()
 	return screenLine
+}
+
+// Get all of the history as a plain string with no special formatting.
+func (h *historyT) getAllAsPlainString() (text string) {
+	h.mutex.RLock()
+	text = "   *** Start of History ***\n"
+	hLine := h.firstLine
+	if h.firstLine > h.lastLine {
+		for hLine < logLines {
+			for cIx := range terminal.display.visibleCols {
+				if h.cells[hLine][cIx] == h.emptyCell {
+					break
+				} else {
+					text += string(h.cells[hLine][cIx].charValue)
+				}
+			}
+			text += "\n"
+			hLine++
+		}
+		hLine = 0
+	}
+	for hLine <= h.lastLine {
+		for cIx := range terminal.display.visibleCols {
+			if h.cells[hLine][cIx] == h.emptyCell {
+				break
+			} else {
+				text += string(h.cells[hLine][cIx].charValue)
+			}
+		}
+		text += "\n"
+		hLine++
+	}
+
+	text += "\n   *** End of History ***"
+	h.mutex.RUnlock()
+	return text
 }

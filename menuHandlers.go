@@ -24,12 +24,12 @@ package main
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"strconv"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
 )
@@ -128,7 +128,7 @@ func fileLogging(win fyne.Window) {
 func fileSendText(win fyne.Window) {
 	fsd := dialog.NewFileOpen(func(urirc fyne.URIReadCloser, e error) {
 		if urirc != nil {
-			bytes, err := ioutil.ReadFile(urirc.URI().Path())
+			bytes, err := os.ReadFile(urirc.URI().Path())
 			if err != nil {
 				dialog.ShowError(err, win)
 				log.Printf("WARNING: Could not open or read text file %s\n", urirc.URI().Path())
@@ -210,6 +210,17 @@ func fileXmodemSend1k(win fyne.Window) {
 	fsd.Resize(fyne.Size{Width: 600, Height: 600})
 	fsd.SetDismissText("Receive (1k)")
 	fsd.Show()
+}
+
+func viewHistory() {
+	app := fyne.CurrentApp()
+	viewWin := app.NewWindow("History")
+	textGrid := widget.NewTextGrid()
+	textGrid.SetText(terminal.displayHistory.getAllAsPlainString())
+	scroller := container.NewVScroll(textGrid)
+	viewWin.SetContent(scroller)
+	viewWin.Resize(fyne.NewSize(640, 480))
+	viewWin.Show()
 }
 
 func helpAbout() {

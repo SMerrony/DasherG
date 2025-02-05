@@ -1,6 +1,6 @@
 // dasherg.go
 
-// Copyright © 2017-2021  Steve Merrony
+// Copyright © 2017-2021,2025  Steve Merrony
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -288,7 +288,8 @@ func buildMenu() (mainMenu *fyne.MainMenu) {
 	pasteItem := fyne.NewMenuItem("Paste", func() { editPaste(w) })
 	editMenu := fyne.NewMenu("Edit", pasteItem)
 
-	historyItem := fyne.NewMenuItem("History", nil)
+	// view
+	historyItem := fyne.NewMenuItem("History", func() { viewHistory() })
 	loadTemplateItem := fyne.NewMenuItem("Load Func. Key Template", func() { loadFKeyTemplate(w) })
 	hideTemplateItem := fyne.NewMenuItem("Hide Func. Key Template", nil)
 	viewMenu := fyne.NewMenu("View", historyItem, fyne.NewMenuItemSeparator(), loadTemplateItem, hideTemplateItem)
