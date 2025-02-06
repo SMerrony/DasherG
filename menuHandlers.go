@@ -99,7 +99,7 @@ func fileChooseExpectScript(win fyne.Window) {
 		}
 	}, win)
 	ed.Resize(fyne.Size{Width: 600, Height: 600})
-	ed.SetDismissText("Execute")
+	ed.SetConfirmText("Execute")
 	ed.Show()
 }
 
@@ -140,7 +140,7 @@ func fileSendText(win fyne.Window) {
 		}
 	}, win)
 	fsd.Resize(fyne.Size{Width: 600, Height: 600})
-	fsd.SetDismissText("Execute")
+	fsd.SetConfirmText("Execute")
 	fsd.Show()
 }
 
@@ -164,7 +164,7 @@ func fileXmodemReceive(win fyne.Window) {
 		}
 	}, win)
 	fsd.Resize(fyne.Size{Width: 600, Height: 600})
-	fsd.SetDismissText("Receive")
+	fsd.SetConfirmText("Receive")
 	fsd.Show()
 }
 
@@ -186,7 +186,7 @@ func fileXmodemSend(win fyne.Window) {
 		}
 	}, win)
 	fsd.Resize(fyne.Size{Width: 600, Height: 600})
-	fsd.SetDismissText("Receive")
+	fsd.SetConfirmText("Receive")
 	fsd.Show()
 }
 
@@ -208,7 +208,7 @@ func fileXmodemSend1k(win fyne.Window) {
 		}
 	}, win)
 	fsd.Resize(fyne.Size{Width: 600, Height: 600})
-	fsd.SetDismissText("Receive (1k)")
+	fsd.SetConfirmText("Receive (1k)")
 	fsd.Show()
 }
 

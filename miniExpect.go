@@ -1,6 +1,6 @@
 // dasherg.go
 
-// Copyright ©2018-2021  Steve Merrony
+// Copyright ©2018-2021,2025  Steve Merrony
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -43,6 +43,9 @@ func expectRunner(expectFile *os.File, expectChan <-chan byte, kbdChan chan<- by
 scriptLoop:
 	for scanner.Scan() {
 		expectLine := scanner.Text()
+		if len(expectLine) == 0 {
+			continue
+		}
 		if traceExpect {
 			fmt.Printf("DEBUG: Expect line <%s>\n", expectLine)
 		}

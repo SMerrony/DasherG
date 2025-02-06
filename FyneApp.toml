@@ -1,0 +1,14 @@
+Website = "https://github.com/SMerrony/DasherG"
+
+[Details]
+Icon = "DGlogoOrange.ico"
+Name = "DasherG"
+ID = "fr.merrony.dasherg"
+Version = "v0.11.0t"
+Build = 1
+
+[LinuxAndBSD]
+GenericName = "Terminal Emulator"
+Categories = ["Network", "TerminalEmulator"]
+Comment = "Data General DASHER terminal emulator"
+Keywords = ["terminal", "emulator"]

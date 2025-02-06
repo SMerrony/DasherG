@@ -1,6 +1,7 @@
 # Reminders for developing DasherG
 
 ## Files containing any GUI toolkit references
+* crt.go
 * dasherg.go
 * fKeyMatrix.go
 * keyboard.go

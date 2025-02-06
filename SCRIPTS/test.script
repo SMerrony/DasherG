@@ -1,0 +1,6 @@
+# Mini-Expect script for DasherG that formats DPF0 and runs 1 test pattern on it.
+# It is assumed that the host is connected and running TBOOT and we are
+# at the tape "file number" prompt.
+
+send "Hello, World!\n"
+exit
