@@ -22,6 +22,7 @@
 package main
 
 import (
+	_ "embed"
 	"flag"
 	"fmt"
 	"image"
@@ -120,6 +121,9 @@ var (
 	whiteFlag       = flag.Bool("white", false, "Use White font")
 )
 
+//go:embed resources/D410-b-12.bdf
+var fontData []byte
+
 func main() {
 
 	flag.Parse()
@@ -172,7 +176,7 @@ func main() {
 		fontDimColour = dimWhite
 	}
 
-	bdfLoad(fontFile, ZoomNormal, fontColour, fontDimColour)
+	bdfLoad(fontData, ZoomNormal, fontColour, fontDimColour)
 	go localListener(keyboardChan, fromHostChan)
 	terminal = new(terminalT)
 	terminal.setup(fromHostChan, updateCrtChan, expectChan, fontColour)
@@ -260,7 +264,7 @@ func localListener(kbdChan <-chan byte, frmHostChan chan<- []byte) {
 		select {
 		case kev := <-kbdChan:
 			key[0] = kev
-			fmt.Printf("DEBUG: localListener sending <%c>\n", kev)
+			// fmt.Printf("DEBUG: localListener sending <%c>\n", kev)
 			frmHostChan <- key
 		case <-localListenerStopChan:
 			fmt.Println("INFO: localListener stopped")

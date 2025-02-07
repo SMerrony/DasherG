@@ -76,7 +76,7 @@ func emulationResize(win fyne.Window) {
 				terminal.rwMutex.Lock()
 				terminal.display.visibleCols = selectedCols
 				terminal.display.visibleLines = selectedLines
-				bdfLoad(fontFile, zoom, green, dimGreen)
+				bdfLoad(fontData, zoom, green, dimGreen)
 				terminal.rwMutex.Unlock()
 				crtImg = buildCrt()
 				terminal.resize()

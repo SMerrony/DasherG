@@ -61,7 +61,7 @@ var (
 	charHeight int
 )
 
-func bdfLoad(filename string, zoom string, bright, dim color.Color) {
+func bdfLoad(fontData []byte, zoom string, bright, dim color.Color) {
 	switch zoom {
 	case ZoomLarge:
 		charWidth, charHeight = 10, 24
@@ -71,11 +71,6 @@ func bdfLoad(filename string, zoom string, bright, dim color.Color) {
 		charWidth, charHeight = 8, 12
 	case ZoomTiny:
 		charWidth, charHeight = 7, 10
-	}
-
-	fontData, err := Asset(filename)
-	if err != nil {
-		log.Fatalf("Could not load BDF font resource<%s>, %v\n", filename, err)
 	}
 
 	buffer := bytes.NewBuffer(fontData)
