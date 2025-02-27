@@ -1,10 +1,10 @@
 Website = "https://github.com/SMerrony/DasherG"
 
 [Details]
-Icon = "DGlogoOrange.ico"
+Icon = "resources/DGlogoOrange.ico"
 Name = "DasherG"
 ID = "fr.merrony.dasherg"
-Version = "v0.11.0t"
+Version = "v0.16.0"
 Build = 1
 
 [LinuxAndBSD]

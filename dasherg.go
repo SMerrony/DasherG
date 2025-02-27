@@ -30,8 +30,13 @@ import (
 	"image/draw"
 	"image/png"
 	"log"
+	"os"
 	"os/exec"
 	"runtime"
+	"runtime/pprof"
+	"runtime/trace"
+	"strconv"
+	"strings"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -41,26 +46,15 @@ import (
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
-
 	// _ "net/http/pprof" // debugging
-
-	"os"
-	"runtime/pprof"
-	"runtime/trace"
-	"strconv"
-	"strings"
 )
 
-//NOT ANY MORE... go:generate go-bindata -prefix "resources/" -pkg main -o resources.go resources/...
-
 const (
-	appID        = "uk.co.merrony.dasherg"
 	appTitle     = "DasherG"
 	appComment   = "A Data General DASHER terminal emulator"
 	appCopyright = "Copyright ©2017-2021,2025 S.Merrony"
-	appSemVer    = "v0.11.0t" // TODO Update SemVer on each release!
+	appSemVer    = "v0.16.0" // TODO Update SemVer on each release!
 	appWebsite   = "https://github.com/SMerrony/DasherG"
-	fontFile     = "D410-b-12.bdf"
 	helpURL      = "https://github.com/SMerrony/DasherG"
 
 	hostBuffSize = 2048
@@ -108,6 +102,8 @@ var (
 	// widgets needing global access
 	onlineLabel2, hostLabel2, loggingLabel2, emuStatusLabel2                           *widget.Label
 	serialConnectItem, serialDisconnectItem, networkConnectItem, networkDisconnectItem *fyne.MenuItem
+	topVbox, labelGrid                                                                 *fyne.Container
+	specialThemeOverride, labelThemeOverride, funcThemeOverride                        *container.ThemeOverride
 )
 
 var (
@@ -161,9 +157,7 @@ func main() {
 	}
 
 	a := app.New()
-	a.Settings().SetTheme(&ourTheme{})
-	// get the application and dialog icon
-	// iconPixbuf = gdkpixbuf.NewPixbufFromData(iconPNG)
+	// a.Settings().SetTheme(&ourTheme{})
 
 	fontColour := green
 	fontDimColour := dimGreen
@@ -227,7 +221,6 @@ func setupWindow(w fyne.Window) {
 		})
 	}
 
-	// crtImg = buildCrt()
 	crtImg = buildCrt()
 	go terminal.run()
 
@@ -242,11 +235,18 @@ func setupWindow(w fyne.Window) {
 }
 
 func setContent(w fyne.Window) {
-	fkGrid := buildFkeyMatrix(w)
+	specialKeyGrid := buildSpecialKeyRow(w)
+	labelGrid = buildLabelGrid(w)
+	labelGrid.Hide()
+	fkGrid := buildFuncKeyRow(w) //buildFkeyMatrix(w)
+	specialThemeOverride = container.NewThemeOverride(specialKeyGrid, &buttonTheme{})
+	labelThemeOverride = container.NewThemeOverride(labelGrid, &fkeyLabelTheme{})
+	funcThemeOverride = container.NewThemeOverride(fkGrid, &fkeyTheme{})
+	topVbox = container.NewVBox(specialThemeOverride, labelThemeOverride, funcThemeOverride)
 	statusBox := buildStatusBox()
 	// scrollSlider := buildScrollSlider()
 	content := container.NewBorder(
-		fkGrid,
+		topVbox,
 		statusBox,
 		nil, nil,
 		container.NewHBox(layout.NewSpacer(),
@@ -294,8 +294,15 @@ func buildMenu() (mainMenu *fyne.MainMenu) {
 
 	// view
 	historyItem := fyne.NewMenuItem("History", func() { viewHistory() })
-	loadTemplateItem := fyne.NewMenuItem("Load Func. Key Template", func() { loadFKeyTemplate(w) })
-	hideTemplateItem := fyne.NewMenuItem("Hide Func. Key Template", nil)
+	loadTemplateItem := fyne.NewMenuItem("Load Func. Key Template", func() {
+		labelGrid.Show()
+		loadFKeyTemplate(w)
+	})
+	hideTemplateItem := fyne.NewMenuItem("Hide Func. Key Template", func() {
+		labelGrid.Hide()
+		topVbox.Refresh()
+		w.Resize(fyne.Size{Width: 100, Height: 100}) // TODO not working
+	})
 	viewMenu := fyne.NewMenu("View", historyItem, fyne.NewMenuItemSeparator(), loadTemplateItem, hideTemplateItem)
 
 	// emulation

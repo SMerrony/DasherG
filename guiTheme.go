@@ -1,6 +1,6 @@
 // dasherg.go
 
-// Copyright ©2021 Steve Merrony
+// Copyright ©2021,2025 Steve Merrony
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -28,25 +28,98 @@ import (
 	"fyne.io/fyne/v2/theme"
 )
 
-type ourTheme struct{}
+// Special Key buttons...
+type buttonTheme struct{}
 
-func (t *ourTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) color.Color {
+var _ fyne.Theme = (*buttonTheme)(nil)
+
+func (t *buttonTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) color.Color {
+	if name == theme.ColorNameForeground {
+		return color.White
+	}
+	if name == theme.ColorNameButton {
+		return color.RGBA{0, 200, 225, 255}
+	}
 	return theme.DefaultTheme().Color(name, variant)
 }
 
-func (t *ourTheme) Font(textStyle fyne.TextStyle) fyne.Resource {
+func (t *buttonTheme) Font(textStyle fyne.TextStyle) fyne.Resource {
 	return theme.DefaultTheme().Font(textStyle)
 }
 
-func (t *ourTheme) Icon(themeIconName fyne.ThemeIconName) fyne.Resource {
+func (t *buttonTheme) Icon(themeIconName fyne.ThemeIconName) fyne.Resource {
 	return theme.DefaultTheme().Icon(themeIconName)
 }
 
-func (t *ourTheme) Size(themeSize fyne.ThemeSizeName) (f float32) {
+func (t *buttonTheme) Size(themeSize fyne.ThemeSizeName) (f float32) {
+	if themeSize == theme.SizeNameInnerPadding {
+		return 1.0
+	}
+	if themeSize == theme.SizeNameText {
+		return 12.0
+	}
+	return theme.DefaultTheme().Size(themeSize)
+}
 
-	// fmt.Printf("DEBUG: ThemeSizeName: %s\n", themeSize)
-	if themeSize == "text" {
-		return 13
+// Function Key buttons...
+type fkeyTheme struct{}
+
+var _ fyne.Theme = (*fkeyTheme)(nil)
+
+func (t *fkeyTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) color.Color {
+	if name == theme.ColorNameForeground {
+		return color.White
+	}
+	if name == theme.ColorNameButton {
+		return color.RGBA{0, 200, 225, 255}
+	}
+	return theme.DefaultTheme().Color(name, variant)
+}
+
+func (t *fkeyTheme) Font(textStyle fyne.TextStyle) fyne.Resource {
+	return theme.DefaultTheme().Font(textStyle)
+}
+
+func (t *fkeyTheme) Icon(themeIconName fyne.ThemeIconName) fyne.Resource {
+	return theme.DefaultTheme().Icon(themeIconName)
+}
+
+func (t *fkeyTheme) Size(themeSize fyne.ThemeSizeName) (f float32) {
+	return theme.DefaultTheme().Size(themeSize)
+}
+
+// Function Key Template Labels...
+type fkeyLabelTheme struct{}
+
+var _ fyne.Theme = (*fkeyLabelTheme)(nil)
+
+func (t *fkeyLabelTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) color.Color {
+	if name == theme.ColorNameBackground { // TODO - not working
+		return color.RGBA{255, 253, 208, 255}
+	}
+	if name == theme.ColorNameSeparator {
+		return color.Black
+	}
+	if name == theme.ColorNameForeground {
+		return color.Black
+	}
+	return theme.DefaultTheme().Color(name, variant)
+}
+
+func (t *fkeyLabelTheme) Font(textStyle fyne.TextStyle) fyne.Resource {
+	return theme.DefaultTheme().Font(textStyle)
+}
+
+func (t *fkeyLabelTheme) Icon(themeIconName fyne.ThemeIconName) fyne.Resource {
+	return theme.DefaultTheme().Icon(themeIconName)
+}
+
+func (t *fkeyLabelTheme) Size(themeSize fyne.ThemeSizeName) (f float32) {
+	if themeSize == theme.SizeNameInnerPadding {
+		return 1.0
+	}
+	if themeSize == theme.SizeNameText {
+		return 9.0
 	}
 	return theme.DefaultTheme().Size(themeSize)
 }

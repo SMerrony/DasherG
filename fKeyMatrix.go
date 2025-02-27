@@ -32,24 +32,34 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 )
 
-var fnButs [16]*widget.Button
-var csFLabs, cFLabs, sFLabs, fLabs [16]*canvas.Text
+var fnButs [15]*widget.Button
+var csFLabs, cFLabs, sFLabs, fLabs [15]*widget.Label
 var templLabs [2]*canvas.Text
 
 func fnButton(number int) *widget.Button {
-	str := strconv.Itoa(number)
+	str := strconv.Itoa(number + 1)
 	fnButs[number] = widget.NewButton("F"+str, nil)
 	return fnButs[number]
+}
+
+func smallLabel() *widget.Label {
+	return widget.NewLabelWithStyle("", fyne.TextAlignCenter, fyne.TextStyle{
+		Bold:      false,
+		Italic:    false,
+		Monospace: false,
+		TabWidth:  1,
+	})
 }
 
 func smallText(text string) *canvas.Text {
 	s := text
 	return &canvas.Text{
 		Alignment: fyne.TextAlignCenter,
-		Color:     color.White,
+		Color:     color.Black,
 		Text:      s,
 		TextSize:  9.0,
 		TextStyle: fyne.TextStyle{
@@ -61,94 +71,90 @@ func smallText(text string) *canvas.Text {
 	}
 }
 
-func buildFkeyMatrix(win fyne.Window) *fyne.Container {
+func buildLabelGrid(win fyne.Window) *fyne.Container {
 
 	templLabs[0] = smallText("")
 	templLabs[1] = smallText("")
 
-	locPrBut := widget.NewButton("LocPr", func() { localPrint(win) })
-	holdBut := widget.NewButton("Hold", func() {
-		terminal.rwMutex.Lock()
-		terminal.holding = !terminal.holding
-		terminal.rwMutex.Unlock()
-	})
-	erPgBut := widget.NewButton("Er Pg", func() { keyboardChan <- dasherErasePage })
-	crBut := widget.NewButton("CR", func() { keyboardChan <- dasherCR })
-	erEOLBut := widget.NewButton("ErEOL", func() { keyboardChan <- dasherEraseEol })
-	breakBut := widget.NewButton("Break", func() {
-		if terminal.connectionType == serialConnected {
-			serialSession.sendSerialBreakChan <- true
-		}
-	})
-
-	hbox := container.NewHBox()
-	var vboxes [19]*fyne.Container
-	for col := 0; col < 19; col++ {
-		vboxes[col] = container.NewVBox()
-		hbox.Add(vboxes[col])
+	grid := container.New(layout.NewGridLayout(17))
+	// control-shift...
+	for col := 0; col <= 4; col++ {
+		csFLabs[col] = smallLabel()
+		grid.Add(csFLabs[col])
+	}
+	grid.Add(smallText("Ctrl-Shift"))
+	for col := 6; col <= 10; col++ {
+		csFLabs[col-1] = smallLabel()
+		grid.Add(csFLabs[col-1])
+	}
+	grid.Add(smallText("Ctrl-Shift"))
+	for col := 12; col <= 16; col++ {
+		csFLabs[col-2] = smallLabel()
+		grid.Add(csFLabs[col-2])
+	}
+	// control...
+	for col := 0; col <= 4; col++ {
+		cFLabs[col] = smallLabel()
+		grid.Add(cFLabs[col])
+	}
+	grid.Add(smallText("Ctrl"))
+	for col := 6; col <= 10; col++ {
+		cFLabs[col-1] = smallLabel()
+		grid.Add(cFLabs[col-1])
+	}
+	grid.Add(smallText("Ctrl"))
+	for col := 12; col <= 16; col++ {
+		cFLabs[col-2] = smallLabel()
+		grid.Add(cFLabs[col-2])
+	}
+	// shift...
+	for col := 0; col <= 4; col++ {
+		sFLabs[col] = smallLabel()
+		grid.Add(sFLabs[col])
+	}
+	grid.Add(smallText("Shift"))
+	for col := 6; col <= 10; col++ {
+		sFLabs[col-1] = smallLabel()
+		grid.Add(sFLabs[col-1])
+	}
+	grid.Add(smallText("Shift"))
+	for col := 12; col <= 16; col++ {
+		sFLabs[col-2] = smallLabel()
+		grid.Add(sFLabs[col-2])
+	}
+	// plain...
+	for col := 0; col <= 4; col++ {
+		fLabs[col] = smallLabel()
+		grid.Add(fLabs[col])
+	}
+	grid.Add(layout.NewSpacer())
+	for col := 6; col <= 10; col++ {
+		fLabs[col-1] = smallLabel()
+		grid.Add(fLabs[col-1])
+	}
+	grid.Add(layout.NewSpacer())
+	for col := 12; col <= 16; col++ {
+		fLabs[col-2] = smallLabel()
+		grid.Add(fLabs[col-2])
 	}
 
-	vboxes[0].Add(locPrBut)
-	vboxes[0].Add(crBut)
-	// vboxes[0].Add(smallText(""))
-	// vboxes[0].Add(smallText(""))
-	vboxes[0].Add(breakBut)
+	return grid
+}
 
-	for col := 1; col <= 5; col++ {
-		csFLabs[col] = smallText("")
-		vboxes[col].Add(csFLabs[col])
-		cFLabs[col] = smallText("")
-		vboxes[col].Add(cFLabs[col])
-		sFLabs[col] = smallText("")
-		vboxes[col].Add(sFLabs[col])
-		fLabs[col] = smallText("")
-		vboxes[col].Add(fLabs[col])
-		vboxes[col].Add(fnButton(col))
+func buildFuncKeyRow(win fyne.Window) *fyne.Container {
+	grid := container.New(layout.NewGridLayout(17))
+	for col := 0; col <= 4; col++ {
+		grid.Add(fnButton(col))
 	}
-
-	vboxes[6].Add(smallText("Ctrl-Sh"))
-	vboxes[6].Add(smallText("Ctrl"))
-	vboxes[6].Add(smallText("Shift"))
-	vboxes[6].Add(smallText(""))
-	vboxes[6].Add(templLabs[0])
-
-	for col := 7; col <= 11; col++ {
-		csFLabs[col-1] = smallText("")
-		vboxes[col].Add(csFLabs[col-1])
-		cFLabs[col-1] = smallText("")
-		vboxes[col].Add(cFLabs[col-1])
-		sFLabs[col-1] = smallText("")
-		vboxes[col].Add(sFLabs[col-1])
-		fLabs[col-1] = smallText("")
-		vboxes[col].Add(fLabs[col-1])
-		vboxes[col].Add(fnButton(col - 1))
+	grid.Add(layout.NewSpacer())
+	for col := 6; col <= 10; col++ {
+		grid.Add(fnButton(col - 1))
 	}
-
-	vboxes[12].Add(smallText("Ctrl-Sh"))
-	vboxes[12].Add(smallText("Ctrl"))
-	vboxes[12].Add(smallText("Shift"))
-	vboxes[12].Add(smallText(""))
-	vboxes[12].Add(templLabs[1])
-
-	for col := 13; col <= 17; col++ {
-		csFLabs[col-2] = smallText("")
-		vboxes[col].Add(csFLabs[col-2])
-		cFLabs[col-2] = smallText("")
-		vboxes[col].Add(cFLabs[col-2])
-		sFLabs[col-2] = smallText("")
-		vboxes[col].Add(sFLabs[col-2])
-		fLabs[col-2] = smallText("")
-		vboxes[col].Add(fLabs[col-2])
-		vboxes[col].Add(fnButton(col - 2))
+	grid.Add(layout.NewSpacer())
+	for col := 12; col <= 16; col++ {
+		grid.Add(fnButton(col - 2))
 	}
-
-	vboxes[18].Add(holdBut)
-	vboxes[18].Add(erPgBut)
-	// vboxes[18].Add(crBut)
-	vboxes[18].Add(erEOLBut)
-	// vboxes[18].Add(smallText(""))
-
-	return hbox
+	return grid
 }
 
 func loadFKeyTemplate(win fyne.Window) {
@@ -160,34 +166,36 @@ func loadFKeyTemplate(win fyne.Window) {
 			} else {
 				defer file.Close()
 				// clear the labels
-				for f := 1; f <= 15; f++ {
-					csFLabs[f].Text = ""
-					cFLabs[f].Text = ""
-					sFLabs[f].Text = ""
-					fLabs[f].Text = ""
+				for f := 0; f < 15; f++ {
+					csFLabs[f].SetText("")
+					cFLabs[f].SetText("")
+					sFLabs[f].SetText("")
+					fLabs[f].SetText("")
 				}
 				// read all the labels in order from the template file
 				lineScanner := bufio.NewScanner(file)
 				lineScanner.Scan()
-				tlab := lineScanner.Text()
-				templLabs[0].Text = tlab
-				templLabs[1].Text = tlab
-				for k := 1; k <= 15; k++ {
+				// tlab := lineScanner.Text()
+				lineScanner.Text()
+				// templLabs[0].Text(tlab)
+				// templLabs[1].Text(tlab)
+				for k := 0; k < 15; k++ {
 					for r := 3; r >= 0; r-- {
 						lineScanner.Scan()
 						lab := lineScanner.Text()
 						if lab != "" {
-							// flab := strings.Replace(lab, "\\", "\n", -1)
-							flab := strings.Replace(lab, "\\", " ", -1)
+							flab := strings.Replace(lab, "\\", "\n", -1)
+							// flab := strings.Replace(lab, "\\", " ", -1)
 							switch r {
 							case 0:
-								csFLabs[k].Text = flab
+								csFLabs[k].SetText(flab)
 							case 1:
-								cFLabs[k].Text = flab
+								cFLabs[k].SetText(flab)
 							case 2:
-								sFLabs[k].Text = flab
+								sFLabs[k].SetText(flab)
 							case 3:
-								fLabs[k].Text = flab
+								fLabs[k].SetText(flab)
+								// fLabs[k].Refresh()
 							}
 						}
 					}
