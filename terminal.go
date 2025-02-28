@@ -1,4 +1,4 @@
-// Copyright ©2017-2021  Steve Merrony
+// Copyright ©2017-2021,2025 Steve Merrony
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -233,7 +233,7 @@ func (t *terminalT) selfTest(hostChan chan []byte) {
 	const (
 		testLineHRule1 = "123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012245"
 		testLineHRule2 = "         1         2         3         4         5         6         7         8         9         10        11        12        13    "
-		testLineChars  = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!\"$%^.&"
+		testLineChars  = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!\"$%^&*"
 		testLineN      = "3 Normal : "
 		testLineD      = "4 Dim    : "
 		testLineB      = "5 Blink  : "
