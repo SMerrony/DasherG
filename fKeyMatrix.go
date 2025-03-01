@@ -23,7 +23,6 @@ package main
 
 import (
 	"bufio"
-	"image/color"
 	"os"
 	"strconv"
 	"strings"
@@ -55,26 +54,16 @@ func smallLabel() *widget.Label {
 	})
 }
 
-func smallText(text string) *canvas.Text {
-	s := text
-	return &canvas.Text{
-		Alignment: fyne.TextAlignCenter,
-		Color:     color.Black,
-		Text:      s,
-		TextSize:  9.0,
-		TextStyle: fyne.TextStyle{
-			Bold:      false,
-			Italic:    false,
-			Monospace: false,
-			TabWidth:  0,
-		},
-	}
+func smallLabelWithText(text string) *widget.Label {
+	w := smallLabel()
+	w.SetText(text)
+	return w
 }
 
 func buildLabelGrid(win fyne.Window) *fyne.Container {
 
-	templLabs[0] = smallText("")
-	templLabs[1] = smallText("")
+	// templLabs[0] = smallLabelWithText("")
+	// templLabs[1] = smallLabelWithText("")
 
 	grid := container.New(layout.NewGridLayout(17))
 	// control-shift...
@@ -82,12 +71,12 @@ func buildLabelGrid(win fyne.Window) *fyne.Container {
 		csFLabs[col] = smallLabel()
 		grid.Add(csFLabs[col])
 	}
-	grid.Add(smallText("Ctrl-Shift"))
+	grid.Add(smallLabelWithText("Ctrl\nShift"))
 	for col := 6; col <= 10; col++ {
 		csFLabs[col-1] = smallLabel()
 		grid.Add(csFLabs[col-1])
 	}
-	grid.Add(smallText("Ctrl-Shift"))
+	grid.Add(smallLabelWithText("Ctrl\nShift"))
 	for col := 12; col <= 16; col++ {
 		csFLabs[col-2] = smallLabel()
 		grid.Add(csFLabs[col-2])
@@ -97,12 +86,12 @@ func buildLabelGrid(win fyne.Window) *fyne.Container {
 		cFLabs[col] = smallLabel()
 		grid.Add(cFLabs[col])
 	}
-	grid.Add(smallText("Ctrl"))
+	grid.Add(smallLabelWithText("Ctrl"))
 	for col := 6; col <= 10; col++ {
 		cFLabs[col-1] = smallLabel()
 		grid.Add(cFLabs[col-1])
 	}
-	grid.Add(smallText("Ctrl"))
+	grid.Add(smallLabelWithText("Ctrl"))
 	for col := 12; col <= 16; col++ {
 		cFLabs[col-2] = smallLabel()
 		grid.Add(cFLabs[col-2])
@@ -112,12 +101,12 @@ func buildLabelGrid(win fyne.Window) *fyne.Container {
 		sFLabs[col] = smallLabel()
 		grid.Add(sFLabs[col])
 	}
-	grid.Add(smallText("Shift"))
+	grid.Add(smallLabelWithText("Shift"))
 	for col := 6; col <= 10; col++ {
 		sFLabs[col-1] = smallLabel()
 		grid.Add(sFLabs[col-1])
 	}
-	grid.Add(smallText("Shift"))
+	grid.Add(smallLabelWithText("Shift"))
 	for col := 12; col <= 16; col++ {
 		sFLabs[col-2] = smallLabel()
 		grid.Add(sFLabs[col-2])
@@ -195,7 +184,6 @@ func loadFKeyTemplate(win fyne.Window) {
 								sFLabs[k].SetText(flab)
 							case 3:
 								fLabs[k].SetText(flab)
-								// fLabs[k].Refresh()
 							}
 						}
 					}
@@ -204,6 +192,5 @@ func loadFKeyTemplate(win fyne.Window) {
 		}
 	}, win)
 	fd.Resize(fyne.Size{Width: 600, Height: 600})
-	fd.SetDismissText("Load Template")
 	fd.Show()
 }
