@@ -65,20 +65,20 @@ func (h *historyT) append(screenLine [totalCols]cell) {
 	h.mutex.Unlock()
 }
 
-func (h *historyT) getNthLine(n int) (screenLine [totalCols]cell) {
-	h.mutex.RLock()
-	if h.firstLine == h.lastLine { // there's no history yet
-		screenLine = h.emptyLine
-	} else {
-		bufferLineIx := h.lastLine - n
-		if bufferLineIx < 0 {
-			bufferLineIx += logLines
-		}
-		screenLine = h.cells[bufferLineIx]
-	}
-	h.mutex.RUnlock()
-	return screenLine
-}
+// func (h *historyT) getNthLine(n int) (screenLine [totalCols]cell) {
+// 	h.mutex.RLock()
+// 	if h.firstLine == h.lastLine { // there's no history yet
+// 		screenLine = h.emptyLine
+// 	} else {
+// 		bufferLineIx := h.lastLine - n
+// 		if bufferLineIx < 0 {
+// 			bufferLineIx += logLines
+// 		}
+// 		screenLine = h.cells[bufferLineIx]
+// 	}
+// 	h.mutex.RUnlock()
+// 	return screenLine
+// }
 
 // Get all of the history as a plain string with no special formatting.
 func (h *historyT) getAllAsPlainString() (text string) {

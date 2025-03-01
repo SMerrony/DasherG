@@ -71,7 +71,7 @@ func (c *crtMouseable) MouseUp(me *desktop.MouseEvent) {
 func buildCrt() (crtImage *crtMouseable) {
 	terminal.rwMutex.RLock()
 	backingImg = image.NewNRGBA(image.Rect(0, 0, terminal.display.visibleCols*charWidth, terminal.display.visibleLines*charHeight+1))
-	draw.Draw(backingImg, backingImg.Bounds(), image.Black, image.ZP, draw.Src)
+	draw.Draw(backingImg, backingImg.Bounds(), image.Black, image.Point{}, draw.Src)
 	crtImage = newCrtMouseable(backingImg) // canvas.NewImageFromImage(backingImage)
 	crtImage.obj.SetMinSize(fyne.Size{Width: float32(terminal.display.visibleCols * charWidth),
 		Height: float32(terminal.display.visibleLines*charHeight + 1)})

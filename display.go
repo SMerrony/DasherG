@@ -19,54 +19,52 @@
 
 package main
 
-import "fmt"
-
 type displayT struct {
 	cells                     [totalLines][totalCols]cell
 	visibleLines, visibleCols int
 }
 
-func (d *displayT) clearCell(line, col int) {
-	d.cells[line][col].clearToSpace()
-}
+// func (d *displayT) clearCell(line, col int) {
+// 	d.cells[line][col].clearToSpace()
+// }
 
-func (d *displayT) clearCellIfUnprotected(line, col int) {
-	d.cells[line][col].clearToSpaceIfUnprotected()
-}
+// func (d *displayT) clearCellIfUnprotected(line, col int) {
+// 	d.cells[line][col].clearToSpaceIfUnprotected()
+// }
 
-func (d *displayT) clearLine(line int) {
-	for col := 0; col < totalCols; col++ {
-		d.cells[line][col].clearToSpace()
-	}
-}
+// func (d *displayT) clearLine(line int) {
+// 	for col := 0; col < totalCols; col++ {
+// 		d.cells[line][col].clearToSpace()
+// 	}
+// }
 
-func (d *displayT) clearVisible() {
-	for line := 0; line < d.visibleLines; line++ {
-		d.clearLine(line)
-	}
-}
+// func (d *displayT) clearVisible() {
+// 	for line := 0; line < d.visibleLines; line++ {
+// 		d.clearLine(line)
+// 	}
+// }
 
-func (d *displayT) copyLine(from, to int) {
-	for col := 0; col < totalCols; col++ {
-		d.cells[to][col].copyFrom(d.cells[from][col])
-	}
-}
+// func (d *displayT) copyLine(from, to int) {
+// 	for col := 0; col < totalCols; col++ {
+// 		d.cells[to][col].copyFrom(d.cells[from][col])
+// 	}
+// }
 
-func (d *displayT) copyTo(dest *displayT) {
-	dest.visibleLines = d.visibleLines
-	dest.visibleCols = d.visibleCols
-	for line := 0; line < d.visibleLines; line++ {
-		for col := 0; col < totalCols; col++ {
-			dest.cells[line][col].copyFrom(d.cells[line][col])
-		}
-	}
-}
+// func (d *displayT) copyTo(dest *displayT) {
+// 	dest.visibleLines = d.visibleLines
+// 	dest.visibleCols = d.visibleCols
+// 	for line := 0; line < d.visibleLines; line++ {
+// 		for col := 0; col < totalCols; col++ {
+// 			dest.cells[line][col].copyFrom(d.cells[line][col])
+// 		}
+// 	}
+// }
 
-func (d *displayT) debugPrint() {
-	for line := 0; line < d.visibleLines; line++ {
-		fmt.Printf("\nLine: %d: ", line)
-		for col := 0; col < totalCols; col++ {
-			fmt.Printf("%c", d.cells[line][col].charValue)
-		}
-	}
-}
+// func (d *displayT) debugPrint() {
+// 	for line := 0; line < d.visibleLines; line++ {
+// 		fmt.Printf("\nLine: %d: ", line)
+// 		for col := 0; col < totalCols; col++ {
+// 			fmt.Printf("%c", d.cells[line][col].charValue)
+// 		}
+// 	}
+// }
