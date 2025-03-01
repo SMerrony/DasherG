@@ -204,8 +204,8 @@ func (t *terminalT) eraseUnprotectedToEndOfScreen() {
 // scrollUp moves every line up one position, the top line
 // is stored in the history (this is the *only* case is which history is written)
 func (t *terminalT) scrollUp(rows int) {
-	t.displayHistory.append(t.display.cells[0])
 	for times := 0; times < rows; times++ {
+		t.displayHistory.append(t.display.cells[0])
 		// move each line up a row
 		for r := 1; r < t.display.visibleLines; r++ {
 			t.display.cells[r-1] = t.display.cells[r]

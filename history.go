@@ -41,6 +41,8 @@ func createHistory() (h *historyT) {
 	for c := range h.emptyLine {
 		h.emptyLine[c] = h.emptyCell
 	}
+	h.firstLine = 0
+	h.lastLine = 0
 	return h
 }
 
@@ -86,11 +88,7 @@ func (h *historyT) getAllAsPlainString() (text string) {
 	if h.firstLine > h.lastLine {
 		for hLine < logLines {
 			for cIx := range terminal.display.visibleCols {
-				if h.cells[hLine][cIx] == h.emptyCell {
-					break
-				} else {
-					text += string(h.cells[hLine][cIx].charValue)
-				}
+				text += string(h.cells[hLine][cIx].charValue)
 			}
 			text += "\n"
 			hLine++
@@ -99,11 +97,7 @@ func (h *historyT) getAllAsPlainString() (text string) {
 	}
 	for hLine <= h.lastLine {
 		for cIx := range terminal.display.visibleCols {
-			if h.cells[hLine][cIx] == h.emptyCell {
-				break
-			} else {
-				text += string(h.cells[hLine][cIx].charValue)
-			}
+			text += string(h.cells[hLine][cIx].charValue)
 		}
 		text += "\n"
 		hLine++
