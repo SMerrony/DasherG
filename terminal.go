@@ -1,4 +1,4 @@
-// Copyright ©2017-2020  Steve Merrony
+// Copyright ©2017-2021,2025 Steve Merrony
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -21,6 +21,7 @@ package main
 
 import (
 	"fmt"
+	"image/color"
 	"os"
 	"sync"
 	"time"
@@ -57,22 +58,19 @@ type terminalT struct {
 	emulation                          emulType
 	connectionType                     int
 	remoteHost, remotePort, serialPort string
-	// visibleLines, visibleCols                    int
-	cursorX, cursorY                             int
-	rollEnabled, blinkEnabled, protectionEnabled bool
-	blinkState                                   bool
-	holding, logging, scrolledBack               bool
-	expecting                                    bool
-	rawMode                                      bool // in rawMode all host data is passed straight through to rawChan
-	selectionRegion                              selectionRegionT
-	logFile                                      *os.File
+	cursorX, cursorY                   int
+	rollEnabled, blinkEnabled          bool
+	blinkState                         bool
+	holding, logging                   bool
+	fontColour                         color.RGBA
+	expecting                          bool
+	rawMode                            bool // in rawMode all host data is passed straight through to rawChan
+	logFile                            *os.File
 
 	// display is the 2D array of cells containing the terminal 'contents'
-	display                  displayT
-	displayDirty             [totalLines][totalCols]bool
-	savedDisplay             displayT // used when scrolling back over history
-	displayHistory           [historyLines][totalCols]cell
-	historyStart, historyEnd int
+	display        displayT
+	displayDirty   [totalLines][totalCols]bool
+	displayHistory *historyT
 
 	updateCrtChan chan int
 	// terminalUpdated indicates that a visual refresh is required
@@ -88,15 +86,10 @@ type terminalT struct {
 	blinking, dimmed, reversedVideo, underscored, protectd bool
 	newXaddress, newYaddress                    int
 	inTelnetCommand, gotTelnetDo, gotTelnetWill bool
-	telnetCmd, doAction, willAction             byte
 }
 
-type selectionRegionT struct {
-	isActive                           bool
-	startRow, startCol, endRow, endCol int
-}
-
-func (t *terminalT) setup(fromHostChan <-chan []byte, update chan int, expectChan chan<- byte) {
+func (t *terminalT) setup(fromHostChan <-chan []byte, update chan int, expectChan chan<- byte,
+	baseColour color.RGBA) {
 	t.rwMutex.Lock()
 	t.fromHostChan = fromHostChan
 	t.expectChan = expectChan
@@ -105,8 +98,7 @@ func (t *terminalT) setup(fromHostChan <-chan []byte, update chan int, expectCha
 	t.updateCrtChan = update
 	t.display.visibleLines = defaultLines
 	t.display.visibleCols = defaultCols
-	t.savedDisplay.visibleLines = defaultLines
-	t.savedDisplay.visibleCols = defaultCols
+	t.fontColour = baseColour
 	t.emptyCell.clearToSpace()
 	for c := range t.emptyLine {
 		t.emptyLine[c] = t.emptyCell
@@ -114,9 +106,7 @@ func (t *terminalT) setup(fromHostChan <-chan []byte, update chan int, expectCha
 	for c := range t.dirtyLine {
 		t.dirtyLine[c] = true
 	}
-	for l := range t.displayHistory {
-		t.displayHistory[l] = t.emptyLine
-	}
+	t.displayHistory = createHistory()
 	t.rollEnabled = true
 	t.blinkEnabled = true
 	t.scrolledBack = false
@@ -135,33 +125,24 @@ func (t *terminalT) updateListener() {
 		t.rwMutex.Lock()
 		if updateType == updateCrtBlink {
 			t.blinkState = !t.blinkState
+			anyBlinking := false
+		outer:
+			for line := 0; line < t.display.visibleLines; line++ {
+				for col := 0; col < t.display.visibleCols; col++ {
+					if t.display.cells[line][col].blink {
+						anyBlinking = true
+						break outer
+					}
+				}
+			}
+			if anyBlinking {
+				t.terminalUpdated = true
+			}
+		} else {
+			t.terminalUpdated = true
 		}
-		t.terminalUpdated = true
 		t.rwMutex.Unlock()
 	}
-}
-
-func (t *terminalT) getSelection() string {
-	startCharPosn := t.selectionRegion.startCol + t.selectionRegion.startRow*terminal.display.visibleCols
-	endCharPosn := t.selectionRegion.endCol + t.selectionRegion.endRow*terminal.display.visibleCols
-	selection := ""
-	if startCharPosn <= endCharPosn {
-		// normal (forward) selection
-		col := t.selectionRegion.startCol
-		for row := t.selectionRegion.startRow; row <= t.selectionRegion.endRow; row++ {
-			for col < terminal.display.visibleCols {
-				selection += string(terminal.display.cells[row][col].charValue)
-				terminal.displayDirty[row][col] = true
-				if row == t.selectionRegion.endRow && col == t.selectionRegion.endCol {
-					return selection
-				}
-				col++
-			}
-			selection += string(rune(dasherNewLine))
-			col = 0
-		}
-	}
-	return selection
 }
 
 func (t *terminalT) setEmulation(e emulType) {
@@ -178,8 +159,7 @@ func (t *terminalT) setRawMode(raw bool) {
 }
 
 func (t *terminalT) clearLine(line int) {
-	//t.display.cells[line] = t.emptyLine
-	t.display.clearLine(line)
+	t.display.cells[line] = t.emptyLine
 	t.displayDirty[line] = t.dirtyLine
 	t.inCommand = false
 	t.readingWindowAddressX = false
@@ -222,132 +202,39 @@ func (t *terminalT) eraseUnprotectedToEndOfScreen() {
 	}
 }
 
-// addToHistory inserts a display line into the circular history buffer
-// It is assumed that the terminal mutex has been locked by the caller
-func (t *terminalT) addToHistory(screenLine [totalCols]cell) {
-	t.historyEnd++
-	// end of buffer?
-	if t.historyEnd == historyLines {
-		// wrap-around
-		t.historyEnd = 0
-	}
-	// has the tail hit the head?
-	if t.historyEnd == t.historyStart {
-		t.historyStart++ // advance the head
-		if t.historyStart == historyLines {
-			// wrap-around if at limit
-			t.historyStart = 0
-		}
-	}
-	t.displayHistory[t.historyEnd] = screenLine
-	// fmt.Printf("addToHistory added real index: %d [start: %d]\n", t.historyEnd, t.historyStart)
-}
-
-// getNthHistoryLine returns a line of cells from the history
-func (t *terminalT) getNthHistoryLine(n int) (screenLine [totalCols]cell) {
-	var hline int
-	if t.historyStart == t.historyEnd { // there's no history yet
-		screenLine = t.emptyLine
-	} else {
-		hline = t.historyEnd - n
-		if hline < 0 {
-			hline += historyLines
-		}
-		screenLine = t.displayHistory[hline]
-	}
-	// fmt.Printf("getNthHistoryLine called with %d, returning history ix: %d\n", n, hline)
-	return screenLine
-}
-
+// scrollUp moves every line up one position, the top line
+// is stored in the history (this is the *only* case is which history is written)
 func (t *terminalT) scrollUp(rows int) {
 	for times := 0; times < rows; times++ {
-		t.addToHistory(t.display.cells[0])
+		t.displayHistory.append(t.display.cells[0])
 		// move each line up a row
 		for r := 1; r < t.display.visibleLines; r++ {
-			// t.display.cells[r-1] = t.display.cells[r]
-			t.display.copyLine(r, r-1)
+			t.display.cells[r-1] = t.display.cells[r]
 			t.displayDirty[r-1] = t.dirtyLine
 		}
 		t.clearLine(t.display.visibleLines - 1)
 	}
 }
 
-func (t *terminalT) scrollDown(topLine string) {
-	// move every visible row down
-	for r := t.display.visibleLines; r > 0; r-- {
-		// t.display.cells[r+1] = t.display.cells[r]
-		t.display.copyLine(r, r+1)
-		t.displayDirty[r+1] = t.dirtyLine
-	}
-	t.clearLine(0)
-	for c := 0; c < len(topLine); c++ {
-		t.display.cells[0][c].set(byte(topLine[c]), false, false, false, false, false)
-		t.displayDirty[0][c] = true
-	}
-}
-
-func (t *terminalT) scrollBack(startLine int) {
-	t.rwMutex.Lock()
-	// fmt.Printf("scrollBack - startLine: %d, scrolledBack: %v\n", startLine, t.scrolledBack)
-	if !t.scrolledBack { // new scrollback
-		// save live screen
-		t.display.copyTo(&t.savedDisplay)
-		// t.savedDisplay.debugPrint()
-		t.scrolledBack = true
-	}
-
-	// testing...
-	// t.display.clearVisible()
-	// for l := 0; l < t.display.visibleLines; l++ {
-	// 	t.displayDirty[l] = t.dirtyLine
-	// }
-
-	// there are two cases: we are already scrolled back beyond the 'live' screen, or we are partially showing it
-	if startLine < t.display.visibleLines {
-		// the partial case
-		onScreenLine := 0
-		for hl := startLine; hl >= 0; hl-- {
-			t.display.cells[onScreenLine] = t.getNthHistoryLine(hl)
-			t.displayDirty[onScreenLine] = t.dirtyLine
-			onScreenLine++
-		}
-		liveLine := 0
-		for onScreenLine < t.display.visibleLines {
-			t.display.cells[onScreenLine] = t.savedDisplay.cells[liveLine]
-			t.displayDirty[onScreenLine] = t.dirtyLine
-			liveLine++
-			onScreenLine++
-		}
-	} else {
-		// all 'history' - we can cheat
-		for l := 0; l < t.display.visibleLines; l++ {
-			histLine := startLine - l
-			t.display.cells[l] = t.getNthHistoryLine(histLine)
-			t.displayDirty[l] = t.dirtyLine
-		}
-	}
-	t.terminalUpdated = true
-	t.rwMutex.Unlock()
-}
-
-// cancelScrollBack restores the 'live' screen after scrollbacks (may) have happened
-func (t *terminalT) cancelScrollBack() {
-	// fmt.Println("cancelScrollBack called")
-	t.rwMutex.Lock()
-	t.savedDisplay.copyTo(&t.display)
-	for l := 0; l < t.display.visibleLines; l++ {
-		t.displayDirty[l] = t.dirtyLine
-	}
-	t.scrolledBack = false
-	t.terminalUpdated = true
-	t.rwMutex.Unlock()
-}
+// scrollDown is not (yet) used
+// func (t *terminalT) scrollDown(topLine string) {
+// 	// move every visible row down
+// 	for r := t.display.visibleLines; r > 0; r-- {
+// 		t.display.cells[r+1] = t.display.cells[r]
+// 		t.displayDirty[r+1] = t.dirtyLine
+// 	}
+// 	t.clearLine(0)
+// 	for c := 0; c < len(topLine); c++ {
+// 		t.display.cells[0][c].set(byte(topLine[c]), false, false, false, false, false)
+// 		t.displayDirty[0][c] = true
+// 	}
+// }
 
 func (t *terminalT) selfTest(hostChan chan []byte) {
 	const (
 		testLineHRule1 = "123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012245"
 		testLineHRule2 = "         1         2         3         4         5         6         7         8         9         10        11        12        13    "
-		testLineChars  = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!\"$%^.&"
+		testLineChars  = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!\"$%^&*"
 		testLineN      = "3 Normal : "
 		testLineD      = "4 Dim    : "
 		testLineB      = "5 Blink  : "
@@ -394,10 +281,11 @@ func (t *terminalT) selfTest(hostChan chan []byte) {
 
 func (t *terminalT) run() {
 	var (
-		skipChar, sb bool
-		ch           byte
+		skipChar bool
+		ch       byte
 	)
 	for hostData := range t.fromHostChan {
+		// fmt.Printf("DEBUG: Terminal got %v from Host channel\n", hostData)
 		// pause if we are HOLDing
 		t.rwMutex.RLock()
 		for t.holding {
@@ -405,12 +293,8 @@ func (t *terminalT) run() {
 			time.Sleep(holdPauseMs * time.Millisecond)
 			t.rwMutex.RLock()
 		}
-		sb = t.scrolledBack
-		t.rwMutex.RUnlock()
 
-		if sb {
-			t.cancelScrollBack()
-		}
+		t.rwMutex.RUnlock()
 
 		for _, ch = range hostData {
 
@@ -721,6 +605,7 @@ func (t *terminalT) run() {
 
 			// finally, put the char in the displayable char matrix
 			if ch > 0 && int(ch) < len(bdfFont) && bdfFont[ch].loaded {
+				// fmt.Printf("DEBUG: Terminal inserting %c\n", ch)
 				t.display.cells[t.cursorY][t.cursorX].set(ch, t.blinking, t.dimmed, t.reversedVideo, t.underscored, t.protectd)
 			} else {
 				t.display.cells[t.cursorY][t.cursorX].set(127, t.blinking, t.dimmed, t.reversedVideo, t.underscored, t.protectd)

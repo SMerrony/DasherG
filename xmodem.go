@@ -1,4 +1,4 @@
-// Copyright (c) 2019 S.Merrony - The CRC funcs are borrowed from "chriszzzzz"'s fork of Omegaice's go-xmodem code
+// Copyright (c) 2019,2025 S.Merrony - The CRC funcs are borrowed from "chriszzzzz"'s fork of Omegaice's go-xmodem code
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -23,7 +23,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"time"
 )
@@ -147,7 +147,7 @@ func XmodemSendLong(rx chan byte, tx chan byte, f *os.File) error {
 
 func xmodemSend(rx chan byte, tx chan byte, f *os.File, packetPayloadLen int) error {
 
-	data, err := ioutil.ReadAll(f)
+	data, err := io.ReadAll(f)
 	if err != nil {
 		return errors.New("XMODEM Could not read file to send")
 	}

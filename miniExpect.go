@@ -1,6 +1,6 @@
 // dasherg.go
 
-// Copyright (C) 2018,2021  Steve Merrony
+// Copyright ©2018-2021,2025  Steve Merrony
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -27,11 +27,10 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 	"time"
-
-	"github.com/mattn/go-gtk/gtk"
 )
 
 // expectRunner must be run as a Goroutine - not in the main loop
@@ -64,21 +63,20 @@ scriptLoop:
 			found := false
 			time.Sleep(200 * time.Millisecond)
 			for {
-				select {
-				case b := <-expectChan:
-					if b == dasherCR || b == dasherNewLine {
-						hostString = ""
-					} else {
-						hostString += string(b)
-						if traceExpect {
-							fmt.Printf("DEBUG: Expect want <%s>, response so far is: <%s>\n", expectStr, hostString)
-						}
-						if strings.HasSuffix(hostString, expectStr) {
-							found = true
-							break
-						}
+				b := <-expectChan
+				if b == dasherCR || b == dasherNewLine {
+					hostString = ""
+				} else {
+					hostString += string(b)
+					if traceExpect {
+						fmt.Printf("DEBUG: Expect want <%s>, response so far is: <%s>\n", expectStr, hostString)
+					}
+					if strings.HasSuffix(hostString, expectStr) {
+						found = true
+						break
 					}
 				}
+
 				if found {
 					if traceExpect {
 						fmt.Printf("DEBUG: found expect string<%s>\n", expectStr)
@@ -112,10 +110,7 @@ scriptLoop:
 			break scriptLoop
 
 		default:
-			ed := gtk.NewMessageDialog(win, gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_ERROR,
-				gtk.BUTTONS_CLOSE, "Unknown command in mini-Expect script file")
-			ed.Run()
-			ed.Destroy()
+			log.Println("ERROR: Unknown command in Mini-Expect script - aborting")
 			break scriptLoop
 		}
 	}

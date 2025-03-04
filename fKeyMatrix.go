@@ -1,6 +1,6 @@
 // fKeyMatrix.go
 
-// Copyright (C) 2017,2019 Steve Merrony
+// Copyright ©2017-2021 Steve Merrony
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -23,236 +23,174 @@ package main
 
 import (
 	"bufio"
-	"fmt"
 	"os"
+	"strconv"
 	"strings"
-	"unsafe"
 
-	"github.com/mattn/go-gtk/gdk"
-	"github.com/mattn/go-gtk/gtk"
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/layout"
+	"fyne.io/fyne/v2/widget"
 )
 
-// widgets needing global access
-var (
-	fKeyLabs     [20][4]*gtk.Label
-	templateLabs [2]*gtk.Label
-)
+var fnButs [15]*widget.Button
+var csFLabs, cFLabs, sFLabs, fLabs [15]*widget.Label
+var templLabs [2]*canvas.Text
 
-func buildFkeyMatrix() *gtk.Table {
-	fkeyMatrix := gtk.NewTable(5, 19, false)
-
-	locPrBut := gtk.NewButtonWithLabel("LocPr")
-	locPrBut.SetTooltipText("Local Print")
-	locPrBut.Connect("clicked", localPrint)
-	locPrBut.SetCanFocus(false)
-	fkeyMatrix.AttachDefaults(locPrBut, 0, 1, 0, 1)
-
-	breakBut := gtk.NewButtonWithLabel("Break")
-	breakBut.SetTooltipText("Send BREAK signal on Serial Connection")
-	breakBut.Connect("clicked", func() {
-		if terminal.connectionType == serialConnected {
-			serialSession.sendSerialBreakChan <- true
-		}
-	})
-	breakBut.SetCanFocus(false)
-	fkeyMatrix.AttachDefaults(breakBut, 0, 1, 4, 5)
-
-	holdBut := gtk.NewButtonWithLabel("Hold")
-	holdBut.Connect("clicked", func() {
-		terminal.rwMutex.Lock()
-		terminal.holding = !terminal.holding
-		terminal.rwMutex.Unlock()
-	})
-	holdBut.SetCanFocus(false)
-	fkeyMatrix.AttachDefaults(holdBut, 18, 19, 0, 1)
-
-	erPgBut := gtk.NewButtonWithLabel("Er Pg")
-	erPgBut.SetTooltipText("Erase Page")
-	erPgBut.SetCanFocus(false)
-	erPgBut.Connect("clicked", func() { keyboardChan <- dasherErasePage })
-	fkeyMatrix.AttachDefaults(erPgBut, 18, 19, 1, 2)
-
-	crBut := gtk.NewButtonWithLabel("CR")
-	crBut.SetTooltipText("Carriage Return")
-	crBut.SetCanFocus(false)
-	crBut.Connect("clicked", func() { keyboardChan <- dasherCR })
-	fkeyMatrix.AttachDefaults(crBut, 18, 19, 2, 3)
-
-	erEOLBut := gtk.NewButtonWithLabel("ErEOL")
-	erEOLBut.SetTooltipText("Erase to End Of Line")
-	erEOLBut.SetCanFocus(false)
-	erEOLBut.Connect("clicked", func() { keyboardChan <- dasherEraseEol })
-	fkeyMatrix.AttachDefaults(erEOLBut, 18, 19, 3, 4)
-
-	var fKeyButs [20]*gtk.Button
-
-	for f := 1; f <= 5; f++ {
-		fKeyButs[f] = gtk.NewButtonWithLabel(fmt.Sprintf("F%d", f))
-		fKeyButs[f].SetCanFocus(false)
-		fkeyMatrix.AttachDefaults(fKeyButs[f], uint(f), uint(f)+1, 4, 5)
-		for l := 0; l < 4; l++ {
-			fKeyLabs[f][l] = gtk.NewLabel("")
-			frm := gtk.NewFrame("")
-			frm.Add(fKeyLabs[f][l])
-			fkeyMatrix.AttachDefaults(frm, uint(f), uint(f)+1, uint(l), uint(l)+1)
-		}
-	}
-
-	templateLabs[0] = gtk.NewLabel("")
-	fkeyMatrix.AttachDefaults(templateLabs[0], 6, 7, 4, 5)
-
-	csfLab := gtk.NewLabel("")
-	csfLab.SetMarkup("<span size=\"small\">Ctrl-Shift</span>")
-	fkeyMatrix.AttachDefaults(csfLab, 6, 7, 0, 1)
-	cfLab := gtk.NewLabel("")
-	cfLab.SetMarkup("<span size=\"small\">Ctrl</span>")
-	fkeyMatrix.AttachDefaults(cfLab, 6, 7, 1, 2)
-	sLab := gtk.NewLabel("")
-	sLab.SetMarkup("<span size=\"small\">Shift</span>")
-	fkeyMatrix.AttachDefaults(sLab, 6, 7, 2, 3)
-
-	for f := 6; f <= 10; f++ {
-		fKeyButs[f] = gtk.NewButtonWithLabel(fmt.Sprintf("F%d", f))
-		fKeyButs[f].SetCanFocus(false)
-		fkeyMatrix.AttachDefaults(fKeyButs[f], uint(f)+1, uint(f)+2, 4, 5)
-		for l := 0; l < 4; l++ {
-			fKeyLabs[f][l] = gtk.NewLabel("")
-			frm := gtk.NewFrame("")
-			frm.Add(fKeyLabs[f][l])
-			fkeyMatrix.AttachDefaults(frm, uint(f)+1, uint(f)+2, uint(l), uint(l)+1)
-		}
-	}
-
-	templateLabs[1] = gtk.NewLabel("")
-	fkeyMatrix.AttachDefaults(templateLabs[1], 12, 13, 4, 5)
-
-	csfLab2 := gtk.NewLabel("")
-	csfLab2.SetMarkup("<span size=\"small\">Ctrl-Shift</span>")
-	fkeyMatrix.AttachDefaults(csfLab2, 12, 13, 0, 1)
-	cfLab2 := gtk.NewLabel("")
-	cfLab2.SetMarkup("<span size=\"small\">Ctrl</span>")
-	fkeyMatrix.AttachDefaults(cfLab2, 12, 13, 1, 2)
-	sLab2 := gtk.NewLabel("")
-	sLab2.SetMarkup("<span size=\"small\">Shift</span>")
-	fkeyMatrix.AttachDefaults(sLab2, 12, 13, 2, 3)
-
-	for f := 11; f <= 15; f++ {
-		fKeyButs[f] = gtk.NewButtonWithLabel(fmt.Sprintf("F%d", f))
-		fKeyButs[f].SetCanFocus(false)
-		fkeyMatrix.AttachDefaults(fKeyButs[f], uint(f)+2, uint(f)+3, 4, 5)
-		for l := 0; l < 4; l++ {
-			fKeyLabs[f][l] = gtk.NewLabel("")
-			frm := gtk.NewFrame("")
-			frm.Add(fKeyLabs[f][l])
-			fkeyMatrix.AttachDefaults(frm, uint(f)+2, uint(f)+3, uint(l), uint(l)+1)
-		}
-	}
-
-	var keyEv gdk.EventKey
-	keyEv.Window = unsafe.Pointer(win)
-	keyEv.Type = 9 // gdk.KEY_RELEASE
-	fKeyButs[1].Connect("clicked", func() {
-		keyEv.Keyval = gdk.KEY_F1
-		keyReleaseEventChan <- &keyEv
-	})
-	fKeyButs[2].Connect("clicked", func() {
-		keyEv.Keyval = gdk.KEY_F2
-		keyReleaseEventChan <- &keyEv
-	})
-	fKeyButs[3].Connect("clicked", func() {
-		keyEv.Keyval = gdk.KEY_F3
-		keyReleaseEventChan <- &keyEv
-	})
-	fKeyButs[4].Connect("clicked", func() {
-		keyEv.Keyval = gdk.KEY_F4
-		keyReleaseEventChan <- &keyEv
-	})
-	fKeyButs[5].Connect("clicked", func() {
-		keyEv.Keyval = gdk.KEY_F5
-		keyReleaseEventChan <- &keyEv
-	})
-	fKeyButs[6].Connect("clicked", func() {
-		keyEv.Keyval = gdk.KEY_F6
-		keyReleaseEventChan <- &keyEv
-	})
-	fKeyButs[7].Connect("clicked", func() {
-		keyEv.Keyval = gdk.KEY_F7
-		keyReleaseEventChan <- &keyEv
-	})
-	fKeyButs[8].Connect("clicked", func() {
-		keyEv.Keyval = gdk.KEY_F8
-		keyReleaseEventChan <- &keyEv
-	})
-	fKeyButs[9].Connect("clicked", func() {
-		keyEv.Keyval = gdk.KEY_F9
-		keyReleaseEventChan <- &keyEv
-	})
-	fKeyButs[10].Connect("clicked", func() {
-		keyEv.Keyval = gdk.KEY_F10
-		keyReleaseEventChan <- &keyEv
-	})
-	fKeyButs[11].Connect("clicked", func() {
-		keyEv.Keyval = gdk.KEY_F11
-		keyReleaseEventChan <- &keyEv
-	})
-	fKeyButs[12].Connect("clicked", func() {
-		keyEv.Keyval = gdk.KEY_F12
-		keyReleaseEventChan <- &keyEv
-	})
-	fKeyButs[13].Connect("clicked", func() {
-		keyEv.Keyval = gdk.KEY_F13
-		keyReleaseEventChan <- &keyEv
-	})
-	fKeyButs[14].Connect("clicked", func() {
-		keyEv.Keyval = gdk.KEY_F14
-		keyReleaseEventChan <- &keyEv
-	})
-	fKeyButs[15].Connect("clicked", func() {
-		keyEv.Keyval = gdk.KEY_F15
-		keyReleaseEventChan <- &keyEv
-	})
-
-	return fkeyMatrix
+func fnButton(number int) *widget.Button {
+	str := strconv.Itoa(number + 1)
+	fnButs[number] = widget.NewButton("F"+str, nil)
+	return fnButs[number]
 }
 
-func loadFKeyTemplate() {
-	fkd := gtk.NewFileChooserDialog("DasherG Function Key Template", win, gtk.FILE_CHOOSER_ACTION_OPEN, "_Cancel", gtk.RESPONSE_CANCEL, "_Load", gtk.RESPONSE_ACCEPT)
-	res := fkd.Run()
-	if res == gtk.RESPONSE_ACCEPT {
-		fileName := fkd.GetFilename()
-		file, err := os.Open(fileName)
-		if err != nil {
-			ed := gtk.NewMessageDialog(win, gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_ERROR,
-				gtk.BUTTONS_CLOSE, "Could not open or read function key template file")
-			ed.Run()
-			ed.Destroy()
-		} else {
-			// clear the labels
-			for k := 1; k <= 15; k++ {
-				for r := 0; r < 4; r++ {
-					fKeyLabs[k][r].SetText("")
-					fKeyLabs[k][r].SetSingleLineMode(false)
-					fKeyLabs[k][r].SetJustify(gtk.JUSTIFY_CENTER)
+func smallLabel() *widget.Label {
+	return widget.NewLabelWithStyle("", fyne.TextAlignCenter, fyne.TextStyle{
+		Bold:      false,
+		Italic:    false,
+		Monospace: false,
+		TabWidth:  1,
+	})
+}
+
+func smallLabelWithText(text string) *widget.Label {
+	w := smallLabel()
+	w.SetText(text)
+	return w
+}
+
+func buildLabelGrid(win fyne.Window) *fyne.Container {
+
+	// templLabs[0] = smallLabelWithText("")
+	// templLabs[1] = smallLabelWithText("")
+
+	grid := container.New(layout.NewGridLayout(17))
+	// control-shift...
+	for col := 0; col <= 4; col++ {
+		csFLabs[col] = smallLabel()
+		grid.Add(csFLabs[col])
+	}
+	grid.Add(smallLabelWithText("Ctrl\nShift"))
+	for col := 6; col <= 10; col++ {
+		csFLabs[col-1] = smallLabel()
+		grid.Add(csFLabs[col-1])
+	}
+	grid.Add(smallLabelWithText("Ctrl\nShift"))
+	for col := 12; col <= 16; col++ {
+		csFLabs[col-2] = smallLabel()
+		grid.Add(csFLabs[col-2])
+	}
+	// control...
+	for col := 0; col <= 4; col++ {
+		cFLabs[col] = smallLabel()
+		grid.Add(cFLabs[col])
+	}
+	grid.Add(smallLabelWithText("Ctrl"))
+	for col := 6; col <= 10; col++ {
+		cFLabs[col-1] = smallLabel()
+		grid.Add(cFLabs[col-1])
+	}
+	grid.Add(smallLabelWithText("Ctrl"))
+	for col := 12; col <= 16; col++ {
+		cFLabs[col-2] = smallLabel()
+		grid.Add(cFLabs[col-2])
+	}
+	// shift...
+	for col := 0; col <= 4; col++ {
+		sFLabs[col] = smallLabel()
+		grid.Add(sFLabs[col])
+	}
+	grid.Add(smallLabelWithText("Shift"))
+	for col := 6; col <= 10; col++ {
+		sFLabs[col-1] = smallLabel()
+		grid.Add(sFLabs[col-1])
+	}
+	grid.Add(smallLabelWithText("Shift"))
+	for col := 12; col <= 16; col++ {
+		sFLabs[col-2] = smallLabel()
+		grid.Add(sFLabs[col-2])
+	}
+	// plain...
+	for col := 0; col <= 4; col++ {
+		fLabs[col] = smallLabel()
+		grid.Add(fLabs[col])
+	}
+	grid.Add(layout.NewSpacer())
+	for col := 6; col <= 10; col++ {
+		fLabs[col-1] = smallLabel()
+		grid.Add(fLabs[col-1])
+	}
+	grid.Add(layout.NewSpacer())
+	for col := 12; col <= 16; col++ {
+		fLabs[col-2] = smallLabel()
+		grid.Add(fLabs[col-2])
+	}
+
+	return grid
+}
+
+func buildFuncKeyRow(win fyne.Window) *fyne.Container {
+	grid := container.New(layout.NewGridLayout(17))
+	for col := 0; col <= 4; col++ {
+		grid.Add(fnButton(col))
+	}
+	grid.Add(layout.NewSpacer())
+	for col := 6; col <= 10; col++ {
+		grid.Add(fnButton(col - 1))
+	}
+	grid.Add(layout.NewSpacer())
+	for col := 12; col <= 16; col++ {
+		grid.Add(fnButton(col - 2))
+	}
+	return grid
+}
+
+func loadFKeyTemplate(win fyne.Window) {
+	fd := dialog.NewFileOpen(func(urirc fyne.URIReadCloser, e error) {
+		if urirc != nil {
+			file, err := os.Open(urirc.URI().Path())
+			if err != nil {
+				dialog.ShowError(err, win)
+			} else {
+				defer file.Close()
+				// clear the labels
+				for f := 0; f < 15; f++ {
+					csFLabs[f].SetText("")
+					cFLabs[f].SetText("")
+					sFLabs[f].SetText("")
+					fLabs[f].SetText("")
 				}
-			}
-			// read all the labels in order from the template file
-			lineScanner := bufio.NewScanner(file)
-			lineScanner.Scan()
-			tlab := lineScanner.Text()
-			templateLabs[0].SetMarkup("<span weight=\"bold\" size=\"small\">" + tlab + "</span>")
-			templateLabs[1].SetMarkup("<span weight=\"bold\" size=\"small\">" + tlab + "</span>")
-			for k := 1; k <= 15; k++ {
-				for r := 3; r >= 0; r-- {
-					lineScanner.Scan()
-					lab := lineScanner.Text()
-					if lab != "" {
-						flab := strings.Replace(lab, "\\", "\n", -1)
-						fKeyLabs[k][r].SetMarkup("<span size=\"small\">" + flab + "</span>")
+				// read all the labels in order from the template file
+				lineScanner := bufio.NewScanner(file)
+				lineScanner.Scan()
+				// tlab := lineScanner.Text()
+				lineScanner.Text()
+				// templLabs[0].Text(tlab)
+				// templLabs[1].Text(tlab)
+				for k := 0; k < 15; k++ {
+					for r := 3; r >= 0; r-- {
+						lineScanner.Scan()
+						lab := lineScanner.Text()
+						if lab != "" {
+							flab := strings.Replace(lab, "\\", "\n", -1)
+							// flab := strings.Replace(lab, "\\", " ", -1)
+							switch r {
+							case 0:
+								csFLabs[k].SetText(flab)
+							case 1:
+								cFLabs[k].SetText(flab)
+							case 2:
+								sFLabs[k].SetText(flab)
+							case 3:
+								fLabs[k].SetText(flab)
+							}
+						}
 					}
 				}
 			}
-			file.Close()
 		}
-	}
-	fkd.Destroy()
+	}, win)
+	fd.Resize(fyne.Size{Width: 600, Height: 600})
+	fd.Show()
 }

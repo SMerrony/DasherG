@@ -1,4 +1,4 @@
-// Copyright (C) 2017, 2019  Steve Merrony
+// Copyright (C) 2017,2019,2025  Steve Merrony
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -50,6 +50,11 @@ const (
 	dasherDimOn           = 28
 	dasherDimOff          = 29
 	dasherCmd             = 30
+
+	dasherC1 = 92
+	dasherC2 = 93
+	dasherC3 = 94
+	dasherC4 = 95
 
 	dasherDelete = 0177 // = 127. or 0x7F
 )

@@ -22,116 +22,93 @@
 package main
 
 import (
-	"unsafe"
+	"fmt"
+	"image"
+	"image/draw"
 
-	"github.com/mattn/go-gtk/gdk"
-	"github.com/mattn/go-gtk/glib"
-	"github.com/mattn/go-gtk/gtk"
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/driver/desktop"
+	"fyne.io/fyne/v2/widget"
 )
 
-func buildCrt() *gtk.DrawingArea {
-	var mne int
-	crt = gtk.NewDrawingArea()
-	terminal.rwMutex.RLock()
-	crt.SetSizeRequest(terminal.display.visibleCols*charWidth, terminal.display.visibleLines*charHeight)
-	terminal.rwMutex.RUnlock()
+var backingImg *image.NRGBA
 
-	crt.Connect("configure-event", func() {
-		if offScreenPixmap != nil {
-			offScreenPixmap.Unref()
-		}
-		//allocation := crt.GetAllocation()
-		terminal.rwMutex.RLock()
-		offScreenPixmap = gdk.NewPixmap(crt.GetWindow().GetDrawable(),
-			terminal.display.visibleCols*charWidth, terminal.display.visibleLines*charHeight*charHeight, 24)
-		terminal.rwMutex.RUnlock()
-		gc = gdk.NewGC(offScreenPixmap.GetDrawable())
-		offScreenPixmap.GetDrawable().DrawRectangle(gc, true, 0, 0, -1, -1)
-		gc.SetForeground(gc.GetColormap().AllocColorRGB(0, 65535, 0))
-	})
+type crtMouseable struct {
+	widget.BaseWidget
+	obj *canvas.Raster
+}
 
-	crt.Connect("expose-event", func() {
-		gdkWin.GetDrawable().DrawDrawable(gc, offScreenPixmap.GetDrawable(), 0, 0, 0, 0, -1, -1)
-		//fmt.Println("expose-event handled")
-	})
-
-	crt.SetCanFocus(true)
-	crt.AddEvents(int(gdk.BUTTON_PRESS_MASK))
-	crt.Connect("button-press-event", func(ctx *glib.CallbackContext) {
-		arg := ctx.Args(0)
-		btnPressEvent := *(**gdk.EventButton)(unsafe.Pointer(&arg))
-		//fmt.Printf("DEBUG: Mouse clicked at %d, %d\t", btnPressEvent.X, btnPressEvent.Y)
-		terminal.rwMutex.Lock()
-		terminal.selectionRegion.startRow = int(btnPressEvent.Y) / charHeight
-		terminal.selectionRegion.startCol = int(btnPressEvent.X) / charWidth
-		terminal.selectionRegion.endRow = terminal.selectionRegion.startRow
-		terminal.selectionRegion.endCol = terminal.selectionRegion.startCol
-		terminal.selectionRegion.isActive = true
-		terminal.rwMutex.Unlock()
-		mne = crt.Connect("motion-notify-event", handleMotionNotifyEvent)
-	})
-	crt.AddEvents(int(gdk.BUTTON_RELEASE_MASK))
-	crt.Connect("button-release-event", func(ctx *glib.CallbackContext) {
-		arg := ctx.Args(0)
-		btnPressEvent := *(**gdk.EventButton)(unsafe.Pointer(&arg))
-		//fmt.Printf("DEBUG: Mouse released at %d, %d\t", btnPressEvent.X, btnPressEvent.Y)
-		terminal.rwMutex.Lock()
-		terminal.selectionRegion.endRow = int(btnPressEvent.Y) / charHeight
-		terminal.selectionRegion.endCol = int(btnPressEvent.X) / charWidth
-		sel := terminal.getSelection()
-		terminal.selectionRegion.isActive = false
-		terminal.rwMutex.Unlock()
-		//fmt.Printf("DEBUG: Copied selection: <%s>\n", sel)
-		clipboard := gtk.NewClipboardGetForDisplay(gdk.DisplayGetDefault(), gdk.SELECTION_CLIPBOARD)
-		clipboard.SetText(sel)
-		crt.HandlerDisconnect(mne)
-	})
-	crt.AddEvents(int(gdk.POINTER_MOTION_MASK))
-
+func newCrtMouseable(img *image.NRGBA) *crtMouseable {
+	crt := &crtMouseable{obj: canvas.NewRasterFromImage(img)}
+	crt.ExtendBaseWidget(crt)
 	return crt
 }
 
-// handleMotionNotifyEvent is called every time the mouse moves after being clicked
-// in the CRT.  It is no longer called once the mouse is released.
-func handleMotionNotifyEvent(ctx *glib.CallbackContext) {
-	arg := ctx.Args(0)
-	btnPressEvent := *(**gdk.EventMotion)(unsafe.Pointer(&arg))
-	row := int(btnPressEvent.Y) / charHeight
-	col := int(btnPressEvent.X) / charWidth
-	if row != terminal.selectionRegion.endRow || col != terminal.selectionRegion.endCol {
-		// moved at least 1 cell...
-		terminal.rwMutex.Lock()
-		// fmt.Printf("DEBUG: Row: %d, Col: %d, Character: %c\n", row, col, terminal.display.cells[row][col].charValue)
-		terminal.selectionRegion.endCol = col
-		terminal.selectionRegion.endRow = row
-		terminal.rwMutex.Unlock()
-	}
+func (c *crtMouseable) CreateRenderer() fyne.WidgetRenderer {
+	return widget.NewSimpleRenderer(c.obj)
+}
+
+func (c *crtMouseable) MouseDown(me *desktop.MouseEvent) {
+	// fmt.Printf("DEBUG: Mouse down at x: %f, y: %f\n", me.Position.X, me.Position.Y)
+	selectionRegion.startCol = int(me.Position.X) / charWidth
+	selectionRegion.startRow = int(me.Position.Y) / charHeight
+	selectionRegion.isActive = false
+	// fmt.Printf("DEBUG: Selection start - col: %d, row: %d\n", selectionRegion.startCol, selectionRegion.startRow)
+}
+
+func (c *crtMouseable) MouseUp(me *desktop.MouseEvent) {
+	// fmt.Printf("DEBUG: Mouse up at x: %f, y: %f\n", me.Position.X, me.Position.Y)
+	selectionRegion.endCol = int(me.Position.X) / charWidth
+	selectionRegion.endRow = int(me.Position.Y) / charHeight
+	sel := getSelection()
+	fmt.Printf("DEBUG: Copied selection: <%s>\n", sel)
+	w.Clipboard().SetContent(sel)
+	selectionRegion.isActive = true
+	// fmt.Printf("DEBUG: Selection end - col: %d, row: %d\n", selectionRegion.endCol, selectionRegion.endRow)
+}
+
+func buildCrt() (crtImage *crtMouseable) {
+	terminal.rwMutex.RLock()
+	backingImg = image.NewNRGBA(image.Rect(0, 0, terminal.display.visibleCols*charWidth, terminal.display.visibleLines*charHeight+1))
+	draw.Draw(backingImg, backingImg.Bounds(), image.Black, image.Point{}, draw.Src)
+	crtImage = newCrtMouseable(backingImg) // canvas.NewImageFromImage(backingImage)
+	crtImage.obj.SetMinSize(fyne.Size{Width: float32(terminal.display.visibleCols * charWidth),
+		Height: float32(terminal.display.visibleLines*charHeight + 1)})
+	// crtImage.FillMode = canvas.ImageFillOriginal
+	terminal.rwMutex.RUnlock()
+	return crtImage
 }
 
 func drawCrt() {
 	terminal.rwMutex.Lock()
 	if terminal.terminalUpdated {
+		// fmt.Println("DEBUG: drawCrt2 running update...")
 		var cIx int
-		drawable := offScreenPixmap.GetDrawable()
+
 		for line := 0; line < terminal.display.visibleLines; line++ {
 			for col := 0; col < terminal.display.visibleCols; col++ {
 				if terminal.displayDirty[line][col] || (terminal.blinkEnabled && terminal.display.cells[line][col].blink) {
 					cIx = int(terminal.display.cells[line][col].charValue)
 					if cIx > 31 && cIx < 128 {
+						// fmt.Printf("DEBUG: drawCrt found updatable char <%c>\n", terminal.display.cells[line][col].charValue)
+						cellRect := image.Rect(col*charWidth, line*charHeight+1, col*charWidth+charWidth, line*charHeight+charHeight)
 						switch {
 						case terminal.blinkEnabled && terminal.blinkState && terminal.display.cells[line][col].blink:
-							drawable.DrawPixbuf(gc, bdfFont[32].pixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
+							draw.Draw(backingImg, cellRect, bdfFont[32].plainImg, image.Point{}, draw.Src)
 						case terminal.display.cells[line][col].reverse:
-							drawable.DrawPixbuf(gc, bdfFont[cIx].reversePixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
+							draw.Draw(backingImg, cellRect, bdfFont[cIx].revImg, image.Point{}, draw.Src)
 						case terminal.display.cells[line][col].dim:
-							drawable.DrawPixbuf(gc, bdfFont[cIx].dimPixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
+							draw.Draw(backingImg, cellRect, bdfFont[cIx].dimImg, image.Point{}, draw.Src)
 						default:
-							drawable.DrawPixbuf(gc, bdfFont[cIx].pixbuf, 0, 0, col*charWidth, line*charHeight, charWidth, charHeight, 0, 0, 0)
+							draw.Draw(backingImg, cellRect, bdfFont[cIx].plainImg, image.Point{}, draw.Src)
 						}
 					}
 					// underscore?
 					if terminal.display.cells[line][col].underscore {
-						drawable.DrawLine(gc, col*charWidth, ((line+1)*charHeight)-1, (col+1)*charWidth-1, ((line+1)*charHeight)-1)
+						for x := 0; x < charWidth; x++ {
+							backingImg.Set(col*charWidth+x, ((line+1)*charHeight)-1, terminal.fontColour)
+						}
 					}
 					terminal.displayDirty[line][col] = false
 				}
@@ -139,40 +116,48 @@ func drawCrt() {
 		} // end for line
 		// draw the cursor - if on-screen
 		if terminal.cursorX < terminal.display.visibleCols && terminal.cursorY < terminal.display.visibleLines {
+			cellRect := image.Rect(terminal.cursorX*charWidth, terminal.cursorY*charHeight+1, terminal.cursorX*charWidth+charWidth, terminal.cursorY*charHeight+charHeight)
 			cIx := int(terminal.display.cells[terminal.cursorY][terminal.cursorX].charValue)
 			if cIx == 0 {
 				cIx = 32
 			}
 			if terminal.display.cells[terminal.cursorY][terminal.cursorX].reverse {
-				drawable.DrawPixbuf(gc, bdfFont[cIx].pixbuf, 0, 0, terminal.cursorX*charWidth, terminal.cursorY*charHeight, charWidth, charHeight, 0, 0, 0)
+				draw.Draw(backingImg, cellRect, bdfFont[cIx].plainImg, image.Point{}, draw.Src)
 			} else {
-				//fmt.Printf("Drawing cursor at %d,%d\n", terminal.cursorX*charWidth, terminal.cursorY*charHeight)
-				drawable.DrawPixbuf(gc, bdfFont[cIx].reversePixbuf, 0, 0, terminal.cursorX*charWidth, terminal.cursorY*charHeight, charWidth, charHeight, 0, 0, 0)
+				// fmt.Printf("Drawing cursor at %d,%d\n", terminal.cursorX*charWidth, terminal.cursorY*charHeight)
+				draw.Draw(backingImg, cellRect, bdfFont[cIx].revImg, image.Point{}, draw.Src)
 			}
 			terminal.displayDirty[terminal.cursorY][terminal.cursorX] = true // this ensures that the old cursor pos is redrawn on the next refresh
 		}
-		// shade any selected area
-		if terminal.selectionRegion.isActive {
-			startCharPosn := terminal.selectionRegion.startCol + terminal.selectionRegion.startRow*terminal.display.visibleCols
-			endCharPosn := terminal.selectionRegion.endCol + terminal.selectionRegion.endRow*terminal.display.visibleCols
-			if startCharPosn <= endCharPosn {
-				// normal (forward) selection
-				col := terminal.selectionRegion.startCol
-				for row := terminal.selectionRegion.startRow; row <= terminal.selectionRegion.endRow; row++ {
-					for col < terminal.display.visibleCols {
-						drawable.DrawLine(gc, col*charWidth, ((row+1)*charHeight)-1, (col+1)*charWidth-1, ((row+1)*charHeight)-1)
-						if row == terminal.selectionRegion.endRow && col == terminal.selectionRegion.endCol {
-							goto shadingDone
-						}
-						col++
-					}
-					col = 0
-				}
-			}
-		}
-	shadingDone:
+		// 	// shade any selected area
+		// 	if selectionRegion.isActive {
+		// 		startCharPosn := selectionRegion.startCol + selectionRegion.startRow*terminal.display.visibleCols
+		// 		endCharPosn := selectionRegion.endCol + selectionRegion.endRow*terminal.display.visibleCols
+		// 		if startCharPosn <= endCharPosn {
+		// 			// normal (forward) selection
+		// 			col := selectionRegion.startCol
+		// 			for row := selectionRegion.startRow; row <= selectionRegion.endRow; row++ {
+		// 				for col < terminal.display.visibleCols {
+		// 					hLine(backingImg, col*charWidth, ((row+1)*charHeight)-1, (col+1)*charWidth-1)
+		// 					//draw.DrawLine(gc, col*charWidth, ((row+1)*charHeight)-1, (col+1)*charWidth-1, ((row+1)*charHeight)-1)
+		// 					if row == selectionRegion.endRow && col == selectionRegion.endCol {
+		// 						goto shadingDone
+		// 					}
+		// 					col++
+		// 				}
+		// 				col = 0
+		// 			}
+		// 		}
+		// 	}
+		// shadingDone:
 		terminal.terminalUpdated = false
-		gdkWin.Invalidate(nil, false)
+		w.Canvas().Refresh(crtImg)
 	}
 	terminal.rwMutex.Unlock()
 }
+
+// func hLine(img *image.NRGBA, x1, y, x2 int) {
+// 	for ; x1 <= x2; x1++ {
+// 		img.Set(x1, y, color.White)
+// 	}
+// }

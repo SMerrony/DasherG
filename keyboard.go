@@ -1,4 +1,4 @@
-// Copyright (C) 2017, 2018  Steve Merrony
+// Copyright ©2017-2021 Steve Merrony
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -20,104 +20,177 @@
 package main
 
 import (
-	"github.com/mattn/go-gtk/gdk"
+	"fyne.io/fyne/v2"
 )
 
 var (
-	keyPressEventChan         = make(chan *gdk.EventKey, keyBuffSize)
-	keyReleaseEventChan       = make(chan *gdk.EventKey, keyBuffSize)
+	keyDownEventChan          = make(chan *fyne.KeyEvent, keyBuffSize)
+	keyUpEventChan            = make(chan *fyne.KeyEvent, keyBuffSize)
 	ctrlPressed, shiftPressed bool
 )
 
 func keyEventHandler(kbdChan chan<- byte) {
 	for {
 		select {
-		case keyPressEvent := <-keyPressEventChan:
-			//fmt.Println("keyEventHandler got press event")
-			switch keyPressEvent.Keyval {
-			case gdk.KEY_Control_L, gdk.KEY_Control_R:
+		case keyPressEvent := <-keyDownEventChan:
+			// fmt.Println("keyEventHandler got press event")
+			switch keyPressEvent.Name {
+			case "LeftControl", "RightControl":
 				ctrlPressed = true
-			case gdk.KEY_Shift_L, gdk.KEY_Shift_R, gdk.KEY_Shift_Lock - 1:
+			case "LeftShift", "RightShift":
 				shiftPressed = true
+			case "CapsLock":
+				shiftPressed = !shiftPressed
 			}
 
-		case keyReleaseEvent := <-keyReleaseEventChan:
-			//fmt.Println("keyEventHandler got release event")
-			switch keyReleaseEvent.Keyval {
-			case gdk.KEY_Control_L, gdk.KEY_Control_R:
+		case keyReleaseEvent := <-keyUpEventChan:
+			// fmt.Printf("keyEventHandler got release event for <%s> with code: %d\n", keyReleaseEvent.Name, keyReleaseEvent.Physical)
+			switch keyReleaseEvent.Name {
+			case "LeftControl", "RightControl":
 				ctrlPressed = false
-			case gdk.KEY_Shift_L, gdk.KEY_Shift_R, gdk.KEY_Shift_Lock - 1:
+			case "LeftShift", "RightShift":
 				shiftPressed = false
 
-			case gdk.KEY_Escape:
+			case fyne.KeyReturn:
+				kbdChan <- dasherNewLine
+
+			case fyne.KeyEscape:
 				kbdChan <- '\033'
 
-			case gdk.KEY_Home:
+			case fyne.KeyHome:
 				kbdChan <- dasherHome
 
-			case gdk.KEY_Delete: // the DEL key must map to 127 which is the DASHER DEL code
+			case fyne.KeyDelete: // the DEL key must map to 127 which is the DASHER DEL code
 				kbdChan <- modify(127)
 
-			case gdk.KEY_F1:
+			case fyne.KeyF1:
 				kbdChan <- dasherCmd
 				kbdChan <- modify(113)
-			case gdk.KEY_F2:
+			case fyne.KeyF2:
 				kbdChan <- dasherCmd
 				kbdChan <- modify(114)
-			case gdk.KEY_F3:
+			case fyne.KeyF3:
 				kbdChan <- dasherCmd
 				kbdChan <- modify(115)
-			case gdk.KEY_F4:
+			case fyne.KeyF4:
 				kbdChan <- dasherCmd
 				kbdChan <- modify(116)
-			case gdk.KEY_F5:
+			case fyne.KeyF5:
 				kbdChan <- dasherCmd
 				kbdChan <- modify(117)
 
-			case gdk.KEY_F6:
+			case fyne.KeyF6:
 				kbdChan <- dasherCmd
 				kbdChan <- modify(118)
-			case gdk.KEY_F7:
+			case fyne.KeyF7:
 				kbdChan <- dasherCmd
 				kbdChan <- modify(119)
-			case gdk.KEY_F8:
+			case fyne.KeyF8:
 				kbdChan <- dasherCmd
 				kbdChan <- modify(120)
-			case gdk.KEY_F9:
+			case fyne.KeyF9:
 				kbdChan <- dasherCmd
 				kbdChan <- modify(121)
-			case gdk.KEY_F10:
+			case fyne.KeyF10:
 				kbdChan <- dasherCmd
 				kbdChan <- modify(122)
 
-			case gdk.KEY_F11:
+			case fyne.KeyF11:
 				kbdChan <- dasherCmd
 				kbdChan <- modify(123)
-			case gdk.KEY_F12:
+			case fyne.KeyF12:
 				kbdChan <- dasherCmd
 				kbdChan <- modify(124)
-			case gdk.KEY_F13:
+			case "F13":
 				kbdChan <- dasherCmd
 				kbdChan <- modify(125)
-			case gdk.KEY_F14:
+			case "F14":
 				kbdChan <- dasherCmd
 				kbdChan <- modify(126)
-			case gdk.KEY_F15:
+			case "F15":
 				kbdChan <- dasherCmd
 				kbdChan <- modify(112)
 
 				// Cursor keys
-			case gdk.KEY_Down:
+			case fyne.KeyDown:
 				kbdChan <- dasherCursorDown
-			case gdk.KEY_Left:
+			case fyne.KeyLeft:
 				kbdChan <- dasherCursorLeft
-			case gdk.KEY_Right:
+			case fyne.KeyRight:
 				kbdChan <- dasherCursorRight
-			case gdk.KEY_Up:
+			case fyne.KeyUp:
 				kbdChan <- dasherCursorUp
 
+			case fyne.KeySpace:
+				kbdChan <- ' '
+
 			default:
-				keyByte := byte(keyReleaseEvent.Keyval)
+				// TODO special case for #, remove when Fyne adds KeyName for KeyHash
+				if keyReleaseEvent.Physical.ScanCode == 51 {
+					if shiftPressed {
+						kbdChan <- '~'
+					} else {
+						kbdChan <- '#'
+					}
+					continue
+				}
+				keyByte := byte(keyReleaseEvent.Name[0])
+				switch {
+				case keyByte >= 'A' && keyByte <= 'Z':
+					if !shiftPressed {
+						keyByte += 32
+					}
+				case keyByte >= '0' && keyByte <= '9':
+					if shiftPressed {
+						switch keyByte {
+						case '0':
+							keyByte = ')'
+						case '1':
+							keyByte = '!'
+						case '2':
+							keyByte = '"'
+						case '3':
+							keyByte = '#' // US-style keyboard...
+						case '4':
+							keyByte = '$'
+						case '5':
+							keyByte = '%'
+						case '6':
+							keyByte = '^'
+						case '7':
+							keyByte = '&'
+						case '8':
+							keyByte = '*'
+						case '9':
+							keyByte = '('
+						}
+					}
+				case shiftPressed:
+					switch keyByte {
+					case '`', '\\':
+						keyByte = '|'
+					case '-':
+						keyByte = '_'
+					case '=':
+						keyByte = '+'
+					case '[':
+						keyByte = '{'
+					case ']':
+						keyByte = '}'
+					case ';':
+						keyByte = ':'
+					case '\'':
+						keyByte = '@'
+					case '#':
+						keyByte = '~'
+					case ',':
+						keyByte = '<'
+					case '.':
+						keyByte = '>'
+					case '/':
+						keyByte = '?'
+					}
+				}
 				if ctrlPressed {
 					keyByte &= 31 //mask off lower 5 bits
 					//fmt.Printf("Keystroke modified to <%d>\n", keyByte)

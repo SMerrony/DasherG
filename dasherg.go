@@ -1,6 +1,6 @@
 // dasherg.go
 
-// Copyright ©2017-2021  Steve Merrony
+// Copyright © 2017-2021,2025  Steve Merrony
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -22,6 +22,7 @@
 package main
 
 import (
+	_ "embed"
 	"flag"
 	"fmt"
 	"image"
@@ -29,34 +30,31 @@ import (
 	"image/draw"
 	"image/png"
 	"log"
+	"os"
 	"os/exec"
 	"runtime"
-
-	// _ "net/http/pprof" // debugging
-
-	"os"
 	"runtime/pprof"
 	"runtime/trace"
 	"strconv"
 	"strings"
-	"unsafe"
+	"time"
 
-	"github.com/mattn/go-gtk/gdk"
-	"github.com/mattn/go-gtk/gdkpixbuf"
-	"github.com/mattn/go-gtk/glib"
-	"github.com/mattn/go-gtk/gtk"
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/driver/desktop"
+	"fyne.io/fyne/v2/layout"
+	"fyne.io/fyne/v2/widget"
+	// _ "net/http/pprof" // debugging
 )
 
-//go:generate go-bindata -prefix "resources/" -pkg main -o resources.go resources/...
-
 const (
-	appID        = "uk.co.merrony.dasherg"
 	appTitle     = "DasherG"
 	appComment   = "A Data General DASHER terminal emulator"
-	appCopyright = "Copyright ©2017-2020 S.Merrony"
-	appSemVer    = "v0.10.4" // TODO Update SemVer on each release!
+	appCopyright = "Copyright ©2017-2021,2025 S.Merrony"
+	appSemVer    = "v0.16.0" // TODO Update SemVer on each release!
 	appWebsite   = "https://github.com/SMerrony/DasherG"
-	fontFile     = "D410-b-12.bdf"
 	helpURL      = "https://github.com/SMerrony/DasherG"
 
 	hostBuffSize = 2048
@@ -68,14 +66,8 @@ const (
 	// crtRefreshMs influences the responsiveness of the display. 50ms = 20Hz or 20fps
 	crtRefreshMs         = 50
 	statusUpdatePeriodMs = 500
-
-	zoomLarge = iota
-	zoomNormal
-	zoomSmaller
-	zoomTiny
+	logLines             = 1000
 )
-
-var appAuthors = []string{"Stephen Merrony"}
 
 var (
 	terminal *terminalT
@@ -92,30 +84,41 @@ var (
 	telnetClosing         bool
 	traceExpect           bool
 
-	gc              *gdk.GC
-	crt             *gtk.DrawingArea
-	scroller        *gtk.VScrollbar
-	zoom            = zoomNormal
-	offScreenPixmap *gdk.Pixmap
-	win             *gtk.Window
-	gdkWin          *gdk.Window
-	iconPixbuf      *gdkpixbuf.Pixbuf
+	selectionRegion struct {
+		isActive                           bool
+		startRow, startCol, endRow, endCol int
+	}
+
+	zoom     = ZoomNormal
+	w        fyne.Window
+	crtImg   *crtMouseable
+	amber    = color.RGBA{0xff, 0xbf, 0x00, 0xff}
+	dimAmber = color.RGBA{0x88, 0x5f, 0x00, 0xff}
+	green    = color.RGBA{0x00, 0xff, 0x00, 0xff}
+	dimGreen = color.RGBA{0x00, 0x80, 0x00, 0xff}
+	white    = color.RGBA{0xff, 0xff, 0xff, 0xff}
+	dimWhite = color.RGBA{0x88, 0x88, 0x88, 0xff}
 
 	// widgets needing global access
-	serialConnectMenuItem, serialDisconnectMenuItem      *gtk.MenuItem
-	networkConnectMenuItem, networkDisconnectMenuItem    *gtk.MenuItem
-	onlineLabel, hostLabel, loggingLabel, emuStatusLabel *gtk.Label
-	expectDialog                                         *gtk.FileChooserDialog
+	onlineLabel2, hostLabel2, loggingLabel2, emuStatusLabel2                           *widget.Label
+	serialConnectItem, serialDisconnectItem, networkConnectItem, networkDisconnectItem *fyne.MenuItem
+	topVbox, labelGrid                                                                 *fyne.Container
+	specialThemeOverride, labelThemeOverride, funcThemeOverride                        *container.ThemeOverride
 )
 
 var (
+	amberFlag       = flag.Bool("amber", false, "Use Amber font instead of default Green")
 	cpuprofile      = flag.String("cpuprofile", "", "Write cpu profile to file")
 	cputrace        = flag.String("cputrace", "", "Write trace to file")
 	hostFlag        = flag.String("host", "", "Host to connect with")
 	traceExpectFlag = flag.Bool("tracescript", false, "Print trace of Mini-Expect script on STDOUT")
+	xmodemTraceFlag = flag.Bool("tracexmodem", false, "Show details of XMODEM file transfers on STDOUT")
 	versionFlag     = flag.Bool("version", false, "Display version number and exit")
-	xmodemTraceFlag = flag.Bool("xmodemtrace", false, "Show details of XMODEM file transfers on STDOUT")
+	whiteFlag       = flag.Bool("white", false, "Use White font")
 )
+
+//go:embed resources/D410-b-12.bdf
+var fontData []byte
 
 func main() {
 
@@ -153,19 +156,26 @@ func main() {
 		traceExpect = true
 	}
 
-	gtk.Init(nil)
+	a := app.New()
+	// a.Settings().SetTheme(&ourTheme{})
 
-	// get the application and dialog icon
-	iconPixbuf = gdkpixbuf.NewPixbufFromData(iconPNG)
+	fontColour := green
+	fontDimColour := dimGreen
+	if *amberFlag {
+		fontColour = amber
+		fontDimColour = dimAmber
+	}
+	if *whiteFlag {
+		fontColour = white
+		fontDimColour = dimWhite
+	}
 
-	bdfLoad(fontFile, zoomNormal)
+	bdfLoad(fontData, ZoomNormal, fontColour, fontDimColour)
 	go localListener(keyboardChan, fromHostChan)
 	terminal = new(terminalT)
-	terminal.setup(fromHostChan, updateCrtChan, expectChan)
-	win = gtk.NewWindow(gtk.WINDOW_TOPLEVEL)
-	setupWindow(win)
-	win.ShowAll()
-	gdkWin = crt.GetWindow()
+	terminal.setup(fromHostChan, updateCrtChan, expectChan, fontColour)
+	w = a.NewWindow(appTitle)
+	setupWindow(w)
 
 	if *hostFlag != "" {
 		hostParts := strings.Split(*hostFlag, ":")
@@ -179,9 +189,6 @@ func main() {
 		telnetSession = newTelnetSession()
 		if telnetSession.openTelnetConn(hostParts[0], hostPort) {
 			localListenerStopChan <- true
-			networkConnectMenuItem.SetSensitive(false)
-			serialConnectMenuItem.SetSensitive(false)
-			networkDisconnectMenuItem.SetSensitive(true)
 			lastTelnetHost = hostParts[0]
 			lastTelnetPort = hostPort
 		}
@@ -189,47 +196,65 @@ func main() {
 
 	go terminal.updateListener()
 
-	glib.TimeoutAdd(crtRefreshMs, func() bool {
-		drawCrt()
-		return true
-	})
+	go func() {
+		for {
+			drawCrt()
+			time.Sleep(crtRefreshMs * time.Millisecond)
+		}
+	}()
 
-	gtk.Main()
+	w.ShowAndRun()
 }
 
-func setupWindow(win *gtk.Window) {
-	win.SetTitle(appTitle)
-	win.Connect("destroy", func() {
-		gtk.MainQuit()
-	})
-	//win.SetDefaultSize(800, 600)
+func setupWindow(w fyne.Window) {
+	w.SetIcon(resourceDGlogoOrangePng)
+	w.SetMainMenu(buildMenu())
+
 	go keyEventHandler(keyboardChan)
-	win.Connect("key-press-event", func(ctx *glib.CallbackContext) {
-		arg := ctx.Args(0)
-		keyPressEventChan <- *(**gdk.EventKey)(unsafe.Pointer(&arg))
-	})
-	win.Connect("key-release-event", func(ctx *glib.CallbackContext) {
-		arg := ctx.Args(0)
-		keyReleaseEventChan <- *(**gdk.EventKey)(unsafe.Pointer(&arg))
-	})
-	vbox := gtk.NewVBox(false, 1)
-	vbox.PackStart(buildMenu(), false, false, 0)
-	vbox.PackStart(buildFkeyMatrix(), false, false, 0)
-	crt = buildCrt()
+
+	if deskCanvas, ok := w.Canvas().(desktop.Canvas); ok {
+		deskCanvas.SetOnKeyDown(func(ev *fyne.KeyEvent) {
+			keyDownEventChan <- ev
+		})
+		deskCanvas.SetOnKeyUp(func(ev *fyne.KeyEvent) {
+			keyUpEventChan <- ev
+		})
+	}
+
+	crtImg = buildCrt()
 	go terminal.run()
-	glib.TimeoutAdd(blinkPeriodMs, func() bool {
-		updateCrtChan <- updateCrtBlink
-		return true
-	})
-	scroller = buildScrollbar()
-	hbox := gtk.NewHBox(false, 1)
-	hbox.PackStart(crt, false, false, 1)
-	hbox.PackEnd(scroller, false, false, 1)
-	vbox.PackStart(hbox, false, false, 1)
+
+	go func() {
+		for {
+			updateCrtChan <- updateCrtBlink
+			time.Sleep(blinkPeriodMs * time.Millisecond)
+		}
+	}()
+
+	setContent(w)
+}
+
+func setContent(w fyne.Window) {
+	specialKeyGrid := buildSpecialKeyRow(w)
+	labelGrid = buildLabelGrid(w)
+	labelGrid.Hide()
+	fkGrid := buildFuncKeyRow(w) //buildFkeyMatrix(w)
+	specialThemeOverride = container.NewThemeOverride(specialKeyGrid, &buttonTheme{})
+	labelThemeOverride = container.NewThemeOverride(labelGrid, &fkeyLabelTheme{})
+	funcThemeOverride = container.NewThemeOverride(fkGrid, &fkeyTheme{})
+	topVbox = container.NewVBox(specialThemeOverride, labelThemeOverride, funcThemeOverride)
 	statusBox := buildStatusBox()
-	vbox.PackEnd(statusBox, false, false, 0)
-	win.Add(vbox)
-	win.SetIcon(iconPixbuf)
+	// scrollSlider := buildScrollSlider()
+	content := container.NewBorder(
+		topVbox,
+		statusBox,
+		nil, nil,
+		container.NewHBox(layout.NewSpacer(),
+			container.NewVBox(layout.NewSpacer(), crtImg, layout.NewSpacer()),
+			// scrollSlider,
+			layout.NewSpacer()),
+	)
+	w.SetContent(content)
 }
 
 func localListener(kbdChan <-chan byte, frmHostChan chan<- []byte) {
@@ -239,6 +264,7 @@ func localListener(kbdChan <-chan byte, frmHostChan chan<- []byte) {
 		select {
 		case kev := <-kbdChan:
 			key[0] = kev
+			// fmt.Printf("DEBUG: localListener sending <%c>\n", kev)
 			frmHostChan <- key
 		case <-localListenerStopChan:
 			fmt.Println("INFO: localListener stopped")
@@ -247,133 +273,76 @@ func localListener(kbdChan <-chan byte, frmHostChan chan<- []byte) {
 	}
 }
 
-func buildMenu() *gtk.MenuBar {
-	menuBar := gtk.NewMenuBar()
+func buildMenu() (mainMenu *fyne.MainMenu) {
 
-	fileMenuItem := gtk.NewMenuItemWithLabel("File")
-	menuBar.Append(fileMenuItem)
-	subMenu := gtk.NewMenu()
-	fileMenuItem.SetSubmenu(subMenu)
-	loggingMenuItem := gtk.NewMenuItemWithLabel("Logging")
-	loggingMenuItem.Connect("activate", fileLogging)
-	subMenu.Append(loggingMenuItem)
+	// file
+	loggingItem := fyne.NewMenuItem("Logging", func() { fileLogging(w) })
+	expectItem := fyne.NewMenuItem("Run mini-Expect Sctipt", func() { fileChooseExpectScript(w) })
+	sendFileItem := fyne.NewMenuItem("Send (Text) File", func() { fileSendText(w) })
+	xmodemRcvItem := fyne.NewMenuItem("XMODEM-CRC - Receive File", func() { fileXmodemReceive(w) })
+	xmodemSendItem := fyne.NewMenuItem("XMODEM-CRC - Send File", func() { fileXmodemSend(w) })
+	xmodemSend1kItem := fyne.NewMenuItem("XMODEM-CRC - Send File (1kB packets)", func() { fileXmodemSend1k(w) })
+	fileMenu := fyne.NewMenu("File",
+		loggingItem, fyne.NewMenuItemSeparator(),
+		expectItem, fyne.NewMenuItemSeparator(),
+		sendFileItem, fyne.NewMenuItemSeparator(),
+		xmodemRcvItem, xmodemSendItem, xmodemSend1kItem)
 
-	subMenu.Append(gtk.NewSeparatorMenuItem())
+	// edit
+	pasteItem := fyne.NewMenuItem("Paste", func() { editPaste(w) })
+	editMenu := fyne.NewMenu("Edit", pasteItem)
 
-	expectFileMenuItem := gtk.NewMenuItemWithLabel("Run mini-Expect Script")
-	expectFileMenuItem.Connect("activate", fileChooseExpectScript)
-	subMenu.Append(expectFileMenuItem)
-
-	subMenu.Append(gtk.NewSeparatorMenuItem())
-
-	sendFileMenuItem := gtk.NewMenuItemWithLabel("Send (Text) File")
-	sendFileMenuItem.Connect("activate", fileSendText)
-	subMenu.Append(sendFileMenuItem)
-
-	subMenu.Append(gtk.NewSeparatorMenuItem())
-
-	xmodemRcvMenuItem := gtk.NewMenuItemWithLabel("XMODEM-CRC - Receive File")
-	xmodemRcvMenuItem.Connect("activate", fileXmodemReceive)
-	subMenu.Append(xmodemRcvMenuItem)
-
-	xmodemSendMenuItem := gtk.NewMenuItemWithLabel("XMODEM-CRC - Send File")
-	xmodemSendMenuItem.Connect("activate", fileXmodemSend)
-	subMenu.Append(xmodemSendMenuItem)
-
-	xmodemSend1kMenuItem := gtk.NewMenuItemWithLabel("XMODEM-CRC - Send File (1k packets)")
-	xmodemSend1kMenuItem.Connect("activate", fileXmodemSend1k)
-	subMenu.Append(xmodemSend1kMenuItem)
-
-	subMenu.Append(gtk.NewSeparatorMenuItem())
-
-	quitMenuItem := gtk.NewMenuItemWithLabel("Quit")
-	subMenu.Append(quitMenuItem)
-	quitMenuItem.Connect("activate", func() {
-		pprof.StopCPUProfile()
-		gtk.MainQuit()
-		//os.Exit(0)
+	// view
+	historyItem := fyne.NewMenuItem("History", func() { viewHistory() })
+	loadTemplateItem := fyne.NewMenuItem("Load Func. Key Template", func() {
+		labelGrid.Show()
+		loadFKeyTemplate(w)
 	})
+	hideTemplateItem := fyne.NewMenuItem("Hide Func. Key Template", func() {
+		labelGrid.Hide()
+		topVbox.Refresh()
+		w.Resize(fyne.Size{Width: 100, Height: 100}) // TODO not working
+	})
+	viewMenu := fyne.NewMenu("View", historyItem, fyne.NewMenuItemSeparator(), loadTemplateItem, hideTemplateItem)
 
-	editMenuItem := gtk.NewMenuItemWithLabel("Edit")
-	menuBar.Append(editMenuItem)
-	subMenu = gtk.NewMenu()
-	editMenuItem.SetSubmenu(subMenu)
-	pasteItem := gtk.NewMenuItemWithLabel("Paste")
-	pasteItem.Connect("activate", editPaste)
-	subMenu.Append(pasteItem)
+	// emulation
+	d200Item := fyne.NewMenuItem("D200", func() { terminal.setEmulation(d200) })
+	d210Item := fyne.NewMenuItem("D210", func() { terminal.setEmulation(d210) })
+	resizeItem := fyne.NewMenuItem("Resize Terminal", func() { emulationResize(w) })
+	selfTestItem := fyne.NewMenuItem("Self-Test", func() { terminal.selfTest(fromHostChan) })
+	emulationMenu := fyne.NewMenu("Emulation",
+		d200Item, d210Item, fyne.NewMenuItemSeparator(),
+		resizeItem, fyne.NewMenuItemSeparator(),
+		selfTestItem,
+	)
 
-	emulationMenuItem := gtk.NewMenuItemWithLabel("Emulation")
-	menuBar.Append(emulationMenuItem)
-	subMenu = gtk.NewMenu()
-	var emuGroup *glib.SList
-	emulationMenuItem.SetSubmenu(subMenu)
+	// serial
+	serialConnectItem = fyne.NewMenuItem("Connect", func() { serialConnect(w) })
+	serialDisconnectItem = fyne.NewMenuItem("Disconnect", serialClose)
+	serialDisconnectItem.Disabled = true
+	serialMenu := fyne.NewMenu("Serial", serialConnectItem, serialDisconnectItem)
 
-	d200MenuItem := gtk.NewRadioMenuItemWithLabel(emuGroup, "D200")
-	emuGroup = d200MenuItem.GetGroup()
-	if terminal.emulation == d200 {
-		d200MenuItem.SetActive(true)
-	}
-	subMenu.Append(d200MenuItem)
+	// network
+	networkConnectItem = fyne.NewMenuItem("Connect", func() { telnetOpen(w) })
+	networkDisconnectItem = fyne.NewMenuItem("Disconnect", telnetClose)
+	networkDisconnectItem.Disabled = true
+	networkMenu := fyne.NewMenu("Network", networkConnectItem, networkDisconnectItem)
 
-	d210MenuItem := gtk.NewRadioMenuItemWithLabel(emuGroup, "D210")
-	if terminal.emulation == d210 {
-		d210MenuItem.SetActive(true)
-	}
-	subMenu.Append(d210MenuItem)
+	// help
+	onlineHelpItem := fyne.NewMenuItem("Online Help", func() { openBrowser(helpURL) })
+	aboutItem := fyne.NewMenuItem("About", helpAbout)
+	helpMenu := fyne.NewMenu("Help", onlineHelpItem, fyne.NewMenuItemSeparator(), aboutItem)
 
-	// for some reason, the 1st of these gets triggered at startup...
-	d210MenuItem.Connect("activate", func() { terminal.setEmulation(d210) })
-	d200MenuItem.Connect("activate", func() { terminal.setEmulation(d200) })
-
-	subMenu.Append(gtk.NewSeparatorMenuItem())
-	resizeMenuItem := gtk.NewMenuItemWithLabel("Resize")
-	resizeMenuItem.Connect("activate", emulationResize)
-	subMenu.Append(resizeMenuItem)
-	subMenu.Append(gtk.NewSeparatorMenuItem())
-	selfTestMenuItem := gtk.NewMenuItemWithLabel("Self-Test")
-	subMenu.Append(selfTestMenuItem)
-	selfTestMenuItem.Connect("activate", func() { terminal.selfTest(fromHostChan) })
-	loadTemplateMenuItem := gtk.NewMenuItemWithLabel("Load Func. Key Template")
-	loadTemplateMenuItem.Connect("activate", loadFKeyTemplate)
-	subMenu.Append(loadTemplateMenuItem)
-
-	serialMenuItem := gtk.NewMenuItemWithLabel("Serial")
-	menuBar.Append(serialMenuItem)
-	subMenu = gtk.NewMenu()
-	serialMenuItem.SetSubmenu(subMenu)
-	serialConnectMenuItem = gtk.NewMenuItemWithLabel("Connect")
-	serialConnectMenuItem.Connect("activate", serialConnect)
-	subMenu.Append(serialConnectMenuItem)
-	serialDisconnectMenuItem = gtk.NewMenuItemWithLabel("Disconnect")
-	serialDisconnectMenuItem.Connect("activate", serialClose)
-	subMenu.Append(serialDisconnectMenuItem)
-	serialDisconnectMenuItem.SetSensitive(false)
-
-	networkMenuItem := gtk.NewMenuItemWithLabel("Network")
-	menuBar.Append(networkMenuItem)
-	subMenu = gtk.NewMenu()
-	networkMenuItem.SetSubmenu(subMenu)
-	networkConnectMenuItem = gtk.NewMenuItemWithLabel("Connect")
-	subMenu.Append(networkConnectMenuItem)
-	networkConnectMenuItem.Connect("activate", telnetOpen)
-	networkDisconnectMenuItem = gtk.NewMenuItemWithLabel("Disconnect")
-	subMenu.Append(networkDisconnectMenuItem)
-	networkDisconnectMenuItem.Connect("activate", telnetClose)
-	networkDisconnectMenuItem.SetSensitive(false)
-
-	helpMenuItem := gtk.NewMenuItemWithLabel("Help")
-	menuBar.Append(helpMenuItem)
-	subMenu = gtk.NewMenu()
-	helpMenuItem.SetSubmenu(subMenu)
-	onlineHelpMenuItem := gtk.NewMenuItemWithLabel("Online Help")
-	onlineHelpMenuItem.Connect("activate", func() { openBrowser(helpURL) })
-	subMenu.Append(onlineHelpMenuItem)
-	subMenu.Append(gtk.NewSeparatorMenuItem())
-	aboutMenuItem := gtk.NewMenuItemWithLabel("About")
-	subMenu.Append(aboutMenuItem)
-	aboutMenuItem.Connect("activate", helpAbout)
-
-	return menuBar
+	mainMenu = fyne.NewMainMenu(
+		fileMenu,
+		editMenu,
+		viewMenu,
+		emulationMenu,
+		serialMenu,
+		networkMenu,
+		helpMenu,
+	)
+	return mainMenu
 }
 
 func openBrowser(url string) {
@@ -395,73 +364,75 @@ func openBrowser(url string) {
 
 }
 
-func buildScrollbar() (sb *gtk.VScrollbar) {
-	adj := gtk.NewAdjustment(historyLines, 0.0, historyLines, 1.0, 1.0, 1.0)
-	sb = gtk.NewVScrollbar(adj)
-	sb.Connect("value-changed", handleScrollbarChangedEvent)
-	return sb
-}
-
-func handleScrollbarChangedEvent(ctx *glib.CallbackContext) {
-	posn := int(scroller.GetValue())
-	//fmt.Printf("Scrollbar event: Value: %d\n", posn)
-	if posn == historyLines-1 {
-		terminal.cancelScrollBack()
-	} else {
-		terminal.scrollBack(historyLines - posn)
+// getSelection returns a DG-ASCII string containing the mouse-selected portion of the screen
+func getSelection() string {
+	startCharPosn := selectionRegion.startCol + selectionRegion.startRow*terminal.display.visibleCols
+	endCharPosn := selectionRegion.endCol + selectionRegion.endRow*terminal.display.visibleCols
+	selection := ""
+	if startCharPosn <= endCharPosn {
+		// normal (forward) selection
+		col := selectionRegion.startCol
+		for row := selectionRegion.startRow; row <= selectionRegion.endRow; row++ {
+			for col < terminal.display.visibleCols {
+				selection += string(terminal.display.cells[row][col].charValue)
+				terminal.displayDirty[row][col] = true
+				if row == selectionRegion.endRow && col == selectionRegion.endCol {
+					return selection
+				}
+				col++
+			}
+			selection += string(rune(dasherNewLine))
+			col = 0
+		}
 	}
+	return selection
 }
 
-func buildStatusBox() *gtk.HBox {
-	statusBox := gtk.NewHBox(true, 2)
+func buildStatusBox() (statBox *fyne.Container) {
 
-	onlineLabel = gtk.NewLabel("")
-	olf := gtk.NewFrame("")
-	olf.Add(onlineLabel)
-	statusBox.Add(olf)
+	onlineLabel2 = widget.NewLabel("")
+	hostLabel2 = widget.NewLabel("")
+	loggingLabel2 = widget.NewLabel("")
+	emuStatusLabel2 = widget.NewLabel("")
 
-	hostLabel = gtk.NewLabel("")
-	hlf := gtk.NewFrame("")
-	hlf.Add(hostLabel)
-	statusBox.Add(hlf)
+	statBox = container.New(layout.NewHBoxLayout(),
+		onlineLabel2,
+		layout.NewSpacer(),
+		hostLabel2,
+		layout.NewSpacer(),
+		loggingLabel2,
+		layout.NewSpacer(),
+		emuStatusLabel2,
+	)
 
-	loggingLabel = gtk.NewLabel("")
-	lf := gtk.NewFrame("")
-	lf.Add(loggingLabel)
-	statusBox.Add(lf)
+	go func() {
+		for {
+			updateStatusBox()
+			time.Sleep(statusUpdatePeriodMs * time.Millisecond)
+		}
+	}()
 
-	emuStatusLabel = gtk.NewLabel("")
-	esf := gtk.NewFrame("")
-	esf.Add(emuStatusLabel)
-	statusBox.Add(esf)
-
-	glib.TimeoutAdd(statusUpdatePeriodMs, func() bool {
-		updateStatusBox()
-		return true
-	})
-
-	return statusBox
+	return statBox
 }
 
-// updateStatusBox to be run regularly - N.B. on the main thread!
 func updateStatusBox() {
 	terminal.rwMutex.RLock()
 	switch terminal.connectionType {
 	case disconnected:
-		onlineLabel.SetText("Local (Offline)")
-		hostLabel.SetText("")
+		onlineLabel2.SetText("Local (Offline)")
+		hostLabel2.SetText("")
 	case serialConnected:
-		onlineLabel.SetText("Online (Serial)")
+		onlineLabel2.SetText("Online (Serial)")
 		serParms := terminal.serialPort + " @ " + serialSession.getParms()
-		hostLabel.SetText(serParms)
+		hostLabel2.SetText(serParms)
 	case telnetConnected:
-		onlineLabel.SetText("Online (Telnet)")
-		hostLabel.SetText(terminal.remoteHost + ":" + terminal.remotePort)
+		onlineLabel2.SetText("Online (Telnet)")
+		hostLabel2.SetText(terminal.remoteHost + ":" + terminal.remotePort)
 	}
 	if terminal.logging {
-		loggingLabel.SetText("Logging")
+		loggingLabel2.SetText("Logging")
 	} else {
-		loggingLabel.SetText("")
+		loggingLabel2.SetText("")
 	}
 	emuStat := "D" + strconv.Itoa(int(terminal.emulation)) + " (" +
 		strconv.Itoa(terminal.display.visibleLines) + "x" + strconv.Itoa(terminal.display.visibleCols) + ")"
@@ -469,58 +440,58 @@ func updateStatusBox() {
 		emuStat += " (Hold)"
 	}
 	terminal.rwMutex.RUnlock()
-	emuStatusLabel.SetText(emuStat)
+	emuStatusLabel2.SetText(emuStat)
 }
 
-func localPrint() {
-	fd := gtk.NewFileChooserDialog("DasherG Screen-Dump", win, gtk.FILE_CHOOSER_ACTION_SAVE,
-		"_Cancel", gtk.RESPONSE_CANCEL, "_Save", gtk.RESPONSE_ACCEPT)
-	fd.SetFilename("DASHER.png")
-	res := fd.Run()
-	if res == gtk.RESPONSE_ACCEPT {
-		filename := fd.GetFilename()
-		dumpFile, err := os.Create(filename)
-		if err != nil {
-			fmt.Printf("ERROR: Could not create file <%s> for screen-dump\n", filename)
-		} else {
-			defer dumpFile.Close()
-			img := image.NewNRGBA(image.Rect(0, 0, (terminal.display.visibleCols+1)*fontWidth, (terminal.display.visibleLines+1)*fontHeight))
-			bg := image.NewUniform(color.RGBA{255, 255, 255, 255})   // prepare white for background
-			grey := image.NewUniform(color.RGBA{128, 128, 128, 255}) // prepare grey for foreground
-			blk := image.NewUniform(color.RGBA{0, 0, 0, 255})        // prepare black for foreground
-			draw.Draw(img, img.Bounds(), bg, image.ZP, draw.Src)     // fill the background
-			for line := 0; line < terminal.display.visibleLines; line++ {
-				for col := 0; col < terminal.display.visibleCols; col++ {
-					for x := 0; x < fontWidth; x++ {
-						for y := 0; y < fontHeight; y++ {
-							switch {
-							case terminal.display.cells[line][col].dim:
-								if bdfFont[terminal.display.cells[line][col].charValue].pixels[x][y] {
-									img.Set(col*fontWidth+x, (line+1)*fontHeight-y, grey)
-								}
-							case terminal.display.cells[line][col].reverse:
-								if !bdfFont[terminal.display.cells[line][col].charValue].pixels[x][y] {
-									img.Set(col*fontWidth+x, (line+1)*fontHeight-y, blk)
-								}
-							default:
-								if bdfFont[terminal.display.cells[line][col].charValue].pixels[x][y] {
-									img.Set(col*fontWidth+x, (line+1)*fontHeight-y, blk)
+func localPrint(win fyne.Window) {
+	fd := dialog.NewFileSave(func(uriwc fyne.URIWriteCloser, e error) {
+		if uriwc != nil {
+			filename := uriwc.URI().Path()
+			dumpFile, err := os.Create(filename)
+			if err != nil {
+				dialog.ShowError(err, win)
+			} else {
+				defer dumpFile.Close()
+				img := image.NewNRGBA(image.Rect(0, 0, (terminal.display.visibleCols+1)*fontWidth, (terminal.display.visibleLines+1)*fontHeight))
+				bg := image.NewUniform(color.RGBA{255, 255, 255, 255})    // prepare white for background
+				grey := image.NewUniform(color.RGBA{128, 128, 128, 255})  // prepare grey for foreground
+				blk := image.NewUniform(color.RGBA{0, 0, 0, 255})         // prepare black for foreground
+				draw.Draw(img, img.Bounds(), bg, image.Point{}, draw.Src) // fill the background
+				for line := 0; line < terminal.display.visibleLines; line++ {
+					for col := 0; col < terminal.display.visibleCols; col++ {
+						for x := 0; x < fontWidth; x++ {
+							for y := 0; y < fontHeight; y++ {
+								switch {
+								case terminal.display.cells[line][col].dim:
+									if bdfFont[terminal.display.cells[line][col].charValue].pixels[x][y] {
+										img.Set(col*fontWidth+x, (line+1)*fontHeight-y, grey)
+									}
+								case terminal.display.cells[line][col].reverse:
+									if !bdfFont[terminal.display.cells[line][col].charValue].pixels[x][y] {
+										img.Set(col*fontWidth+x, (line+1)*fontHeight-y, blk)
+									}
+								default:
+									if bdfFont[terminal.display.cells[line][col].charValue].pixels[x][y] {
+										img.Set(col*fontWidth+x, (line+1)*fontHeight-y, blk)
+									}
 								}
 							}
 						}
-					}
-					if terminal.display.cells[line][col].underscore {
-						for x := 0; x < fontWidth; x++ {
-							img.Set(col*fontWidth+x, (line+1)*fontHeight, blk)
+						if terminal.display.cells[line][col].underscore {
+							for x := 0; x < fontWidth; x++ {
+								img.Set(col*fontWidth+x, (line+1)*fontHeight, blk)
+							}
 						}
 					}
 				}
+				if err := png.Encode(dumpFile, img); err != nil {
+					fmt.Printf("ERROR: Could not save PNG screen-dump, %v\n", err)
+				}
 			}
-			if err := png.Encode(dumpFile, img); err != nil {
-				fmt.Printf("ERROR: Could not save PNG screen-dump, %v\n", err)
-			}
-			dumpFile.Close()
 		}
-	}
-	fd.Destroy()
+	}, win)
+	fd.SetFileName("DASHER.png")
+	fd.Resize(fyne.Size{Width: 600, Height: 600})
+	fd.SetDismissText("Dump Screen")
+	fd.Show()
 }
