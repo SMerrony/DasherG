@@ -109,7 +109,7 @@ func (t *terminalT) setup(fromHostChan <-chan []byte, update chan int, expectCha
 	t.displayHistory = createHistory()
 	t.rollEnabled = true
 	t.blinkEnabled = true
-	t.scrolledBack = false
+	// t.scrolledBack = false
 	t.clearScreen()
 	t.display.cells[12][39].charValue = 'O'
 	t.display.cells[12][40].charValue = 'K'
