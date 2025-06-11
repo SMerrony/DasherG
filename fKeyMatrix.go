@@ -28,7 +28,6 @@ import (
 	"strings"
 
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
@@ -37,7 +36,6 @@ import (
 
 var fnButs [15]*widget.Button
 var csFLabs, cFLabs, sFLabs, fLabs [15]*widget.Label
-var templLabs [2]*canvas.Text
 
 func fnButton(number int) *widget.Button {
 	str := strconv.Itoa(number + 1)
@@ -60,7 +58,7 @@ func smallLabelWithText(text string) *widget.Label {
 	return w
 }
 
-func buildLabelGrid(win fyne.Window) *fyne.Container {
+func buildLabelGrid() *fyne.Container {
 
 	// templLabs[0] = smallLabelWithText("")
 	// templLabs[1] = smallLabelWithText("")
@@ -130,7 +128,7 @@ func buildLabelGrid(win fyne.Window) *fyne.Container {
 	return grid
 }
 
-func buildFuncKeyRow(win fyne.Window) *fyne.Container {
+func buildFuncKeyRow() *fyne.Container {
 	grid := container.New(layout.NewGridLayout(17))
 	for col := 0; col <= 4; col++ {
 		grid.Add(fnButton(col))

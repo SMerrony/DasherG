@@ -236,9 +236,9 @@ func setupWindow(w fyne.Window) {
 
 func setContent(w fyne.Window) {
 	specialKeyGrid := buildSpecialKeyRow(w)
-	labelGrid = buildLabelGrid(w)
+	labelGrid = buildLabelGrid()
 	labelGrid.Hide()
-	fkGrid := buildFuncKeyRow(w) //buildFkeyMatrix(w)
+	fkGrid := buildFuncKeyRow()
 	specialThemeOverride = container.NewThemeOverride(specialKeyGrid, &buttonTheme{})
 	labelThemeOverride = container.NewThemeOverride(labelGrid, &fkeyLabelTheme{})
 	funcThemeOverride = container.NewThemeOverride(fkGrid, &fkeyTheme{})
