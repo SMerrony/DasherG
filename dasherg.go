@@ -53,7 +53,7 @@ const (
 	appTitle     = "DasherG"
 	appComment   = "A Data General DASHER terminal emulator"
 	appCopyright = "Copyright ©2017-2021,2025 S.Merrony"
-	appSemVer    = "v0.16.0" // TODO Update SemVer on each release!
+	appSemVer    = "v0.17.0" // TODO Update SemVer on each release!
 	appWebsite   = "https://github.com/SMerrony/DasherG"
 	helpURL      = "https://github.com/SMerrony/DasherG"
 
@@ -417,30 +417,32 @@ func buildStatusBox() (statBox *fyne.Container) {
 
 func updateStatusBox() {
 	terminal.rwMutex.RLock()
-	switch terminal.connectionType {
-	case disconnected:
-		onlineLabel2.SetText("Local (Offline)")
-		hostLabel2.SetText("")
-	case serialConnected:
-		onlineLabel2.SetText("Online (Serial)")
-		serParms := terminal.serialPort + " @ " + serialSession.getParms()
-		hostLabel2.SetText(serParms)
-	case telnetConnected:
-		onlineLabel2.SetText("Online (Telnet)")
-		hostLabel2.SetText(terminal.remoteHost + ":" + terminal.remotePort)
-	}
-	if terminal.logging {
-		loggingLabel2.SetText("Logging")
-	} else {
-		loggingLabel2.SetText("")
-	}
-	emuStat := "D" + strconv.Itoa(int(terminal.emulation)) + " (" +
-		strconv.Itoa(terminal.display.visibleLines) + "x" + strconv.Itoa(terminal.display.visibleCols) + ")"
-	if terminal.holding {
-		emuStat += " (Hold)"
-	}
-	terminal.rwMutex.RUnlock()
-	emuStatusLabel2.SetText(emuStat)
+	fyne.Do(func() {
+		switch terminal.connectionType {
+		case disconnected:
+			onlineLabel2.SetText("Local (Offline)")
+			hostLabel2.SetText("")
+		case serialConnected:
+			onlineLabel2.SetText("Online (Serial)")
+			serParms := terminal.serialPort + " @ " + serialSession.getParms()
+			hostLabel2.SetText(serParms)
+		case telnetConnected:
+			onlineLabel2.SetText("Online (Telnet)")
+			hostLabel2.SetText(terminal.remoteHost + ":" + terminal.remotePort)
+		}
+		if terminal.logging {
+			loggingLabel2.SetText("Logging")
+		} else {
+			loggingLabel2.SetText("")
+		}
+		emuStat := "D" + strconv.Itoa(int(terminal.emulation)) + " (" +
+			strconv.Itoa(terminal.display.visibleLines) + "x" + strconv.Itoa(terminal.display.visibleCols) + ")"
+		if terminal.holding {
+			emuStat += " (Hold)"
+		}
+		terminal.rwMutex.RUnlock()
+		emuStatusLabel2.SetText(emuStat)
+	})
 }
 
 func localPrint(win fyne.Window) {

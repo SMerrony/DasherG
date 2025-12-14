@@ -83,6 +83,7 @@ func buildCrt() (crtImage *crtMouseable) {
 func drawCrt() {
 	terminal.rwMutex.Lock()
 	if terminal.terminalUpdated {
+
 		// fmt.Println("DEBUG: drawCrt2 running update...")
 		var cIx int
 
@@ -151,7 +152,9 @@ func drawCrt() {
 		// 	}
 		// shadingDone:
 		terminal.terminalUpdated = false
-		w.Canvas().Refresh(crtImg)
+		fyne.Do(func() {
+			w.Canvas().Refresh(crtImg)
+		})
 	}
 	terminal.rwMutex.Unlock()
 }
