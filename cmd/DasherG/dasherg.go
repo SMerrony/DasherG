@@ -99,6 +99,8 @@ var (
 	white    = color.RGBA{0xff, 0xff, 0xff, 0xff}
 	dimWhite = color.RGBA{0x88, 0x88, 0x88, 0xff}
 
+	fontColour, fontDimColour color.RGBA
+
 	// widgets needing global access
 	onlineLabel2, hostLabel2, loggingLabel2, emuStatusLabel2                           *widget.Label
 	serialConnectItem, serialDisconnectItem, networkConnectItem, networkDisconnectItem *fyne.MenuItem
@@ -159,8 +161,8 @@ func main() {
 	a := app.New()
 	// a.Settings().SetTheme(&ourTheme{})
 
-	fontColour := green
-	fontDimColour := dimGreen
+	fontColour = green
+	fontDimColour = dimGreen
 	if *amberFlag {
 		fontColour = amber
 		fontDimColour = dimAmber
