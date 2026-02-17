@@ -1,6 +1,6 @@
 // crt.go - part of DasherG
 
-// Copyright ©2020  Steve Merrony
+// Copyright ©2020,2026 Steve Merrony
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -81,12 +81,11 @@ func buildCrt() (crtImage *crtMouseable) {
 }
 
 func drawCrt() {
-	terminal.rwMutex.Lock()
+	terminal.rwMutex.RLock()
 	if terminal.terminalUpdated {
-
-		// fmt.Println("DEBUG: drawCrt2 running update...")
 		var cIx int
-
+		terminal.rwMutex.RUnlock()
+		terminal.rwMutex.Lock()
 		for line := 0; line < terminal.display.visibleLines; line++ {
 			for col := 0; col < terminal.display.visibleCols; col++ {
 				if terminal.displayDirty[line][col] || (terminal.blinkEnabled && terminal.display.cells[line][col].blink) {
@@ -152,11 +151,13 @@ func drawCrt() {
 		// 	}
 		// shadingDone:
 		terminal.terminalUpdated = false
+		terminal.rwMutex.Unlock()
 		fyne.Do(func() {
 			w.Canvas().Refresh(crtImg)
 		})
+	} else {
+		terminal.rwMutex.RUnlock()
 	}
-	terminal.rwMutex.Unlock()
 }
 
 // func hLine(img *image.NRGBA, x1, y, x2 int) {
