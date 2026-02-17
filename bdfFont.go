@@ -35,7 +35,6 @@ import (
 
 const (
 	maxChars = 128
-	bpp      = 8
 	// width (pixels) of a char in the raw font
 	fontWidth = 10
 	// height (pixels) of a char in the raw font

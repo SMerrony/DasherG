@@ -1,4 +1,4 @@
-// Copyright ©2017-2021,2025 Steve Merrony
+// Copyright ©2017-2021,2025,2026 Steve Merrony
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -28,11 +28,10 @@ import (
 )
 
 const (
-	defaultLines, defaultCols       = 24, 80
-	maxVisibleLines, maxVisibleCols = 66, 135
-	totalLines, totalCols           = 96, 208
-	historyLines                    = 1000 // N.B. c.f. scrollback parameters
-	holdPauseMs                     = 500
+	defaultLines, defaultCols = 24, 80
+	// maxVisibleLines, maxVisibleCols = 66, 135
+	totalLines, totalCols = 96, 208
+	holdPauseMs           = 500
 )
 
 type emulType int
