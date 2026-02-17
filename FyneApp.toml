@@ -4,7 +4,7 @@ Website = "https://github.com/SMerrony/DasherG"
 Icon = "DGlogoOrange.png"
 Name = "DasherG"
 ID = "fr.merrony.dasherg"
-Version = "v0.17.0"
+Version = "0.17.0"
 Build = 1
 
 [LinuxAndBSD]

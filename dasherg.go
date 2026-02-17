@@ -52,8 +52,8 @@ import (
 const (
 	appTitle     = "DasherG"
 	appComment   = "A Data General DASHER terminal emulator"
-	appCopyright = "Copyright ©2017-2021,2025 S.Merrony"
-	appSemVer    = "v0.17.0" // TODO Update SemVer on each release!
+	appCopyright = "Copyright ©2017-2021,2025,2026 S.Merrony"
+	appSemVer    = "0.17.0" // TODO Update SemVer on each release!
 	appWebsite   = "https://github.com/SMerrony/DasherG"
 	helpURL      = "https://github.com/SMerrony/DasherG"
 
@@ -298,9 +298,8 @@ func buildMenu() (mainMenu *fyne.MainMenu) {
 		loadFKeyTemplate(w)
 	})
 	hideTemplateItem := fyne.NewMenuItem("Hide Func. Key Template", func() {
-		labelGrid.Hide()
-		topVbox.Refresh()
-		w.Resize(fyne.Size{Width: 100, Height: 100}) // TODO not working
+		labelThemeOverride.Hide()
+		w.Resize(fyne.Size{Width: 100, Height: 100})
 	})
 	viewMenu := fyne.NewMenu("View", historyItem, fyne.NewMenuItemSeparator(), loadTemplateItem, hideTemplateItem)
 
