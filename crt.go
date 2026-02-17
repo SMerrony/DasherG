@@ -83,6 +83,7 @@ func buildCrt() (crtImage *crtMouseable) {
 func drawCrt() {
 	terminal.rwMutex.RLock()
 	if terminal.terminalUpdated {
+
 		var cIx int
 		terminal.rwMutex.RUnlock()
 		terminal.rwMutex.Lock()

@@ -1,4 +1,4 @@
-// Copyright ©2017-2021,2025 Steve Merrony
+// Copyright ©2017-2021,2025,2026 Steve Merrony
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -87,9 +87,9 @@ func bdfLoad(fontData []byte, zoom string, bright, dim color.Color) {
 	charCount, _ := strconv.Atoi(charCountLine[6:])
 
 	for cc := 0; cc < charCount; cc++ {
-		tmpPlainImg := image.NewNRGBA(image.Rect(0, 0, fontWidth, fontHeight))
-		tmpDimImg := image.NewNRGBA(image.Rect(0, 0, fontWidth, fontHeight))
-		tmpRevImg := image.NewNRGBA(image.Rect(0, 0, fontWidth, fontHeight))
+		tmpPlainImg := image.NewNRGBA(image.Rect(0, 0, fontWidth, fontHeight+1))
+		tmpDimImg := image.NewNRGBA(image.Rect(0, 0, fontWidth, fontHeight+1))
+		tmpRevImg := image.NewNRGBA(image.Rect(0, 0, fontWidth, fontHeight+1))
 
 		for !strings.HasPrefix(scanner.Text(), "STARTCHAR") {
 			scanner.Scan()
@@ -121,32 +121,26 @@ func bdfLoad(fontData []byte, zoom string, bright, dim color.Color) {
 		draw.Draw(tmpPlainImg, tmpPlainImg.Bounds(), &image.Uniform{color.Black}, image.Point{}, draw.Src)
 		draw.Draw(tmpDimImg, tmpDimImg.Bounds(), &image.Uniform{color.Black}, image.Point{}, draw.Src)
 		draw.Draw(tmpRevImg, tmpRevImg.Bounds(), &image.Uniform{bright}, image.Point{}, draw.Src)
-		for bitMapLine := pixHeight; bitMapLine >= 0; bitMapLine-- {
-			// for bitMapLine := 0; bitMapLine < pixHeight; bitMapLine++ {
+		for bitMapLine := 0; bitMapLine < pixHeight; bitMapLine++ {
 			scanner.Scan()
 			lineStr := scanner.Text()
 			lineByte, _ := strconv.ParseUint(lineStr, 16, 16)
 			for i := 0; i < pixWidth; i++ {
-				pix := ((lineByte & 0x80) >> 7) == 1 // test the MSB
-				if pix {
-					// nChannels := tmpPixbuf.GetNChannels()
-					// rowStride := tmpPixbuf.GetRowstride()
-
-					tmpPlainImg.Set(xOffset+i, yOffset+bitMapLine, bright)
-
-					tmpDimImg.Set(xOffset+i, yOffset+bitMapLine, dim)
-
-					tmpRevImg.Set(xOffset+i, yOffset+bitMapLine, color.Black)
-
-					bdfFont[asciiCode].pixels[xOffset+i][yOffset+bitMapLine] = true
+				if (lineByte & 0x80) != 0 {
+					x := xOffset + i
+					y := bitMapLine + 12 - pixHeight - yOffset
+					tmpPlainImg.Set(x, y, bright)
+					tmpDimImg.Set(x, y, dim)
+					tmpRevImg.Set(x, y, color.Black)
+					bdfFont[asciiCode].pixels[x][y] = true
 				}
 				lineByte <<= 1
 			}
 		}
 
-		bdfFont[asciiCode].plainImg = imaging.Resize(imaging.FlipV(tmpPlainImg), charWidth, charHeight, imaging.Lanczos)
-		bdfFont[asciiCode].dimImg = imaging.Resize(imaging.FlipV(tmpDimImg), charWidth, charHeight, imaging.Lanczos)
-		bdfFont[asciiCode].revImg = imaging.Resize(imaging.FlipV(tmpRevImg), charWidth, charHeight, imaging.Lanczos)
+		bdfFont[asciiCode].plainImg = imaging.Resize(tmpPlainImg, charWidth, charHeight, imaging.Lanczos)
+		bdfFont[asciiCode].dimImg = imaging.Resize(tmpDimImg, charWidth, charHeight, imaging.Lanczos)
+		bdfFont[asciiCode].revImg = imaging.Resize(tmpRevImg, charWidth, charHeight, imaging.Lanczos)
 		bdfFont[asciiCode].loaded = true
 	}
 	fmt.Printf("INFO: bdfFont loaded %d DASHER characters\n", charCount)
