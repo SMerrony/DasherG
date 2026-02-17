@@ -1,4 +1,4 @@
-// Copyright ©2017-2021 Steve Merrony
+// Copyright ©2017-2021,2026 Steve Merrony
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -61,55 +61,55 @@ func keyEventHandler(kbdChan chan<- byte) {
 				kbdChan <- dasherHome
 
 			case fyne.KeyDelete: // the DEL key must map to 127 which is the DASHER DEL code
-				kbdChan <- modify(127)
+				kbdChan <- modify(dasherDelete)
 
 			case fyne.KeyF1:
 				kbdChan <- dasherCmd
-				kbdChan <- modify(113)
+				kbdChan <- modify(dasherF1)
 			case fyne.KeyF2:
 				kbdChan <- dasherCmd
-				kbdChan <- modify(114)
+				kbdChan <- modify(dasherF2)
 			case fyne.KeyF3:
 				kbdChan <- dasherCmd
-				kbdChan <- modify(115)
+				kbdChan <- modify(dasherF3)
 			case fyne.KeyF4:
 				kbdChan <- dasherCmd
-				kbdChan <- modify(116)
+				kbdChan <- modify(dasherF4)
 			case fyne.KeyF5:
 				kbdChan <- dasherCmd
-				kbdChan <- modify(117)
+				kbdChan <- modify(dasherF5)
 
 			case fyne.KeyF6:
 				kbdChan <- dasherCmd
-				kbdChan <- modify(118)
+				kbdChan <- modify(dasherF6)
 			case fyne.KeyF7:
 				kbdChan <- dasherCmd
-				kbdChan <- modify(119)
+				kbdChan <- modify(dasherF7)
 			case fyne.KeyF8:
 				kbdChan <- dasherCmd
-				kbdChan <- modify(120)
+				kbdChan <- modify(dasherF8)
 			case fyne.KeyF9:
 				kbdChan <- dasherCmd
-				kbdChan <- modify(121)
+				kbdChan <- modify(dasherF9)
 			case fyne.KeyF10:
 				kbdChan <- dasherCmd
-				kbdChan <- modify(122)
+				kbdChan <- modify(dasherF10)
 
 			case fyne.KeyF11:
 				kbdChan <- dasherCmd
-				kbdChan <- modify(123)
+				kbdChan <- modify(dasherF11)
 			case fyne.KeyF12:
 				kbdChan <- dasherCmd
-				kbdChan <- modify(124)
+				kbdChan <- modify(dasherF12)
 			case "F13":
 				kbdChan <- dasherCmd
-				kbdChan <- modify(125)
+				kbdChan <- modify(dasherF13)
 			case "F14":
 				kbdChan <- dasherCmd
-				kbdChan <- modify(126)
+				kbdChan <- modify(dasherF14)
 			case "F15":
 				kbdChan <- dasherCmd
-				kbdChan <- modify(112)
+				kbdChan <- modify(dasherF15)
 
 				// Cursor keys
 			case fyne.KeyDown:

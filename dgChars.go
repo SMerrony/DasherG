@@ -1,4 +1,4 @@
-// Copyright (C) 2017,2019,2025  Steve Merrony
+// Copyright (C) 2017,2019,2025,2026  Steve Merrony
 
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -20,13 +20,13 @@
 package main
 
 const (
-	dasherNul             = 0
-	dasherPrintForm       = 1
-	dasherRevVideoOff     = 2 // from D210 onwards
-	dasherBlinkEnable     = 3 // for the whole screen
-	dasherBlinkDisable    = 4 // for the whole screen
-	dasherReadWindowAdd   = 5 // requires response...
-	dasherAck             = 6 // sent to host to indicatelocal print is complete
+	dasherNul = 0
+	// dasherPrintForm       = 1
+	dasherRevVideoOff   = 2 // from D210 onwards
+	dasherBlinkEnable   = 3 // for the whole screen
+	dasherBlinkDisable  = 4 // for the whole screen
+	dasherReadWindowAdd = 5 // requires response...
+	// dasherAck             = 6 // sent to host to indicatelocal print is complete
 	dasherBell            = 7
 	dasherHome            = 8 // window home
 	dasherTab             = 9
@@ -37,24 +37,40 @@ const (
 	dasherBlinkOn         = 14
 	dasherBlinkOff        = 15
 	dasherWriteWindowAddr = 16 // followed by col then row
-	dasherPrintScreen     = 17
-	dasherRollEnable      = 18
-	dasherRollDisable     = 19
-	dasherUnderline       = 20
-	dasherNormal          = 21
-	dasherRevVideoOn      = 22 // from D210 onwards
-	dasherCursorUp        = 23
-	dasherCursorRight     = 24
-	dasherCursorLeft      = 25
-	dasherCursorDown      = 26
-	dasherDimOn           = 28
-	dasherDimOff          = 29
-	dasherCmd             = 30
+	// dasherPrintScreen     = 17
+	dasherRollEnable  = 18
+	dasherRollDisable = 19
+	dasherUnderline   = 20
+	dasherNormal      = 21
+	dasherRevVideoOn  = 22 // from D210 onwards
+	dasherCursorUp    = 23
+	dasherCursorRight = 24
+	dasherCursorLeft  = 25
+	dasherCursorDown  = 26
+	dasherDimOn       = 28
+	dasherDimOff      = 29
+	dasherCmd         = 30
 
 	dasherC1 = 92
 	dasherC2 = 93
 	dasherC3 = 94
 	dasherC4 = 95
+
+	dasherF15 = 112
+	dasherF1  = 113
+	dasherF2  = 114
+	dasherF3  = 115
+	dasherF4  = 116
+	dasherF5  = 117
+	dasherF6  = 118
+	dasherF7  = 119
+	dasherF8  = 120
+	dasherF9  = 121
+	dasherF10 = 122
+	dasherF11 = 123
+	dasherF12 = 124
+	dasherF13 = 125
+	dasherF14 = 126
 
 	dasherDelete = 0177 // = 127. or 0x7F
 )
