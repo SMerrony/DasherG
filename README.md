@@ -27,16 +27,17 @@ DasherG is [hosted on GitHub](https://github.com/SMerrony/DasherG).
 
 ## Build from Source
 ### Prerequisites
-You will need a working, recent (v1.22 or later) Go compiler.  The first time you build or install
+You will need a working, recent (v1.24 or later) Go compiler.  The first time you build or install
 DasherG it might pull in the toolkit dependencies - this will take a little while.  Subsequent
 builds should be very quick.
 
 ### Build
-```go build```
+```
+cd cmd/DasherG
+go build
+```
 
-or, if you prefer
-
-```go install```
+or, if you prefer ```go install```
 
 ## Running DasherG
 From the build or install directory simply type
