@@ -58,7 +58,7 @@ func smallLabelWithText(text string) *widget.Label {
 	return w
 }
 
-func buildLabelGrid() *fyne.Container {
+func buildEmptyLabelGrid() *fyne.Container {
 
 	// templLabs[0] = smallLabelWithText("")
 	// templLabs[1] = smallLabelWithText("")
@@ -145,6 +145,7 @@ func buildFuncKeyRow() *fyne.Container {
 }
 
 func loadFKeyTemplate(win fyne.Window) {
+	labelThemeOverride.Show()
 	fd := dialog.NewFileOpen(func(urirc fyne.URIReadCloser, e error) {
 		if urirc != nil {
 			file, err := os.Open(urirc.URI().Path())

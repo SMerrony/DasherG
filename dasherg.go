@@ -236,15 +236,14 @@ func setupWindow(w fyne.Window) {
 
 func setContent(w fyne.Window) {
 	specialKeyGrid := buildSpecialKeyRow(w)
-	labelGrid = buildLabelGrid()
-	labelGrid.Hide()
+	labelGrid = buildEmptyLabelGrid()
 	fkGrid := buildFuncKeyRow()
 	specialThemeOverride = container.NewThemeOverride(specialKeyGrid, &buttonTheme{})
 	labelThemeOverride = container.NewThemeOverride(labelGrid, &fkeyLabelTheme{})
 	funcThemeOverride = container.NewThemeOverride(fkGrid, &fkeyTheme{})
 	topVbox = container.NewVBox(specialThemeOverride, labelThemeOverride, funcThemeOverride)
+	labelThemeOverride.Hide()
 	statusBox := buildStatusBox()
-	// scrollSlider := buildScrollSlider()
 	content := container.NewBorder(
 		topVbox,
 		statusBox,
@@ -416,8 +415,8 @@ func buildStatusBox() (statBox *fyne.Container) {
 }
 
 func updateStatusBox() {
-	terminal.rwMutex.RLock()
 	fyne.Do(func() {
+		terminal.rwMutex.RLock()
 		switch terminal.connectionType {
 		case disconnected:
 			onlineLabel2.SetText("Local (Offline)")
