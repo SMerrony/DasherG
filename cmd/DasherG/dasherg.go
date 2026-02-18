@@ -46,7 +46,10 @@ import (
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
-	// _ "net/http/pprof" // debugging
+
+	// debugging...
+	"net/http"
+	_ "net/http/pprof"
 )
 
 const (
@@ -65,7 +68,7 @@ const (
 	blinkPeriodMs   = 500
 	// crtRefreshMs influences the responsiveness of the display. 50ms = 20Hz or 20fps
 	crtRefreshMs         = 50
-	statusUpdatePeriodMs = 500
+	statusUpdatePeriodMs = 1000
 	logLines             = 1000
 )
 
@@ -132,9 +135,12 @@ func main() {
 
 	// debugging...
 	// runtime.SetMutexProfileFraction(1)
-	// go func() {
-	// 	log.Println(http.ListenAndServe("localhost:6060", nil))
-	// }()
+	if os.Getenv("APP_ENV") == "development" {
+		log.Println("DEBUG: Enabling pprof for profiling")
+		go func() {
+			log.Println(http.ListenAndServe("localhost:6060", nil))
+		}()
+	}
 
 	if *cpuprofile != "" {
 		f, err := os.Create(*cpuprofile)
@@ -419,30 +425,41 @@ func buildStatusBox() (statBox *fyne.Container) {
 func updateStatusBox() {
 	fyne.Do(func() {
 		terminal.rwMutex.RLock()
-		switch terminal.connectionType {
-		case disconnected:
-			onlineLabel2.SetText("Local (Offline)")
-			hostLabel2.SetText("")
-		case serialConnected:
-			onlineLabel2.SetText("Online (Serial)")
-			serParms := terminal.serialPort + " @ " + serialSession.getParms()
-			hostLabel2.SetText(serParms)
-		case telnetConnected:
-			onlineLabel2.SetText("Online (Telnet)")
-			hostLabel2.SetText(terminal.remoteHost + ":" + terminal.remotePort)
+		if terminal.connectionType != terminal.connectionStatus {
+			terminal.connectionStatus = terminal.connectionType
+			switch terminal.connectionType {
+			case disconnected:
+				onlineLabel2.SetText("Local (Offline)")
+				hostLabel2.SetText("")
+			case serialConnected:
+				onlineLabel2.SetText("Online (Serial)")
+				serParms := terminal.serialPort + " @ " + serialSession.getParms()
+				hostLabel2.SetText(serParms)
+			case telnetConnected:
+				onlineLabel2.SetText("Online (Telnet)")
+				hostLabel2.SetText(terminal.remoteHost + ":" + terminal.remotePort)
+			}
 		}
-		if terminal.logging {
-			loggingLabel2.SetText("Logging")
-		} else {
-			loggingLabel2.SetText("")
+		if terminal.logging != terminal.loggingStatus {
+			terminal.loggingStatus = terminal.logging
+
+			if terminal.logging {
+				loggingLabel2.SetText("Logging")
+			} else {
+				loggingLabel2.SetText("")
+			}
 		}
-		emuStat := "D" + strconv.Itoa(int(terminal.emulation)) + " (" +
-			strconv.Itoa(terminal.display.visibleLines) + "x" + strconv.Itoa(terminal.display.visibleCols) + ")"
-		if terminal.holding {
-			emuStat += " (Hold)"
+		if terminal.emulation != terminal.emulationStatus || terminal.holding != terminal.holdingStatus {
+			terminal.emulationStatus = terminal.emulation
+			terminal.holdingStatus = terminal.holding
+			emuStat := "D" + strconv.Itoa(int(terminal.emulation)) + " (" +
+				strconv.Itoa(terminal.display.visibleLines) + "x" + strconv.Itoa(terminal.display.visibleCols) + ")"
+			if terminal.holding {
+				emuStat += " (Hold)"
+			}
+			emuStatusLabel2.SetText(emuStat)
 		}
 		terminal.rwMutex.RUnlock()
-		emuStatusLabel2.SetText(emuStat)
 	})
 }
 

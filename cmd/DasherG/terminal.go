@@ -85,6 +85,11 @@ type terminalT struct {
 	blinking, dimmed, reversedVideo, underscored, protectd bool
 	newXaddress, newYaddress                    int
 	inTelnetCommand, gotTelnetDo, gotTelnetWill bool
+
+	connectionStatus int
+	loggingStatus    bool
+	emulationStatus  emulType
+	holdingStatus    bool
 }
 
 func (t *terminalT) setup(fromHostChan <-chan []byte, update chan int, expectChan chan<- byte,
@@ -114,6 +119,7 @@ func (t *terminalT) setup(fromHostChan <-chan []byte, update chan int, expectCha
 	t.display.cells[12][40].charValue = 'K'
 	t.rwMutex.Unlock()
 	t.updateCrtChan <- updateCrtNormal
+	t.connectionStatus = -1 // force update of connection status in GUI
 }
 
 // updateListener is to be run as a Goroutine, it listens for update notifications and marks
