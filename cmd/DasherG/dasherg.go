@@ -229,6 +229,7 @@ func setupWindow(w fyne.Window) {
 	go func() {
 		for {
 			updateCrtChan <- updateCrtBlink
+			terminal.setAnyBlinkingChars()
 			time.Sleep(blinkPeriodMs * time.Millisecond)
 		}
 	}()

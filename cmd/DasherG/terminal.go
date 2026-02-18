@@ -59,7 +59,7 @@ type terminalT struct {
 	remoteHost, remotePort, serialPort string
 	cursorX, cursorY                   int
 	rollEnabled, blinkEnabled          bool
-	blinkState                         bool
+	anyBlinkingChars, blinkState       bool
 	holding, logging                   bool
 	fontColour                         color.RGBA
 	expecting                          bool
@@ -124,23 +124,35 @@ func (t *terminalT) updateListener() {
 		t.rwMutex.Lock()
 		if updateType == updateCrtBlink {
 			t.blinkState = !t.blinkState
-			anyBlinking := false
-		outer:
-			for line := 0; line < t.display.visibleLines; line++ {
-				for col := 0; col < t.display.visibleCols; col++ {
-					if t.display.cells[line][col].blink {
-						anyBlinking = true
-						break outer
-					}
-				}
-			}
-			if anyBlinking {
+			if t.anyBlinkingChars {
 				t.terminalUpdated = true
 			}
 		} else {
 			t.terminalUpdated = true
 		}
 		t.rwMutex.Unlock()
+	}
+}
+
+func (t *terminalT) setAnyBlinkingChars() {
+	any := false
+	t.rwMutex.RLock()
+outer:
+	for line := 0; line < t.display.visibleLines; line++ {
+		for col := 0; col < t.display.visibleCols; col++ {
+			if t.display.cells[line][col].blink {
+				any = true
+				break outer
+			}
+		}
+	}
+	if any != t.anyBlinkingChars {
+		t.rwMutex.RUnlock()
+		t.rwMutex.Lock()
+		t.anyBlinkingChars = any
+		t.rwMutex.Unlock()
+	} else {
+		t.rwMutex.RUnlock()
 	}
 }
 
