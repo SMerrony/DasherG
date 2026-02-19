@@ -3,3 +3,6 @@ DasherG.exe
 debug
 .vscode/*
 *.profile
+*.tar.xz
+*.tar.gz
+*.zip

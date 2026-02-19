@@ -5,7 +5,7 @@ Icon = "DGlogoOrange.png"
 Name = "DasherG"
 ID = "fr.merrony.dasherg"
 Version = "0.17.0"
-Build = 1
+Build = 2
 
 [LinuxAndBSD]
 GenericName = "Terminal Emulator"
