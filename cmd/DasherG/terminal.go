@@ -313,13 +313,11 @@ func (t *terminalT) run() {
 
 		t.rwMutex.RUnlock()
 
+		t.rwMutex.Lock()
 		for _, ch = range hostData {
-
-			t.rwMutex.Lock()
 
 			if t.rawMode {
 				t.rawChan <- ch
-				t.rwMutex.Unlock()
 				continue
 			}
 
@@ -332,7 +330,6 @@ func (t *terminalT) run() {
 				} else {
 					t.inTelnetCommand = true
 					skipChar = true
-					t.rwMutex.Unlock()
 					continue
 				}
 			}
@@ -351,7 +348,6 @@ func (t *terminalT) run() {
 				}
 			}
 			if skipChar {
-				t.rwMutex.Unlock()
 				continue
 			}
 
@@ -375,7 +371,6 @@ func (t *terminalT) run() {
 				skipChar = true
 			}
 			if skipChar {
-				t.rwMutex.Unlock()
 				continue
 			}
 
@@ -391,7 +386,6 @@ func (t *terminalT) run() {
 				t.readingWindowAddressX = false
 				t.readingWindowAddressY = true
 				skipChar = true
-				t.rwMutex.Unlock()
 				continue
 			}
 
@@ -412,7 +406,6 @@ func (t *terminalT) run() {
 				}
 				t.readingWindowAddressY = false
 				skipChar = true
-				t.rwMutex.Unlock()
 				continue
 			}
 
@@ -443,7 +436,6 @@ func (t *terminalT) run() {
 				}
 
 				t.inCommand = false
-				t.rwMutex.Unlock()
 				continue
 			}
 
@@ -460,7 +452,6 @@ func (t *terminalT) run() {
 				}
 			}
 			if skipChar {
-				t.rwMutex.Unlock()
 				continue
 			}
 
@@ -588,7 +579,6 @@ func (t *terminalT) run() {
 			}
 
 			if skipChar {
-				t.rwMutex.Unlock()
 				continue
 			}
 
@@ -616,7 +606,6 @@ func (t *terminalT) run() {
 				if t.expecting {
 					t.expectChan <- ch
 				}
-				t.rwMutex.Unlock()
 				continue
 			}
 
@@ -632,8 +621,8 @@ func (t *terminalT) run() {
 			if t.expecting {
 				t.expectChan <- ch
 			}
-			t.rwMutex.Unlock()
-		}
+		} // end for range hostData
+		t.rwMutex.Unlock()
 		t.updateCrtChan <- updateCrtNormal
 	}
 }
