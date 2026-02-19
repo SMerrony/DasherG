@@ -484,15 +484,15 @@ func localPrint(win fyne.Window) {
 								switch {
 								case terminal.display.cells[line][col].dim:
 									if bdfFont[terminal.display.cells[line][col].charValue].pixels[x][y] {
-										img.Set(col*fontWidth+x, (line+1)*fontHeight-y, grey)
+										img.Set(col*fontWidth+x, (line)*fontHeight+y, grey)
 									}
 								case terminal.display.cells[line][col].reverse:
 									if !bdfFont[terminal.display.cells[line][col].charValue].pixels[x][y] {
-										img.Set(col*fontWidth+x, (line+1)*fontHeight-y, blk)
+										img.Set(col*fontWidth+x, (line)*fontHeight+y, blk)
 									}
 								default:
 									if bdfFont[terminal.display.cells[line][col].charValue].pixels[x][y] {
-										img.Set(col*fontWidth+x, (line+1)*fontHeight-y, blk)
+										img.Set(col*fontWidth+x, (line)*fontHeight+y, blk)
 									}
 								}
 							}
